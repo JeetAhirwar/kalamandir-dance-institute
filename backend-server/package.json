@@ -9,6 +9,9 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "seed": "node scripts/seed.js",
+    "seed:keep": "node scripts/seed.js --keep",
+    "db:check": "node scripts/check-db.js",
+    "db:verify-logins": "node scripts/verify-logins.js",
     "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {

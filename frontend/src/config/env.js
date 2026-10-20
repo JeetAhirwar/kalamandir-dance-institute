@@ -2,7 +2,7 @@
  * Centralised, typed access to public runtime configuration.
  * Values are baked in at build time by Vite (all VITE_* variables are PUBLIC).
  */
-const rawApiUrl = import.meta.env.VITE_API_URL || 'https://gym-management-software-api.vercel.app/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'https://kalamandir-dance-institute.vercel.app/api';
 const rawDemo = import.meta.env.VITE_DEMO_MODE || 'false';
 const rawTimezone = import.meta.env.VITE_GYM_TIMEZONE || 'Asia/Kolkata';
 const rawGymName = import.meta.env.VITE_GYM_NAME || 'Kalamandir Dance Institute';
