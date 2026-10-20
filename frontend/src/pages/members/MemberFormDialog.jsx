@@ -15,7 +15,7 @@ import { PhotoPicker } from "@/components/shared/PhotoPicker";
 import { useData } from "@/auth/AuthProvider";
 import { useAsync, useSubmitGuard } from "@/hooks";
 import { toDateOnly } from "@/lib/datetime";
-import { durationLabel, PAYMENT_METHOD_LABELS, timeSlotLabel } from "@/lib/format";
+import { durationLabel, formatINR, PAYMENT_METHOD_LABELS, timeSlotLabel } from "@/lib/format";
 import { memberFormSchema } from "@/lib/validation";
 const GENDER_OPTIONS = [
     { value: "male", label: "Male" },
@@ -119,6 +119,12 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
         const active = plans.filter((plan) => plan.isActive);
         return active.length > 0 ? active : plans;
     }, [plans]);
+    /** Currently picked plan — powers the "total" read-out under the picker. */
+    const watchedPlanId = watch("planId");
+    const selectedPlan = useMemo(
+        () => planChoices.find((plan) => plan.id === watchedPlanId) ?? null,
+        [planChoices, watchedPlanId],
+    );
     const data = useData();
     /** Gym slot schedule — drives the preferred-slot picker (hidden when empty). */
     const gym = useAsync(() => data.getGymFresh(), [data]);
@@ -233,7 +239,7 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="member-email">Email <span className="text-xs text-muted-foreground">(optional — students can sign in with their Student ID)</span></Label>
+              <Label htmlFor="member-email">Email</Label>
               <Input id="member-email" type="email" placeholder="student@kalamandir.com" {...register("email")}/>
               {errors.email ? <p className="text-xs text-destructive">{errors.email.message}</p> : null}
             </div>
@@ -275,16 +281,6 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
               <Label htmlFor="member-join">Join date</Label>
               <Input id="member-join" type="date" {...register("joinDate")}/>
               {errors.joinDate ? (<p className="text-xs text-destructive">{errors.joinDate.message}</p>) : null}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="member-planned-hours">Planned hours per day</Label>
-              <Input id="member-planned-hours" type="number" min={0.5} max={24} step="0.5" placeholder="e.g. 4"
-                {...register("plannedHoursPerDay", { valueAsNumber: true })}/>
-              <p className="text-[11px] text-muted-foreground">
-                Optional — the daily time commitment agreed at joining. When A student crosses it, overtime reminders appear on View Attendance.
-              </p>
-              {errors.plannedHoursPerDay ? (<p className="text-xs text-destructive">{errors.plannedHoursPerDay.message}</p>) : null}
             </div>
 
             {/* Preferred slot — the batch the student chose at joining (gym slots from Manage Institute). */}
@@ -389,6 +385,18 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                             </SelectItem>))}
                         </SelectContent>
                       </Select>)}/>
+                  {selectedPlan ? (<div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border/60 bg-secondary/40 px-3 py-2 text-xs">
+                      <span className="flex items-baseline gap-1.5">
+                        <span className="text-muted-foreground">Total</span>
+                        <span className="text-sm font-semibold text-foreground">{formatINR(selectedPlan.price)}</span>
+                      </span>
+                      <span className="text-muted-foreground">
+                        {durationLabel(selectedPlan.durationValue, selectedPlan.durationUnit)}
+                      </span>
+                      {selectedPlan.classQuota ? (<span className="text-muted-foreground">
+                          {selectedPlan.classQuota} classes
+                        </span>) : null}
+                    </div>) : null}
                   {errors.planId ? <p className="text-xs text-destructive">{errors.planId.message}</p> : null}
                 </div>
 
@@ -439,7 +447,7 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                 <p className="text-sm font-medium sm:col-span-2">Student portal login</p>
 
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="member-login-password">Portal password (optional)</Label>
+                  <Label htmlFor="member-login-password">Portal password</Label>
                   <Input id="member-login-password" placeholder="Default: test@123" autoComplete="new-password" {...register("loginPassword")}/>
                   <p className="text-xs text-muted-foreground">
                     the student signs in with their email + this password.

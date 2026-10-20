@@ -1,6 +1,7 @@
 ﻿import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { Types } from "mongoose";
 import User from "../models/User.js";
 import Member from "../models/Member.js";
 import MemberMembership from "../models/MemberMembership.js";
@@ -11,6 +12,8 @@ import AppNotification from "../models/AppNotification.js";
 import PaymentRecord from "../models/PaymentRecord.js";
 import ClassEnrollment from "../models/ClassEnrollment.js";
 import GymClass from "../models/GymClass.js";
+import ClassSlot from "../models/ClassSlot.js";
+import SlotEnrollment from "../models/SlotEnrollment.js";
 import StaffProfile from "../models/StaffProfile.js";
 import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler, forbidden, notFound } from "../lib/errors.js";
@@ -22,9 +25,11 @@ import {
   toPayment,
   toClass,
   toEnrollment,
+  toSlotEnrollment,
 } from "../lib/serialize.js";
 import { currentMembership, membershipBalance } from "../lib/membership.js";
 import { loadGymContext } from "../services/context.js";
+import { ymdInTz, timeZoneOffsetMs } from "../lib/dates.js";
 import { quotaForMembership, syncQuotaNotifications } from "../services/quota.js";
 import { writeAudit } from "../lib/audit.js";
 
@@ -180,6 +185,9 @@ router.get(
   "/classes",
   asyncHandler(async (req, res) => {
     const member = await loadSelf(req);
+    const ctx = await loadGymContext(req.user.gymId);
+    const tz = ctx.tz ?? "Asia/Kolkata";
+
     const enrollments = await ClassEnrollment.find({
       gymId: req.user.gymId,
       memberId: member._id,
@@ -188,31 +196,142 @@ router.get(
 
     const classes = await GymClass.find({ _id: { $in: enrollments.map((e) => e.classId) } }).lean();
     const classById = new Map(classes.map((c) => [String(c._id), c]));
-    const trainerIds = [...new Set(classes.map((c) => c.trainerId).filter(Boolean).map(String))];
+
+    /* ---------------- recurring slots (the institute's core schedule) ------------- */
+    const slotEnrollments = await SlotEnrollment.find({
+      gymId: req.user.gymId,
+      memberId: member._id,
+      status: "enrolled",
+    }).lean();
+    const slots = slotEnrollments.length
+      ? await ClassSlot.find({ _id: { $in: slotEnrollments.map((e) => e.slotId) }, isActive: true }).lean()
+      : [];
+    const slotById = new Map(slots.map((s) => [String(s._id), s]));
+
+    // Roster size per slot — so the ticket's "x/y booked" bar reads correctly.
+    // NB: aggregate() does not auto-cast strings to ObjectId (find() does), so
+    // both ids are cast explicitly here.
+    const rosterCounts = slots.length
+      ? await SlotEnrollment.aggregate([
+          {
+            $match: {
+              gymId: new Types.ObjectId(String(req.user.gymId)),
+              slotId: { $in: slots.map((s) => s._id) },
+              status: "enrolled",
+            },
+          },
+          { $group: { _id: "$slotId", count: { $sum: 1 } } },
+        ])
+      : [];
+    const rosterBySlot = new Map(rosterCounts.map((c) => [String(c._id), c.count]));
+
+    const instructorIds = [...new Set(slots.map((s) => s.instructorId).filter(Boolean).map(String))];
+    const trainerIds = [
+      ...new Set(classes.map((c) => c.trainerId).filter(Boolean).map(String)),
+      ...instructorIds,
+    ];
     const trainers = trainerIds.length
       ? await StaffProfile.find({ _id: { $in: trainerIds } }).lean()
       : [];
     const trainerById = new Map(trainers.map((t) => [String(t._id), t]));
 
+    const oneOff = enrollments
+      .map((enrollment) => {
+        const cls = classById.get(String(enrollment.classId));
+        if (!cls) return null;
+        return {
+          enrollment: toEnrollment(enrollment, member),
+          class: toClass(
+            cls,
+            cls.trainerId ? trainerById.get(String(cls.trainerId)) : null,
+            null,
+          ),
+        };
+      })
+      .filter(Boolean);
+
+    const recurring = slotEnrollments
+      .map((enrollment) => {
+        const slot = slotById.get(String(enrollment.slotId));
+        if (!slot) return null;
+        const next = nextOccurrence(slot, tz);
+        const instructor = slot.instructorId
+          ? trainerById.get(String(slot.instructorId))
+          : null;
+        return {
+          enrollment: {
+            ...toSlotEnrollment(enrollment, member),
+            // Reused by the portal badge — mirrors ClassEnrollment's statuses.
+            status: "enrolled",
+          },
+          class: {
+            id: slot._id.toString(),
+            gymId: String(slot.gymId),
+            name: slot.name,
+            description: slot.description ?? null,
+            trainerId: slot.instructorId ? String(slot.instructorId) : null,
+            // Next run of this recurring batch, so it sorts/filters as upcoming.
+            startsAt: next ? next.toISOString() : null,
+            durationMinutes: slotDurationMinutes(slot),
+            capacity: slot.capacity ?? null,
+            status: "scheduled",
+            kind: "recurring",
+            weekdays: slot.weekdays ?? [],
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            createdAt: slot.createdAt?.toISOString?.() ?? null,
+            updatedAt: slot.updatedAt?.toISOString?.() ?? null,
+            trainerName: instructor?.fullName ?? null,
+            enrolledCount: rosterBySlot.get(String(slot._id)) ?? 0,
+          },
+        };
+      })
+      .filter(Boolean);
+
     res.json(
-      enrollments
-        .map((enrollment) => {
-          const cls = classById.get(String(enrollment.classId));
-          if (!cls) return null;
-          return {
-            enrollment: toEnrollment(enrollment, member),
-            class: toClass(
-              cls,
-              cls.trainerId ? trainerById.get(String(cls.trainerId)) : null,
-              null,
-            ),
-          };
-        })
-        .filter(Boolean)
-        .sort((a, b) => new Date(a.class.startsAt) - new Date(b.class.startsAt)),
+      [...oneOff, ...recurring].sort(
+        (a, b) => new Date(a.class.startsAt ?? 0) - new Date(b.class.startsAt ?? 0),
+      ),
     );
   }),
 );
+
+/** Minutes from startTime to endTime (handles an end past midnight). */
+function slotDurationMinutes(slot) {
+  const parse = (v) => {
+    const [h, m] = String(v ?? "").split(":").map(Number);
+    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : 0;
+  };
+  const start = parse(slot.startTime);
+  let end = parse(slot.endTime);
+  if (end <= start) end += 24 * 60;
+  return end - start;
+}
+
+/**
+ * The next time this recurring slot actually runs — today if it is still to
+ * come, otherwise the next matching weekday. Returns null if it never runs
+ * again (no weekdays).
+ */
+function nextOccurrence(slot, tz) {
+  const weekdays = (slot.weekdays ?? []).map(Number);
+  if (weekdays.length === 0) return null;
+  const [sh, sm] = String(slot.startTime ?? "00:00").split(":").map(Number);
+  const now = new Date();
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const probe = new Date(now.getTime() + offset * 86_400_000);
+    const ymd = ymdInTz(probe, tz);
+    // Weekday of that calendar day (read off the UTC date-only value).
+    const weekday = new Date(`${ymd}T00:00:00Z`).getUTCDay();
+    if (!weekdays.includes(weekday)) continue;
+    // Instant of `ymd` at HH:mm in the gym timezone.
+    const naive = Date.parse(`${ymd}T${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}:00.000Z`);
+    const instant = new Date(naive - timeZoneOffsetMs(new Date(naive), tz));
+    if (instant.getTime() > now.getTime()) return instant;
+  }
+  // Fall back to the first matching day within the next 7 days.
+  return null;
+}
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),

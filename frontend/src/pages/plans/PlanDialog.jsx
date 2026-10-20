@@ -32,6 +32,8 @@ export function PlanDialog({ plan, open, onOpenChange, onSaved, }) {
         price: plan?.price ?? 0,
         durationValue: plan?.durationValue ?? 1,
         durationUnit: plan?.durationUnit ?? "month",
+        classQuota: plan?.classQuota ?? null,
+        scheduleLabel: plan?.scheduleLabel ?? "",
         benefits: (plan?.benefits ?? []).join("\n"),
         isActive: plan?.isActive ?? true,
     };
@@ -42,6 +44,7 @@ export function PlanDialog({ plan, open, onOpenChange, onSaved, }) {
     const durationValue = numericValue(watch("durationValue"), 1);
     const durationUnit = watch("durationUnit");
     const isActive = watch("isActive");
+    const classQuotaValue = watch("classQuota");
     const onSubmit = handleSubmit((values) => {
         const payload = {
             name: values.name,
@@ -49,6 +52,10 @@ export function PlanDialog({ plan, open, onOpenChange, onSaved, }) {
             price: values.price,
             durationValue: values.durationValue,
             durationUnit: values.durationUnit,
+            // Blank quota = null → duration-only plan (legacy behaviour preserved).
+            classQuota: values.classQuota == null || values.classQuota === "" ? null : values.classQuota,
+            // Blank schedule = null → the card derives it from duration.
+            scheduleLabel: values.scheduleLabel?.trim() ? values.scheduleLabel.trim() : null,
             benefits: values.benefits
                 ? values.benefits
                     .split("\n")
@@ -127,6 +134,31 @@ export function PlanDialog({ plan, open, onOpenChange, onSaved, }) {
               </p>
               <FieldError message={errors.durationValue?.message ?? errors.durationUnit?.message}/>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="plan-class-quota">Monthly class quota</Label>
+            <Input id="plan-class-quota" type="number" inputMode="numeric" min={0} step={1} placeholder="e.g. 12" aria-invalid={errors.classQuota ? true : undefined} {...register("classQuota", { setValueAs: (value) => {
+                // Blank field → null (duration-only plan). numericValue would
+                // otherwise coerce "" to 0, which means "no classes allowed".
+                if (value === "" || value == null)
+                    return null;
+                const parsed = numericValue(value);
+                return Number.isFinite(parsed) ? parsed : null;
+            } })}/>
+            <p className="text-xs text-muted-foreground">
+              {classQuotaValue == null || classQuotaValue === ""
+                ? "Leave blank for a duration-only plan with no fixed monthly limit."
+                : `Students get ${classQuotaValue} classes each month on this plan.`}
+            </p>
+            <FieldError message={errors.classQuota?.message}/>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="plan-schedule">Weekly schedule</Label>
+            <Input id="plan-schedule" placeholder="e.g. Monday – Friday" aria-invalid={errors.scheduleLabel ? true : undefined} {...register("scheduleLabel")}/>
+            <p className="text-xs text-muted-foreground">Shown next to the calendar icon on the card — leave blank to derive it from the duration.</p>
+            <FieldError message={errors.scheduleLabel?.message}/>
           </div>
 
           <div className="space-y-1.5">

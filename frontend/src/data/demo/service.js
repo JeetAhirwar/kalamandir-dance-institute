@@ -588,6 +588,8 @@ export class DemoDataService {
             price: input.price,
             durationValue: input.durationValue,
             durationUnit: input.durationUnit,
+            classQuota: quotaForPlan(input),
+            scheduleLabel: input.scheduleLabel?.trim() ? input.scheduleLabel.trim() : null,
             benefits: input.benefits ?? [],
             isActive: input.isActive ?? true,
             sortOrder: this.db.plans.length,
@@ -608,6 +610,10 @@ export class DemoDataService {
             price: input.price ?? plan.price,
             durationValue: input.durationValue ?? plan.durationValue,
             durationUnit: input.durationUnit ?? plan.durationUnit,
+            classQuota: input.classQuota !== undefined ? quotaForPlan(input) : plan.classQuota,
+            scheduleLabel: input.scheduleLabel !== undefined
+                ? (input.scheduleLabel?.trim() ? input.scheduleLabel.trim() : null)
+                : plan.scheduleLabel,
             benefits: input.benefits ?? plan.benefits,
             isActive: input.isActive ?? plan.isActive,
             sortOrder: input.sortOrder ?? plan.sortOrder,

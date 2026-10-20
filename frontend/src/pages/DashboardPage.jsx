@@ -148,7 +148,7 @@ export function DashboardPage() {
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight">Two steps to a live studio</h2>
                 <ol className="mt-5 space-y-4">
                   {[
-                ["Create membership plans", "Set prices and durations in ₹ — Monthly, Quarterly, Annual.", "/plans?new=1"],
+                ["Create membership plans", "Set fees, weekly schedule and quotas — 3, 5 and 6 days a week.", "/plans?new=1"],
                 ["Add your first student", "Their QR membership card is generated automatically.", "/members?new=1"],
             ].map(([title, description, to], index) => (<li key={title} className="flex gap-4">
                       <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-paper-foreground text-xs font-bold text-paper">

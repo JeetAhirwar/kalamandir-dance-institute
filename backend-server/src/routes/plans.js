@@ -19,6 +19,8 @@ const createPlanSchema = z.object({
   durationUnit: z.enum(["day", "week", "month", "year"]),
   /** Optional monthly dance-class quota (12/20/24 …). null/omitted = duration-only. */
   classQuota: z.number().int().min(0).nullish(),
+  /** Optional weekly schedule line (e.g. "Monday – Friday"). null/omitted = derive from duration. */
+  scheduleLabel: z.string().trim().max(60).nullish(),
   benefits: z.array(z.string()).optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
@@ -27,7 +29,7 @@ const createPlanSchema = z.object({
 const updatePlanSchema = createPlanSchema.partial();
 const setActiveSchema = z.object({ isActive: z.boolean() });
 
-const PLAN_KEYS = ["name", "description", "price", "durationValue", "durationUnit", "classQuota", "benefits", "isActive", "sortOrder"];
+const PLAN_KEYS = ["name", "description", "price", "durationValue", "durationUnit", "classQuota", "scheduleLabel", "benefits", "isActive", "sortOrder"];
 
 async function findPlanOr404(gymId, id) {
   if (!Types.ObjectId.isValid(String(id))) throw notFound("Membership plan not found");
@@ -77,6 +79,7 @@ router.post(
         durationValue: input.durationValue,
         durationUnit: input.durationUnit,
         classQuota: input.classQuota ?? null,
+        scheduleLabel: input.scheduleLabel ?? null,
         benefits: input.benefits ?? [],
         isActive: input.isActive ?? true,
         sortOrder: input.sortOrder ?? 0,

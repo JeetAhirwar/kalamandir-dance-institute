@@ -111,6 +111,16 @@ export const planFormSchema = z.object({
         .min(1, "Duration must be at least 1")
         .max(120, "Duration looks too large"),
     durationUnit: z.enum(["day", "week", "month", "year"]),
+    /** Optional monthly class quota (12 / 20 / 24 …). Blank = duration-only plan. */
+    classQuota: z
+        .number({ invalid_type_error: "Enter a class quota" })
+        .int("Class quota must be a whole number")
+        .min(0, "Class quota cannot be negative")
+        .max(500, "Class quota looks too large")
+        .nullable()
+        .optional(),
+    /** Optional weekly schedule line shown on the card (e.g. "Monday – Friday"). */
+    scheduleLabel: z.string().trim().max(60).optional().or(z.literal("")),
     benefits: z.string().optional(),
     isActive: z.boolean(),
 });

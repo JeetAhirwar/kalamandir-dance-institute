@@ -120,11 +120,9 @@ const STAFF = [
 ];
 
 const PLANS = [
-    { name: "Trial Week", description: "One week, all open batches — try the studio.", price: 500, durationValue: 7, durationUnit: "day", classQuota: 3, benefits: ["3 open classes", "Floor tour", "No lock-in"], sortOrder: 0 },
-    { name: "Monthly", description: "One month, flexible with no lock-in.", price: 1800, durationValue: 1, durationUnit: "month", classQuota: 12, benefits: ["All open batches", "Locker included", "1 body composition scan"], sortOrder: 1 },
-    { name: "Quarterly", description: "Three months of regular training.", price: 4800, durationValue: 3, durationUnit: "month", classQuota: 36, benefits: ["All open batches", "2 classes / week", "Locker included", "2 body composition scans"], sortOrder: 2 },
-    { name: "Half-Yearly", description: "Six months plus a nutrition consult.", price: 8400, durationValue: 6, durationUnit: "month", classQuota: 72, benefits: ["Unlimited classes", "1 nutrition consult", "Guest pass × 2", "Locker included"], sortOrder: 3 },
-    { name: "Annual", description: "Best value — twelve months, priority booking.", price: 15000, durationValue: 12, durationUnit: "year", classQuota: null, benefits: ["Unlimited classes", "Priority class booking", "Quarterly assessments", "Guest pass × 4", "Merchandise kit"], sortOrder: 4 },
+    { name: "3 Days a Week", description: "A balanced start for your dance journey.", price: 1500, durationValue: 1, durationUnit: "month", classQuota: 12, scheduleLabel: "3 days per week", benefits: ["3 fixed studio days each week", "12 classes every month", "Open practice floor access"], sortOrder: 0 },
+    { name: "5 Days a Week", description: "More practice. Better progress.", price: 2000, durationValue: 1, durationUnit: "month", classQuota: 20, scheduleLabel: "Monday – Friday", benefits: ["Monday to Friday classes", "20 classes every month", "Priority batch seating"], sortOrder: 1 },
+    { name: "6 Days a Week", description: "Build skills. Express more.", price: 2300, durationValue: 1, durationUnit: "month", classQuota: 24, scheduleLabel: "Monday – Saturday", benefits: ["Monday to Saturday classes", "24 classes every month", "Showcase & performance prep"], sortOrder: 2 },
 ];
 
 const TAGS = [
@@ -356,7 +354,7 @@ for (let i = 0; i < STUDENT_COUNT; i += 1) {
     /* --- membership history: a chain of terms from joinDate to now --- */
     // Active members keep renewing until their current term reaches past
     // today (so most read as "active"); churned/lapsed ones stop early.
-    let planIndex = 1 + (chance(0.35) ? pickInt(0, 1) : 0); // skew Monthly/Quarterly
+    let planIndex = 1 + (chance(0.35) ? pickInt(0, 1) : 0); // skew 5/6-day plans; drifts up
     let cursor = joinDate;
     const terms = [];
     let stillRunning = !churned;

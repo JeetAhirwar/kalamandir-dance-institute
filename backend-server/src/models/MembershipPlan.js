@@ -18,6 +18,8 @@ const MembershipPlanSchema = new Schema(
      * never change an already-sold allowance.
      */
     classQuota: { type: Number, default: null, min: 0 },
+    /** Optional weekly schedule shown on the plan card (e.g. "Monday – Friday"). */
+    scheduleLabel: { type: String, default: null, trim: true },
     benefits: { type: [String], default: [] },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },

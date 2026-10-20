@@ -156,6 +156,8 @@ export function toPlan(doc) {
     durationUnit: doc.durationUnit,
     /** Monthly dance-class quota baked into the plan; null = duration-only. */
     classQuota: doc.classQuota ?? null,
+    /** Weekly schedule line for the card; null = derive from duration. */
+    scheduleLabel: doc.scheduleLabel ?? null,
     benefits: doc.benefits ?? [],
     isActive: Boolean(doc.isActive),
     sortOrder: doc.sortOrder ?? 0,
