@@ -26,7 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useData } from "@/auth/AuthProvider";
 import { useAsync } from "@/hooks";
 import { downloadCsv, toCsv } from "@/lib/csv";
-import { formatDateTime, formatTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Status → label, dot colour, chip classes (Present / Late / Absent). */
@@ -81,6 +81,43 @@ function SectionHeading({ icon, title, description }) {
 
 const ymdOf = (d) => format(d, "yyyy-MM-dd");
 
+/** "HH:mm" → minutes since midnight (NaN on junk). */
+const toMin = (hhmm) => {
+    const [h, m] = String(hhmm ?? "").split(":").map(Number);
+    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : NaN;
+};
+
+/** Format a plain "HH:mm" studio time as "h:mm am/pm" (formatTime wants a Date). */
+function fmtSlotTime(hhmm) {
+    const m = toMin(hhmm);
+    if (!Number.isFinite(m)) return "";
+    const h24 = Math.floor(m / 60);
+    const mins = String(m % 60).padStart(2, "0");
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}:${mins} ${h24 < 12 ? "am" : "pm"}`;
+}
+
+/**
+ * Pick the slot to preselect for marking: the one running RIGHT NOW,
+ * else the next one to start later today, else the first active slot.
+ * Returns null when there are no active slots.
+ */
+function pickLiveSlot(activeSlots, now = new Date()) {
+    if (!activeSlots.length) return null;
+    const weekday = now.getDay();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const today = activeSlots.filter((s) => Array.isArray(s.weekdays) && s.weekdays.includes(weekday));
+    // Currently running: start <= now < end.
+    const running = today.find((s) => toMin(s.startTime) <= nowMin && nowMin < toMin(s.endTime));
+    if (running) return running;
+    // Next to start today (after now).
+    const upcoming = today
+        .filter((s) => toMin(s.startTime) > nowMin)
+        .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+    if (upcoming.length) return upcoming[0];
+    return activeSlots[0];
+}
+
 export function AttendancePage() {
     const data = useData();
 
@@ -99,9 +136,16 @@ export function AttendancePage() {
     const [savingId, setSavingId] = useState(null);
     const [markAllChecked, setMarkAllChecked] = useState(false);
 
-    // Default to the first active slot once slots load.
+    // Auto-select the live (or next) slot and preload its roster, so the
+    // Mark Attendance panel opens on whichever class is running right now.
     useEffect(() => {
-        if (!slotId && activeSlots.length > 0) setSlotId(activeSlots[0].id);
+        if (slotId || activeSlots.length === 0) return;
+        const pick = pickLiveSlot(activeSlots);
+        if (!pick) return;
+        setSlotId(pick.id);
+        setLoadedQuery({ slotId: pick.id, date: markDate });
+        // Only on first load — don't re-trigger when markDate changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeSlots, slotId]);
 
     const roster = useAsync(
@@ -247,7 +291,7 @@ export function AttendancePage() {
                 <SelectTrigger className="w-full"><SelectValue placeholder={slots.loading ? "Loading slots…" : "Select class slot"}/></SelectTrigger>
                 <SelectContent>
                   {activeSlots.map((s) => (<SelectItem key={s.id} value={s.id}>
-                      {s.name} · {formatTime(s.startTime)}
+                      {s.name} · {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
                     </SelectItem>))}
                 </SelectContent>
               </Select>
