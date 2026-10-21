@@ -50,8 +50,6 @@ function emptyValues() {
         plannedHoursPerDay: Number.NaN,
         // "" = no preferred slot (zod → null before hitting the API).
         preferredSlot: "",
-        // Selected tag ids (student labels).
-        tagIds: [],
     };
 }
 function trimOrNull(value) {
@@ -95,7 +93,6 @@ function toIdentityInput(values) {
             ? values.plannedHoursPerDay
             : null,
         preferredSlot: trimOrNull(values.preferredSlot),
-        tagIds: Array.isArray(values.tagIds) ? values.tagIds : [],
         emergencyContactPhone: values.emergencyContactPhone ? values.emergencyContactPhone : null,
         joinDate: values.joinDate,
         notes: trimOrNull(values.notes),
@@ -151,46 +148,12 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
     /** Gym slot schedule — drives the preferred-slot picker (hidden when empty). */
     const gym = useAsync(() => data.getGymFresh(), [data]);
     const slots = useMemo(() => (gym.data?.timeSlots ?? []).filter((slot) => slot.start && slot.end), [gym.data]);
-    /** Tag catalogue for the multi-select (local list so quick-create can append). */
-    const tagsQ = useAsync(() => data.listTags(), [data, open]);
-    const [tagList, setTagList] = useState([]);
-    useEffect(() => {
-        if (open && Array.isArray(tagsQ.data))
-            setTagList(tagsQ.data);
-    }, [open, tagsQ.data]);
-    const [newTagOpen, setNewTagOpen] = useState(false);
-    const [newTagName, setNewTagName] = useState("");
-    const [newTagColor, setNewTagColor] = useState("#6366f1");
-    const [tagSaving, setTagSaving] = useState(false);
-    /** Creates a tag inline, adds it to the picker and selects it. */
-    async function handleCreateTag() {
-        const name = newTagName.trim();
-        if (!name || tagSaving)
-            return;
-        setTagSaving(true);
-        try {
-            const created = await data.createTag({ name, color: newTagColor });
-            setTagList((prev) => [...prev, created]);
-            setValue("tagIds", [...(watch("tagIds") ?? []), created.id], { shouldDirty: true });
-            setNewTagName("");
-            setNewTagOpen(false);
-            toast.success(`Tag "${created.name}" created.`);
-        }
-        catch (error) {
-            toast.error(error instanceof Error ? error.message : "Unable to create the tag.");
-        }
-        finally {
-            setTagSaving(false);
-        }
-    }
     useEffect(() => {
         if (!open)
             return;
         setRecordPayment(false);
         setPaymentMethod("cash");
         setShowPassword(false);
-        setNewTagOpen(false);
-        setNewTagName("");
         if (!member) {
             reset(emptyValues());
             return;
@@ -210,7 +173,6 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
             notes: member.notes ?? "",
             plannedHoursPerDay: member.plannedHoursPerDay ?? Number.NaN,
             preferredSlot: member.preferredSlot ?? "",
-            tagIds: member.tagIds ?? [],
             age: typeof member.age === "number" && member.age > 0 ? member.age : Number.NaN,
             // Hidden in edit mode; the schema only requires it on create.
             mode: "edit",
@@ -349,46 +311,6 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                     </div>) : null}
                 </div>)} />) : (<p className="text-[11px] text-muted-foreground">No time slots configured yet — add them from Manage Institute.</p>)}
               {errors.preferredSlot ? (<p className="text-xs text-destructive">{errors.preferredSlot.message}</p>) : null}
-            </div>
-
-            {/* Tags — student labels (dance style, batch, event, level…). */}
-            <div className="space-y-2 sm:col-span-2">
-              <div className="flex items-center justify-between">
-                <Label>Tags</Label>
-                <Button type="button" size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={() => setNewTagOpen((v) => !v)}>
-                  <PlusIcon className="size-3.5"/> New tag
-                </Button>
-              </div>
-              <Controller control={control} name="tagIds" render={({ field }) => (<div className="flex flex-wrap items-center gap-2">
-                  {(tagList ?? []).map((tag) => {
-                    const selected = (field.value ?? []).includes(tag.id);
-                    return (<button key={tag.id} type="button"
-                      onClick={() => field.onChange(selected
-                        ? (field.value ?? []).filter((id) => id !== tag.id)
-                        : [...(field.value ?? []), tag.id])}
-                      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors"
-                      style={selected
-                        ? { borderColor: tag.color, backgroundColor: `${tag.color}24`, color: tag.color }
-                        : undefined}>
-                      <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: tag.color }}/>
-                      {tag.name}
-                    </button>);
-                  })}
-                  {tagList.length === 0 ? (<p className="text-[11px] text-muted-foreground">No tags yet — create the first one.</p>) : null}
-                </div>)}/>
-              {newTagOpen ? (<div className="flex items-center gap-2 rounded-lg border border-border/60 bg-secondary/40 p-2">
-                  <input type="color" value={newTagColor} onChange={(event) => setNewTagColor(event.target.value)} className="h-8 w-8 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0" aria-label="Tag colour"/>
-                  <Input value={newTagName} onChange={(event) => setNewTagName(event.target.value)}
-                    onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleCreateTag(); } }}
-                    placeholder="e.g. Hip-Hop Crew" className="h-8 flex-1" aria-label="New tag name" autoFocus/>
-                  <Button type="button" size="sm" className="h-8" disabled={tagSaving || !newTagName.trim()} onClick={() => void handleCreateTag()}>
-                    {tagSaving ? <Loader2Icon className="size-4 animate-spin"/> : "Add"}
-                  </Button>
-                </div>) : null}
-              <p className="text-[11px] text-muted-foreground">
-                Labels to group students — dance style, batch, event or level. Click to toggle; manage all tags from the Members page.
-              </p>
-              {errors.tagIds ? (<p className="text-xs text-destructive">{errors.tagIds.message}</p>) : null}
             </div>
 
             <div className="space-y-2">

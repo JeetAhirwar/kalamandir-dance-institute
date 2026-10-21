@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, MoreHorizontalIcon, PencilIcon, PhoneIcon, PlusIcon, SearchIcon, Trash2Icon, UserCheckIcon, UserRoundPlusIcon, UserXIcon, UsersIcon, } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon, UserCheckIcon, UserRoundPlusIcon, UserXIcon, UsersIcon, } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, SearchEmptyState, TableSkeleton, Stagger } from "@/components/shared/States";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -34,39 +34,29 @@ const SORT_OPTIONS = [
     { value: "joined", label: "Join date" },
     { value: "expiry", label: "Expiry date" },
 ];
-function DaysLeftCell({ member }) {
-    if (member.daysRemaining === null) {
-        return <span className="text-muted-foreground">—</span>;
-    }
-    if (member.daysRemaining <= 0) {
-        return <span className="text-destructive">Ended</span>;
-    }
-    return <span className="tabular">{member.daysRemaining} days</span>;
-}
 /** "kitni class hui / bachi" — attended vs paid quota, shown as a compact stack.
  *  Colour rule: 4+ left green · 2–3 yellow · 1 or 0 red. */
-function QuotaCell({ member }) {
+function ClassesCell({ member }) {
+    const q = member.quota;
+    if (!q || q.status === "none") {
+        return <span className="text-muted-foreground">—</span>;
+    }
+    return <span className="text-sm tabular">{q.attended} / {q.quota}</span>;
+}
+/** Bachi hui classes (remaining quota) — same colour rule as the roster quota chip. */
+function ClassLeftCell({ member }) {
     const q = member.quota;
     if (!q || q.status === "none") {
         return <span className="text-muted-foreground">—</span>;
     }
     if (q.status === "exceeded") {
-        return (<div className="flex flex-col leading-tight">
-      <span className="text-sm tabular">{q.attended} / {q.quota}</span>
-      <span className="text-xs text-destructive">{q.exceeded} over</span>
-    </div>);
+        return <span className="text-sm tabular text-destructive">{q.exceeded} over</span>;
     }
     if (q.status === "expired") {
-        return (<div className="flex flex-col leading-tight">
-      <span className="text-sm tabular">{q.attended} / {q.quota}</span>
-      <span className="text-xs text-destructive">0 left</span>
-    </div>);
+        return <span className="text-sm tabular text-destructive">0 left</span>;
     }
     const tone = q.remaining >= 4 ? "text-success" : q.remaining >= 2 ? "text-warning" : "text-destructive";
-    return (<div className="flex flex-col leading-tight">
-      <span className="text-sm tabular">{q.attended} / {q.quota}</span>
-      <span className={cn("text-xs tabular", tone)}>{q.remaining} left</span>
-    </div>);
+    return <span className={cn("text-sm tabular", tone)}>{q.remaining} left</span>;
 }
 export function MembersPage() {
     const data = useData();
@@ -85,7 +75,6 @@ export function MembersPage() {
         return preset && STATUS_FILTERS.includes(preset) ? preset : "all";
     });
     const [planId, setPlanId] = useState("all");
-    const [tagId, setTagId] = useState("all");
     const [sort, setSort] = useState("created");
     const [dir, setDir] = useState("desc");
     const [page, setPage] = useState(1);
@@ -93,21 +82,19 @@ export function MembersPage() {
     const [editing, setEditing] = useState(null);
     const [deleting, setDeleting] = useState(null);
     const plans = useAsync(() => data.listPlans(), [data]);
-    const tagsQ = useAsync(() => data.listTags(), [data]);
     const members = useAsync(() => data.listMembers({
         search: debouncedSearch.trim() || undefined,
         status,
         planId: planId === "all" ? undefined : planId,
-        tagId: tagId === "all" ? undefined : tagId,
         sort,
         dir,
         page,
         pageSize: PAGE_SIZE,
-    }), [data, debouncedSearch, status, planId, tagId, sort, dir, page]);
+    }), [data, debouncedSearch, status, planId, sort, dir, page]);
     // Reset to the first page whenever the filters change.
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, status, planId, tagId, sort, dir]);
+    }, [debouncedSearch, status, planId, sort, dir]);
     // Deep link: /members?new=1 auto-opens the add dialog (dashboard quick action).
     // The param is kept while the dialog should be open so a page-transition remount
     // re-opens it; it is cleared only once the dialog is dismissed (or not permitted).
@@ -130,12 +117,11 @@ export function MembersPage() {
             setSearchParams({}, { replace: true });
         }
     };
-    const hasFilters = debouncedSearch.trim() !== "" || status !== "all" || planId !== "all" || tagId !== "all";
+    const hasFilters = debouncedSearch.trim() !== "" || status !== "all" || planId !== "all";
     const clearFilters = () => {
         setSearch("");
         setStatus("all");
         setPlanId("all");
-        setTagId("all");
         setSort("created");
         setDir("desc");
     };
@@ -235,18 +221,6 @@ export function MembersPage() {
             </SelectContent>
           </Select>
 
-          <Select value={tagId} onValueChange={setTagId}>
-            <SelectTrigger size="sm" className="border-km-gold/25 bg-background/60" aria-label="Filter by tag">
-              <SelectValue placeholder="All tags"/>
-            </SelectTrigger>
-            <SelectContent position="popper" align="end" className="min-w-40">
-              <SelectItem value="all">All tags</SelectItem>
-              {(tagsQ.data ?? []).map((tag) => (<SelectItem key={tag.id} value={tag.id}>
-                  {tag.name}
-                </SelectItem>))}
-            </SelectContent>
-          </Select>
-
           {/* Sort — field + direction as one compact group. */}
           <div className="flex items-center gap-1 rounded-lg border border-km-gold/25 bg-background/60 p-1">
             <Select value={sort} onValueChange={(value) => setSort(value)}>
@@ -284,20 +258,23 @@ export function MembersPage() {
                 <Table className="min-w-[900px] table-fixed">
                   <TableHeader>
                     <TableRow className="h-11">
-                      <TableHead className="w-[23%] px-3 align-middle">Student</TableHead>
-                      <TableHead className="w-[16%] px-3 align-middle">Phone</TableHead>
-                      <TableHead className="w-[14%] px-3 align-middle">Plan</TableHead>
-                      <TableHead className="w-[9%] px-3 align-middle">Status</TableHead>
-                      <TableHead className="w-[9%] px-3 align-middle">Days left</TableHead>
-                      <TableHead className="w-[13%] px-3 align-middle">Classes</TableHead>
-                      <TableHead className="w-[9%] px-3 align-middle">Payment</TableHead>
-                      <TableHead className="w-[7%] px-3 text-right align-middle">
+                      <TableHead className="w-[6%] px-3 align-middle">Sr. no.</TableHead>
+                      <TableHead className="w-[24%] px-3 align-middle">Student</TableHead>
+                      <TableHead className="w-[10%] px-3 align-middle">Status</TableHead>
+                      <TableHead className="w-[11%] px-3 align-middle">Classes</TableHead>
+                      <TableHead className="w-[11%] px-3 align-middle">Class Left</TableHead>
+                      <TableHead className="w-[16%] px-3 align-middle">Plan</TableHead>
+                      <TableHead className="w-[13%] px-3 align-middle">Payment Mode</TableHead>
+                      <TableHead className="w-[9%] px-3 text-right align-middle">
                         <span className="sr-only">Actions</span>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((member) => (<TableRow key={member.id} className="h-16 cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}>
+                    {rows.map((member, index) => (<TableRow key={member.id} className="h-16 cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}>
+                        <TableCell className="px-3 align-middle text-sm tabular text-muted-foreground">
+                          {(currentPage - 1) * pageSize + index + 1}
+                        </TableCell>
                         <TableCell className="px-3 align-middle">
                           <div className="flex items-center gap-3">
                             <SmartImage src={member.photoUrl} name={member.fullName} className="size-11 shrink-0"/>
@@ -310,25 +287,19 @@ export function MembersPage() {
                           </div>
                         </TableCell>
                         <TableCell className="px-3 align-middle">
-                          <span className="inline-flex items-center gap-2 whitespace-nowrap text-muted-foreground">
-                            <PhoneIcon className="size-3.5 shrink-0"/>
-                            {member.phone}
-                          </span>
+                          <StatusBadge status={member.effectiveStatus}/>
+                        </TableCell>
+                        <TableCell className="px-3 text-sm align-middle">
+                          <ClassesCell member={member}/>
+                        </TableCell>
+                        <TableCell className="px-3 text-sm align-middle">
+                          <ClassLeftCell member={member}/>
                         </TableCell>
                         <TableCell className="px-3 align-middle">
                           {member.planName ? (<div className="min-w-0">
                               <p className="truncate text-sm leading-tight">{member.planName}</p>
                               <p className="truncate text-xs leading-tight text-muted-foreground">ends {formatDate(member.endDate)}</p>
                             </div>) : (<span className="text-muted-foreground">—</span>)}
-                        </TableCell>
-                        <TableCell className="px-3 align-middle">
-                          <StatusBadge status={member.effectiveStatus}/>
-                        </TableCell>
-                        <TableCell className="px-3 text-sm align-middle">
-                          <DaysLeftCell member={member}/>
-                        </TableCell>
-                        <TableCell className="px-3 text-sm align-middle">
-                          <QuotaCell member={member}/>
                         </TableCell>
                         <TableCell className="px-3 text-sm align-middle text-muted-foreground">
                           {member.paymentMethod

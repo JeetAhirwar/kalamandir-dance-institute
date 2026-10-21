@@ -181,13 +181,6 @@ export function MemberDetailPage() {
                     <p className="text-sm text-muted-foreground">
                       Student since {formatDate(current.joinDate)}
                     </p>
-                    {current.tags?.length ? (<div className="flex flex-wrap gap-1.5 pt-1">
-                        {current.tags.map((tag) => (<span key={`${tag.name}-${tag.color}`} className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium"
-                          style={{ borderColor: tag.color, color: tag.color, backgroundColor: `${tag.color}1a` }}>
-                            <span className="size-1.5 rounded-full" style={{ backgroundColor: tag.color }}/>
-                            {tag.name}
-                          </span>))}
-                      </div>) : null}
                   </div>
                 </div>
 
