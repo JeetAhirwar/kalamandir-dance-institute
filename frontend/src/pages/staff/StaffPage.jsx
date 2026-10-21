@@ -37,18 +37,18 @@ const VIEW_OPTIONS = [
  * One staff member. `layout="list"` renders a compact horizontal row
  * (photo + identity, badges, joined + actions); "grid" is the original card.
  */
-function StaffCard({ member, layout = "grid", canManage, index = 0, onEdit, onArchive, onDelete }) {
+function StaffCard({ member, layout = "grid", canManage, currentUserId, index = 0, onEdit, onArchive, onDelete }) {
     const isList = layout === "list";
-    const actions = canManage ? (<div className="flex items-center gap-1">
+const actions = canManage ? (<div className="flex items-center gap-1">
         <Button size="icon-xs" variant="ghost" aria-label={`Edit ${member.fullName}`} onClick={() => onEdit(member)}>
           <PencilIcon />
         </Button>
-        {member.employmentStatus !== "resigned" ? (<Button size="icon-xs" variant="ghost" aria-label={`Archive ${member.fullName}`} onClick={() => onArchive(member)}>
+        {member.employmentStatus !== "resigned" && member.profileId !== currentUserId ? (<Button size="icon-xs" variant="ghost" aria-label={`Archive ${member.fullName}`} onClick={() => onArchive(member)}>
             <ArchiveIcon />
           </Button>) : null}
-        <Button size="icon-xs" variant="ghost" aria-label={`Delete ${member.fullName}`} onClick={() => onDelete(member)} className="text-destructive hover:bg-destructive/10">
+        {member.profileId !== currentUserId ? (<Button size="icon-xs" variant="ghost" aria-label={`Delete ${member.fullName}`} onClick={() => onDelete(member)} className="text-destructive hover:bg-destructive/10">
           <Trash2Icon />
-        </Button>
+        </Button>) : null}
       </div>) : null;
     const badges = (<div className="flex flex-wrap items-center gap-1.5">
       <Badge variant="outline" className={EMPLOYMENT_STYLES[member.employmentStatus]}>
@@ -116,6 +116,7 @@ export function StaffPage() {
     const reduceMotion = useReducedMotion();
     const role = session?.profile.role;
     const canManage = can(role, "staff.manage");
+    const currentUserId = session?.profile?.id ?? null;
     const [includeInactive, setIncludeInactive] = useState(true);
     /* List view is the default, matching the plans page. */
     const [view, setView] = useState("list");
@@ -228,7 +229,7 @@ export function StaffPage() {
           <motion.div key={view} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className={view === "list"
             ? "space-y-3"
             : "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"}>
-            {rows.map((member, index) => (<StaffCard key={member.id} member={member} layout={view} canManage={canManage} index={index} onEdit={openEdit} onArchive={setArchiving} onDelete={setDeleting}/>))}
+            {rows.map((member, index) => (<StaffCard key={member.id} member={member} layout={view} canManage={canManage} currentUserId={currentUserId} index={index} onEdit={openEdit} onArchive={setArchiving} onDelete={setDeleting}/>))}
           </motion.div>
 
           <p className="text-xs text-muted-foreground">

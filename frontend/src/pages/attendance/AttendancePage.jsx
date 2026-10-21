@@ -270,11 +270,17 @@ export function AttendancePage() {
     const students = useMemo(() => roster.data?.students ?? [], [roster.data]);
     // Filter the loaded roster by student name or ID.
     const filteredStudents = useMemo(() => {
+        let list = students;
+        // When a specific slot is selected (not "Load All"), show only
+        // students enrolled in that slot — not the entire studio roster.
+        if (!loadAll && selectedSlotIds.length === 1) {
+            list = list.filter((s) => s.enrolled);
+        }
         const q = studentQuery.trim().toLowerCase();
-        if (!q) return students;
-        return students.filter((s) => (s.fullName ?? "").toLowerCase().includes(q) ||
+        if (!q) return list;
+        return list.filter((s) => (s.fullName ?? "").toLowerCase().includes(q) ||
             (s.memberCode ?? "").toLowerCase().includes(q));
-    }, [students, studentQuery]);
+    }, [students, studentQuery, loadAll, selectedSlotIds]);
 
     /* ------------------------------ walk-in students ------------------------- */
     // Students from OTHER slots who show up at a different time: search finds
@@ -653,7 +659,7 @@ export function AttendancePage() {
                 <p className="text-sm font-medium">Pick a slot timing to load students</p>
                 <p className="text-xs text-muted-foreground">Students will appear here to mark their attendance.</p>
               </div>) : roster.loading ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading students…</div>) : students.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No students yet — add one from the Students page.
+                No student in this slot.
               </div>) : filteredStudents.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No students match “{studentQuery.trim()}”.
               </div>) : (<ul className="divide-y divide-border/60">

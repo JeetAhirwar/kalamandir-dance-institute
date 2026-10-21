@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Types } from "mongoose";
 import StaffProfile from "../models/StaffProfile.js";
 import { requireAuth, requireCap } from "../middleware/auth.js";
-import { asyncHandler, notFound } from "../lib/errors.js";
+import { asyncHandler, forbidden, notFound } from "../lib/errors.js";
 import { parseBody } from "../middleware/validate.js";
 import { toStaff } from "../lib/serialize.js";
 import { writeAudit, pick } from "../lib/audit.js";
@@ -183,6 +183,10 @@ router.patch(
   requireCap("staff.manage"),
   asyncHandler(async (req, res) => {
     const row = await findStaffOr404(req.user.gymId, req.params.id);
+    // Prevent an admin from archiving/disabling their own account.
+    if (row.profileId && String(row.profileId) === String(req.user.id)) {
+      throw forbidden("You cannot archive your own account.");
+    }
     const updated = await StaffProfile.findOneAndUpdate(
       { _id: row._id },
       { $set: { employmentStatus: "resigned" } },
@@ -214,6 +218,10 @@ router.delete(
   requireCap("staff.manage"),
   asyncHandler(async (req, res) => {
     const row = await findStaffOr404(req.user.gymId, req.params.id);
+    // Prevent an admin from deleting/disabling their own account.
+    if (row.profileId && String(row.profileId) === String(req.user.id)) {
+      throw forbidden("You cannot delete your own account.");
+    }
     await StaffProfile.deleteOne({ _id: row._id });
     await setStaffLoginActive(row.profileId, false);
 
