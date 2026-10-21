@@ -151,6 +151,11 @@ export class ApiDataService {
     async getGym() {
         return loadGym();
     }
+    /* ------------------------------ profile ---------------------------- */
+    /** Updates the signed-in user's own profile (name / avatar) → public user. */
+    async updateProfile(patch) {
+        return apiPatch("/auth/me", patch);
+    }
     async getSettings() {
         return this.settings();
     }

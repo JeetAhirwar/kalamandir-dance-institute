@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { CalendarCheckIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, DownloadIcon, GaugeIcon, Loader2Icon, PencilIcon, UsersIcon, } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -71,8 +72,16 @@ export function AttendanceHistoryPage() {
     const data = useData();
     const { session } = useAuth();
     const canCorrect = can(session?.profile.role, "attendance.correct");
-    const [from, setFrom] = useState(defaultFrom);
-    const [to, setTo] = useState(defaultTo);
+    const [searchParams] = useSearchParams();
+    // Deep link: /attendance/history?from=YYYY-MM-DD&to=YYYY-MM-DD (dashboard stat card).
+    const [from, setFrom] = useState(() => {
+        const preset = searchParams.get("from");
+        return preset && /^\d{4}-\d{2}-\d{2}$/.test(preset) ? preset : defaultFrom();
+    });
+    const [to, setTo] = useState(() => {
+        const preset = searchParams.get("to");
+        return preset && /^\d{4}-\d{2}-\d{2}$/.test(preset) ? preset : defaultTo();
+    });
     const [status, setStatus] = useState("all");
     const [page, setPage] = useState(1);
     const [editing, setEditing] = useState(null);

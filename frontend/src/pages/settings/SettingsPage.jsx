@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ShieldAlertIcon, SaveIcon, HistoryIcon, Building2Icon } from "lucide-react";
+import { ShieldAlertIcon, SaveIcon, HistoryIcon, Building2Icon, UserIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PhotoPicker } from "@/components/shared/PhotoPicker";
 import { EmptyState, ErrorState, Skeleton, Stagger, TableSkeleton, } from "@/components/shared/States";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import { appVersion, gymTimezone } from "@/config/env";
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync, useSubmitGuard } from "@/hooks";
 import { formatDateTime, titleCase } from "@/lib/format";
-import { can } from "@/lib/permissions";
+import { can, ROLE_LABELS } from "@/lib/permissions";
 import { settingsFormSchema } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 const COMMON_TIMEZONES = [
@@ -69,6 +70,70 @@ function SwitchRow({ id, label, description, checked, onCheckedChange, disabled,
       </div>
       <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled}/>
     </div>);
+}
+/** "Your profile" — the signed-in admin can set their display name and avatar here. */
+function ProfileCard() {
+    const data = useData();
+    const { session, refresh } = useAuth();
+    const profile = session?.profile;
+    const [name, setName] = useState(profile?.fullName ?? "");
+    const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? "");
+    const [saving, setSaving] = useState(false);
+    useEffect(() => {
+        setName(profile?.fullName ?? "");
+        setAvatarUrl(profile?.avatarUrl ?? "");
+    }, [profile?.fullName, profile?.avatarUrl]);
+    const nameValid = name.trim().length >= 2;
+    const dirty = name.trim() !== (profile?.fullName ?? "") || avatarUrl !== (profile?.avatarUrl ?? "");
+    async function handleSave() {
+        if (!nameValid || saving)
+            return;
+        setSaving(true);
+        try {
+            await data.updateProfile({ fullName: name.trim(), avatarUrl: avatarUrl || null });
+            await refresh();
+            toast.success("Profile updated");
+        }
+        catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to update your profile.");
+        }
+        finally {
+            setSaving(false);
+        }
+    }
+    return (<Card className="graphite-surface border-border/70">
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <UserIcon className="size-4 text-muted-foreground"/>
+          Your profile
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Your avatar and name — shown in the top bar and audit trail.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <PhotoPicker value={avatarUrl} name={name || profile?.fullName || "User"} inputId="settings-avatar" onChange={setAvatarUrl}/>
+        <div className="space-y-2">
+          <Label htmlFor="settings-profile-name">Full name</Label>
+          <Input id="settings-profile-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name"/>
+          {!nameValid && name.length > 0 ? <p className="text-xs text-destructive">Name must be at least 2 characters</p> : null}
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Email</p>
+          <p className="text-sm">{profile?.email ?? "—"}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Role</p>
+          <p className="text-sm">{ROLE_LABELS[profile?.role ?? "front_desk"] ?? "Staff"}</p>
+        </div>
+        <div className="flex justify-end border-t border-border/60 pt-4">
+          <Button size="sm" disabled={!nameValid || !dirty || saving} onClick={() => void handleSave()}>
+            {saving ? null : <SaveIcon className="size-4"/>}
+            {saving ? "Saving…" : "Save profile"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>);
 }
 export function SettingsPage() {
     const data = useData();
@@ -252,7 +317,12 @@ export function SettingsPage() {
           </Card>
         </Stagger>
 
-        {/* Card 2 — gym details */}
+        {/* Card 2 — signed-in user's own profile (name + avatar) */}
+        <Stagger className="h-full">
+          <ProfileCard/>
+        </Stagger>
+
+        {/* Card 3 — gym details */}
         <Stagger className="h-full" delayIndex={1}>
           <Card className="graphite-surface h-full border-border/70">
             <CardHeader className="space-y-1">

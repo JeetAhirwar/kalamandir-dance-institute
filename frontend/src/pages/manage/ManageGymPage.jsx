@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2Icon, ClockIcon, CrosshairIcon, Loader2Icon, PlusIcon, PrinterIcon, RefreshCwIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
+import { Building2Icon, ClockIcon, CrosshairIcon, Loader2Icon, PlusIcon, PrinterIcon, RefreshCwIcon, ShieldCheckIcon, TagIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,24 +13,14 @@ import { useAsync, useSubmitGuard } from "@/hooks";
 import { getCurrentCoords } from "@/lib/geo";
 import { can } from "@/lib/permissions";
 import { renderQrDataUrl } from "@/lib/qr";
+import { format12h } from "@/lib/format";
+import { HOURLY_SLOTS, SLOT_GROUPS, slotGroupOf } from "@/lib/slots";
+import { TimeSelect } from "@/components/shared/TimeSelect";
+import { TagsDialog } from "@/pages/members/TagsDialog";
 
-/** `13:05` → `01:05 PM`. */
-function format12h(hhmm) {
-    const [h, m] = hhmm.split(":").map(Number);
-    const suffix = h >= 12 ? "PM" : "AM";
-    const hour12 = h % 12 === 0 ? 12 : h % 12;
-    return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${suffix}`;
-}
-/** Ready-made 4-hour slots from 06:00 to 21:59. */
+/** Ready-made hourly slots (8:00 AM – 9:00 PM), grouped Morning/Afternoon/Evening. */
 function defaultSlots() {
-    const out = [];
-    for (let startH = 6; startH + 4 <= 22; startH += 4) {
-        out.push({
-            start: `${String(startH).padStart(2, "0")}:00`,
-            end: `${String(startH + 3).padStart(2, "0")}:59`,
-        });
-    }
-    return out;
+    return HOURLY_SLOTS.map((slot) => ({ ...slot }));
 }
 /**
  * Manage Institute — the front-desk setup: the single studio QR Students scan from
@@ -48,6 +38,7 @@ export function ManageGymPage() {
     const [qrDataUrl, setQrDataUrl] = useState(null);
     const [rotateArmed, setRotateArmed] = useState(false);
     const [rotating, setRotating] = useState(false);
+    const [tagsOpen, setTagsOpen] = useState(false);
 
     useEffect(() => {
         if (gym.data) {
@@ -231,30 +222,52 @@ export function ManageGymPage() {
               The studio's operating slots (e.g. morning / afternoon / evening batches). These drive scheduling and reporting.
             </p>
 
-            {gym.loading && slots === null ? (<Skeleton className="h-40 rounded-lg"/>) : gym.error && slots === null ? (<ErrorState title="Unable to load the slots" message={gym.error} onRetry={gym.reload}/>) : (<ul className="space-y-2">
-              {(slots ?? []).map((slot, index) => (<li key={index} className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-3 py-2">
-                  <span className="w-6 font-mono text-xs text-muted-foreground">{index + 1}.</span>
-                  <Input type="time" aria-label={`Slot ${index + 1} start`} value={slot.start} onChange={(e) => updateSlot(index, { start: e.target.value })} className="h-8 w-28 font-mono text-xs"/>
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <Input type="time" aria-label={`Slot ${index + 1} end`} value={slot.end} onChange={(e) => updateSlot(index, { end: e.target.value })} className="h-8 w-28 font-mono text-xs"/>
-                  <span className="ml-auto font-mono text-xs text-muted-foreground">
-                    {slot.start && slot.end ? `${format12h(slot.start)} – ${format12h(slot.end)}` : "—"}
-                  </span>
-                  <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" aria-label={`Remove slot ${index + 1}`} onClick={() => removeSlot(index)}>
-                    <Trash2Icon className="size-4"/>
-                  </Button>
-                </li>))}
-              {(slots ?? []).length === 0 ? (<li className="rounded-lg border border-dashed border-border/70 px-3 py-6 text-center text-sm text-muted-foreground">
-                  No slots yet — add one below, or drop in the ready-made 4-hour schedule.
-                </li>) : null}
-            </ul>)}
+            {gym.loading && slots === null ? (<Skeleton className="h-40 rounded-lg"/>) : gym.error && slots === null ? (<ErrorState title="Unable to load the slots" message={gym.error} onRetry={gym.reload}/>) : (<div className="space-y-4">
+              {(() => {
+                // Keep the original index of each row (update/remove are index-based).
+                const rows = (slots ?? []).map((slot, index) => ({ slot, index }));
+                const slotRow = ({ slot, index }) => (<li key={index} className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-3 py-2">
+                    <span className="w-6 font-mono text-xs text-muted-foreground">{index + 1}.</span>
+                    <TimeSelect value={slot.start} ariaLabel={`Slot ${index + 1} start`} className="h-8 w-32 text-xs" onValueChange={(v) => updateSlot(index, { start: v })}/>
+                    <span className="text-xs text-muted-foreground">to</span>
+                    <TimeSelect value={slot.end} ariaLabel={`Slot ${index + 1} end`} className="h-8 w-32 text-xs" onValueChange={(v) => updateSlot(index, { end: v })}/>
+                    <span className="ml-auto font-mono text-xs text-muted-foreground">
+                      {slot.start && slot.end ? `${format12h(slot.start)} – ${format12h(slot.end)}` : "—"}
+                    </span>
+                    <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" aria-label={`Remove slot ${index + 1}`} onClick={() => removeSlot(index)}>
+                      <Trash2Icon className="size-4"/>
+                    </Button>
+                  </li>);
+                const bucketOf = (key) => rows.filter((r) => slotGroupOf(r.slot.start) === key);
+                const unassigned = rows.filter((r) => !slotGroupOf(r.slot.start));
+                return (<>
+                  {SLOT_GROUPS.map((g) => {
+                    const bucket = bucketOf(g.key);
+                    return bucket.length === 0 ? null : (<div key={g.key} className="space-y-2">
+                      <p className="flex items-baseline gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {g.label}
+                        <span className="font-normal normal-case tracking-normal">{g.range}</span>
+                      </p>
+                      <ul className="space-y-2">{bucket.map(slotRow)}</ul>
+                    </div>);
+                  })}
+                  {unassigned.length > 0 ? (<div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unassigned</p>
+                      <ul className="space-y-2">{unassigned.map(slotRow)}</ul>
+                    </div>) : null}
+                  {(slots ?? []).length === 0 ? (<p className="rounded-lg border border-dashed border-border/70 px-3 py-6 text-center text-sm text-muted-foreground">
+                      No slots yet — add one below, or drop in the ready-made hourly schedule.
+                    </p>) : null}
+                </>);
+              })()}
+            </div>)}
 
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={addSlot}>
                 <PlusIcon className="size-4"/> Add slot
               </Button>
               <Button variant="outline" size="sm" onClick={() => setSlots(defaultSlots())}>
-                Fill 4-hour slots
+                Fill hourly slots (8 AM – 9 PM)
               </Button>
               <Button size="sm" className="ml-auto" disabled={saving} onClick={handleSave}>
                 {saving ? <Loader2Icon className="size-4 animate-spin"/> : null} Save slots
@@ -335,5 +348,24 @@ export function ManageGymPage() {
           </div>)}
         </CardContent>
       </Card>
+
+      {/* ---------------- Student tags ---------------- */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <TagIcon className="size-4 text-primary"/> Student tags
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Labels to group students by dance style, batch, event or level. They appear as a filter on the Students page and on each student's profile.
+          </p>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setTagsOpen(true)}>
+            <TagIcon className="size-3.5"/> Manage tags
+          </Button>
+        </CardContent>
+      </Card>
+
+      <TagsDialog open={tagsOpen} onOpenChange={setTagsOpen}/>
     </div>);
 }

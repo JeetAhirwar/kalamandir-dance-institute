@@ -65,8 +65,8 @@
   --chart-4: #9b8148;
   --chart-5: #48172c;
 
-  /* Sidebar — deep royal burgundy */
-  --sidebar: #310d20;
+  /* Sidebar — deep wine, matched to `public/images/sidebar bottom background.png` */
+  --sidebar: #2c0411;
   --sidebar-foreground: #f0e2c4;
   --sidebar-primary: #c6a45b;
   --sidebar-primary-foreground: #2a0b1c;
@@ -147,10 +147,11 @@ html {
   /* Readable system stacks — no remote font dependency. */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-  /* Elegant serif for selected brand headings (locally available everywhere). */
-  --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino,
+  /* Elegant serif for selected brand headings — Playfair Display with a
+     Georgia fallback when offline. */
+  --font-display: "Playfair Display", Georgia, "Iowan Old Style", "Palatino Linotype", Palatino,
     "Times New Roman", serif;
-  --font-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --font-serif: "Playfair Display", Georgia, "Iowan Old Style", "Times New Roman", serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   --animate-fade-in: fade-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -379,6 +380,66 @@ html {
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Sidebar brand lockup — heritage display serif + tracked sans subtitle.
+   Scoped ONLY to the sidebar brand: the global --font-display (Playfair) is
+   deliberately left alone so no other heading in the app is affected.
+   ========================================================================== */
+.km-brand-name {
+  font-family: "Cormorant Garamond", "Playfair Display", Georgia, "Iowan Old Style", serif;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.05;
+  /* Cormorant's caps sit small on the em; this keeps it optically even. */
+  letter-spacing: 1px;
+  /* Pull the trailing sidebearing back so the wordmark reads optically centred. */
+  margin-inline-end: -1px;
+  color: var(--km-ivory);
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.km-brand-sub {
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 9.5px;
+  line-height: 1.4;
+  /* Airy tracking — pulled back on the right so the last cap doesn't hang. */
+  letter-spacing: 2.6px;
+  margin-inline-end: -2.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--km-gold-muted);
+}
+
+/* Thin rule with a centre lozenge — the crest's separator. */
+.km-brand-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  color: var(--km-gold);
+}
+.km-brand-rule::before,
+.km-brand-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  opacity: 0.55;
+}
+.km-brand-rule::before {
+  background: linear-gradient(to right, transparent, currentColor);
+}
+.km-brand-rule::after {
+  background: linear-gradient(to left, transparent, currentColor);
+}
+.km-brand-lozenge {
+  width: 4px;
+  height: 4px;
+  flex-shrink: 0;
+  transform: rotate(45deg);
+  background: currentColor;
 }
 
 /* Scanner viewport must stay visually neutral so camera contrast is preserved */

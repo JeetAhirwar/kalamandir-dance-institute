@@ -1,7 +1,7 @@
 import { DataError } from "@/data/types";
 import { buildDemoDatabase } from "@/data/demo/seed";
 import { checkEligibility, computeEndDate, currentMembership, daysRemaining, effectiveStatus, membershipBalance, renewalStartDate, } from "@/lib/membership";
-import { quotaForPlan } from "@/lib/quota";
+import { computeQuota, quotaForPlan } from "@/lib/quota";
 import { generateQrToken, tokenHint } from "@/lib/qr";
 import { addDays, addMonthsClamped, hourInTz, monthKeyInTz, parseDateOnly, ymdInTz, gymTimezone, } from "@/lib/datetime";
 const STORAGE_KEY = "pgs.demo.db.v3";
@@ -113,6 +113,17 @@ export class DemoDataService {
     async getSettings() {
         return this.db.settings;
     }
+    /* ------------------------------ profile ---------------------------- */
+    /** Updates the signed-in user's own profile (name / avatar) in the demo db. */
+    async updateProfile(patch) {
+        if (patch.fullName !== undefined)
+            this.db.profile.fullName = patch.fullName;
+        if (patch.avatarUrl !== undefined)
+            this.db.profile.avatarUrl = patch.avatarUrl || null;
+        this.audit(this.db.profile.id, "users", this.db.profile.id, "update_profile");
+        this.persist();
+        return this.db.profile;
+    }
     async updateSettings(patch) {
         this.db.settings = { ...this.db.settings, ...patch, updatedAt: iso(this.now()) };
         this.db.gym = { ...this.db.gym, name: patch.gymName, timezone: patch.timezone ?? this.db.gym.timezone };
@@ -144,6 +155,16 @@ export class DemoDataService {
     }
     withMembership(member) {
         const membership = currentMembership(this.membershipsOf(member.id));
+        // Derived class-quota + latest payment method — mirrors the API's attachQuotaToRows.
+        const quota = membership?.classQuota != null
+            ? computeQuota({
+                quota: membership.classQuota,
+                attended: this.db.attendance.filter((a) => a.membershipId === membership.id && a.quotaCounted === true).length,
+            })
+            : null;
+        const lastPayment = this.db.payments
+            .filter((p) => p.memberId === member.id)
+            .sort((a, b) => (a.paymentDate < b.paymentDate ? 1 : -1))[0];
         return {
             ...member,
             tags: this.tagsOf(member),
@@ -152,6 +173,10 @@ export class DemoDataService {
             planName: membership?.planName ?? null,
             endDate: membership?.endDate ?? null,
             daysRemaining: daysRemaining(membership, this.now(), this.tz),
+            quota: quota
+                ? { quota: quota.quota, attended: quota.attended, remaining: quota.remaining, exceeded: quota.exceeded, status: quota.status }
+                : null,
+            paymentMethod: lastPayment?.method ?? null,
         };
     }
     nextMemberCode() {
@@ -775,11 +800,30 @@ export class DemoDataService {
         const page = Math.max(1, query.page ?? 1);
         const pageSize = Math.min(200, Math.max(5, query.pageSize ?? 20));
         const start = (page - 1) * pageSize;
-        const items = rows.slice(start, start + pageSize).map((r) => ({
-            ...r,
-            planName: this.db.memberships.find((m) => m.id === r.membershipId)?.planName ?? null,
-        }));
+        const items = rows.slice(start, start + pageSize).map((r) => this.withAttendanceExtras(r));
         return { items, total: rows.length, page, pageSize };
+    }
+    /** Paid-class quota, latest payment method and days left — mirrors the API's list-attendance row extras. */
+    withAttendanceExtras(row) {
+        const membership = this.db.memberships.find((m) => m.id === row.membershipId) ?? null;
+        const quota = membership?.classQuota != null
+            ? computeQuota({
+                quota: membership.classQuota,
+                attended: this.db.attendance.filter((a) => a.membershipId === membership.id && a.quotaCounted === true).length,
+            })
+            : null;
+        const lastPayment = this.db.payments
+            .filter((p) => p.memberId === row.memberId)
+            .sort((a, b) => (a.paymentDate < b.paymentDate ? 1 : -1))[0];
+        return {
+            ...row,
+            planName: membership?.planName ?? null,
+            paymentMethod: lastPayment?.method ?? null,
+            quota: quota
+                ? { quota: quota.quota, attended: quota.attended, remaining: quota.remaining, exceeded: quota.exceeded, status: quota.status }
+                : null,
+            daysLeft: daysRemaining(membership, this.now(), this.tz),
+        };
     }
     async listMemberAttendance(memberId, limit = 30) {
         return this.db.attendance.filter((a) => a.memberId === memberId).slice(0, limit);

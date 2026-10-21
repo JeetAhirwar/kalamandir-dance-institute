@@ -44,7 +44,7 @@ export function AppShell() {
 
       <div className={cn("transition-[padding] duration-300 ease-out", collapsed ? "lg:pl-20" : "lg:pl-64")}>
         <Topbar onOpenMenu={() => setMobileOpen(true)}/>
-        <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
+        <main className="mx-auto w-full max-w-[1400px] px-[18px] py-3 sm:px-5">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={location.pathname} initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4 }} transition={{ duration: reduceMotion ? 0.12 : 0.22, ease: [0.22, 1, 0.36, 1] }}>
               <Outlet />

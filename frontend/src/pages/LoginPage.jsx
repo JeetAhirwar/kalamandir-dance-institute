@@ -187,7 +187,7 @@ export function LoginPage() {
           <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="identifier">Student ID / Email</Label>
-              <Input id="identifier" type="text" autoComplete="username" placeholder="KD-0007 or you@kalamandir.com" {...register("identifier")}/>
+              <Input id="identifier" type="text" autoComplete="username" placeholder="you@gmail.com" {...register("identifier")}/>
               {errors.identifier ? <p className="text-xs text-destructive">{errors.identifier.message}</p> : null}
             </div>
 

@@ -110,12 +110,12 @@ export function titleCase(value) {
         .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
         .join(" ");
 }
-/** `13:05` → `01:05 PM` — 24h "HH:mm" slot times. */
+/** `13:05` → `1:05 PM` — 12-hour clock with AM/PM (never `14:05`). */
 export function format12h(hhmm) {
     const [h, m] = String(hhmm).split(":").map(Number);
     const suffix = h >= 12 ? "PM" : "AM";
     const hour12 = h % 12 === 0 ? 12 : h % 12;
-    return `${String(hour12).padStart(2, "0")}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
+    return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
 }
 /** Gym slot ("06:00-11:59" or {start,end}) → `06:00 AM – 11:59 AM`. */
 export function timeSlotLabel(slot) {

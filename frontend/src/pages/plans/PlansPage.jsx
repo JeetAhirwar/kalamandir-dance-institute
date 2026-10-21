@@ -52,19 +52,34 @@ export function PlansPage() {
     }, [plans, distribution]);
 
     // Auto-open the "new plan" dialog when arriving from /plans?new=1 (dashboard link).
+    // Keep the param while the dialog should be open (remount-safe); clear on dismiss.
     useEffect(() => {
+        if (!session)
+            return; // auth still restoring — never consume the param early
         if (searchParams.get("new") !== "1")
             return;
-        setSearchParams((prev) => {
-            const next = new URLSearchParams(prev);
-            next.delete("new");
-            return next;
-        }, { replace: true });
         if (canManage) {
             setEditing(null);
             setDialogOpen(true);
         }
-    }, [searchParams, canManage, setSearchParams]);
+        else {
+            setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete("new");
+                return next;
+            }, { replace: true });
+        }
+    }, [searchParams, canManage, setSearchParams, session]);
+    const handleDialogOpenChange = (open) => {
+        setDialogOpen(open);
+        if (!open && searchParams.has("new")) {
+            setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete("new");
+                return next;
+            }, { replace: true });
+        }
+    };
 
     const openCreate = () => {
         setEditing(null);
@@ -110,9 +125,7 @@ export function PlansPage() {
     const activeCount = rows.filter((plan) => plan.isActive).length;
     const filtersActive = query.trim().length > 0 || status !== "all";
 
-    const header = (<PageHeader icon={<LotusOrnament/>} title="Dance fee plans" description="Manage membership plans and class packages for your students." actions={canManage ? (<Button onClick={openCreate} className="border-km-gold/50 bg-km-burgundy text-km-ivory hover:bg-km-wine">
-            <PlusIcon className="size-4"/> Add plan
-          </Button>) : undefined}/>);
+    const header = (<PageHeader icon={<LotusOrnament/>} title="Dance fee plans" description="Manage membership plans and class packages for your students."/>);
 
     if (plans.loading) {
         return (<div className="space-y-6">
@@ -153,7 +166,7 @@ export function PlansPage() {
           </p>
         </>)}
 
-      <PlanDialog key={editing?.id ?? "new-plan"} plan={editing} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={reloadAll}/>
+      <PlanDialog key={editing?.id ?? "new-plan"} plan={editing} open={dialogOpen} onOpenChange={handleDialogOpenChange} onSaved={reloadAll}/>
       <TogglePlanDialog plan={toggling} onOpenChange={(open) => {
             if (!open)
                 setToggling(null);

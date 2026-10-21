@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2Icon, PlusIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +17,7 @@ import { useData } from "@/auth/AuthProvider";
 import { useAsync, useSubmitGuard } from "@/hooks";
 import { toDateOnly } from "@/lib/datetime";
 import { durationLabel, formatINR, PAYMENT_METHOD_LABELS, timeSlotLabel } from "@/lib/format";
+import { SLOT_GROUPS, slotGroupOf } from "@/lib/slots";
 import { memberFormSchema } from "@/lib/validation";
 const GENDER_OPTIONS = [
     { value: "male", label: "Male" },
@@ -105,8 +107,10 @@ function toCreateInput(values, method, recordPayment) {
  */
 export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, }) {
     const [submitting, run] = useSubmitGuard();
+    const navigate = useNavigate();
     const [recordPayment, setRecordPayment] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState("cash");
+    const [showPassword, setShowPassword] = useState(false);
     const { register, handleSubmit, control, reset, watch, setValue, formState: { errors }, } = useForm({
         resolver: zodResolver(memberFormSchema),
         defaultValues: emptyValues(),
@@ -166,6 +170,7 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
             return;
         setRecordPayment(false);
         setPaymentMethod("cash");
+        setShowPassword(false);
         setNewTagOpen(false);
         setNewTagName("");
         if (!member) {
@@ -284,24 +289,49 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
             </div>
 
             {/* Preferred slot — the batch the student chose at joining (gym slots from Manage Institute). */}
-            {slots.length > 0 ? (<div className="space-y-2 sm:col-span-2">
-              <Label>Preferred time slot</Label>
-              <Controller control={control} name="preferredSlot" render={({ field }) => (<div className="flex flex-wrap gap-2">
-                  {slots.map((slot) => {
-                    const key = `${slot.start}-${slot.end}`;
-                    const active = field.value === key;
-                    return (<button key={key} type="button" onClick={() => field.onChange(active ? "" : key)} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${active
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/60 bg-background text-muted-foreground hover:bg-accent"}`}>
-                        {timeSlotLabel(slot)}
-                      </button>);
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>Preferred time slot</Label>
+                <Button type="button" size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={() => navigate("/manage-gym")}>
+                  <PlusIcon className="size-3.5"/> Add More Slots
+                </Button>
+              </div>
+              {slots.length > 0 ? (<Controller control={control} name="preferredSlot" render={({ field }) => (<div className="space-y-3">
+                  {SLOT_GROUPS.map((group) => {
+                    const groupSlots = slots.filter((slot) => slotGroupOf(slot.start) === group.key);
+                    if (groupSlots.length === 0) return null;
+                    return (<div key={group.key}>
+                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {groupSlots.map((slot) => {
+                          const key = `${slot.start}-${slot.end}`;
+                          const active = field.value === key;
+                          return (<button key={key} type="button" onClick={() => field.onChange(active ? "" : key)} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${active
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border/60 bg-background text-muted-foreground hover:bg-accent"}`}>
+                              {timeSlotLabel(slot)}
+                            </button>);
+                        })}
+                      </div>
+                    </div>);
                   })}
-                </div>)}/>
-              <p className="text-[11px] text-muted-foreground">
-                The batch this student usually attends (slots come from Manage Institute). Click the chosen slot again for “no preference”.
-              </p>
+                  {slots.some((slot) => !slotGroupOf(slot.start)) ? (<div>
+                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Other</p>
+                      <div className="flex flex-wrap gap-2">
+                        {slots.filter((slot) => !slotGroupOf(slot.start)).map((slot) => {
+                          const key = `${slot.start}-${slot.end}`;
+                          const active = field.value === key;
+                          return (<button key={key} type="button" onClick={() => field.onChange(active ? "" : key)} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${active
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border/60 bg-background text-muted-foreground hover:bg-accent"}`}>
+                              {timeSlotLabel(slot)}
+                            </button>);
+                        })}
+                      </div>
+                    </div>) : null}
+                </div>)} />) : (<p className="text-[11px] text-muted-foreground">No time slots configured yet — add them from Manage Institute.</p>)}
               {errors.preferredSlot ? (<p className="text-xs text-destructive">{errors.preferredSlot.message}</p>) : null}
-            </div>) : null}
+            </div>
 
             {/* Tags — student labels (dance style, batch, event, level…). */}
             <div className="space-y-2 sm:col-span-2">
@@ -400,25 +430,6 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                   {errors.planId ? <p className="text-xs text-destructive">{errors.planId.message}</p> : null}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="member-start">Membership starts</Label>
-                  <Input id="member-start" type="date" {...register("membershipStart")}/>
-                  {errors.membershipStart ? (<p className="text-xs text-destructive">{errors.membershipStart.message}</p>) : null}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="member-payment-amount">Initial payment (₹)</Label>
-                  <Input id="member-payment-amount" inputMode="decimal" placeholder="0" disabled={!recordPayment} {...register("initialPayment", {
-            setValueAs: (value) => {
-                if (value === "" || value === null || value === undefined)
-                    return undefined;
-                const parsed = Number(String(value).replace(/[^0-9.-]/g, ""));
-                return Number.isFinite(parsed) ? parsed : Number.NaN;
-            },
-        })}/>
-                  {errors.initialPayment ? (<p className="text-xs text-destructive">{errors.initialPayment.message}</p>) : null}
-                </div>
-
                 <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
                   <label htmlFor="member-record-payment" className="flex cursor-pointer items-center gap-2 text-sm">
                     <Checkbox id="member-record-payment" checked={recordPayment} onCheckedChange={(checked) => setRecordPayment(checked === true)}/>
@@ -441,6 +452,25 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                       </Select>
                     </div>) : null}
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="member-start">Membership starts</Label>
+                  <Input id="member-start" type="date" {...register("membershipStart")}/>
+                  {errors.membershipStart ? (<p className="text-xs text-destructive">{errors.membershipStart.message}</p>) : null}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="member-payment-amount">Initial payment (₹)</Label>
+                  <Input id="member-payment-amount" inputMode="decimal" placeholder="0" disabled={!recordPayment} {...register("initialPayment", {
+            setValueAs: (value) => {
+                if (value === "" || value === null || value === undefined)
+                    return undefined;
+                const parsed = Number(String(value).replace(/[^0-9.-]/g, ""));
+                return Number.isFinite(parsed) ? parsed : Number.NaN;
+            },
+        })}/>
+                  {errors.initialPayment ? (<p className="text-xs text-destructive">{errors.initialPayment.message}</p>) : null}
+                </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -448,11 +478,12 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
 
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="member-login-password">Portal password</Label>
-                  <Input id="member-login-password" placeholder="Default: test@123" autoComplete="new-password" {...register("loginPassword")}/>
-                  <p className="text-xs text-muted-foreground">
-                    the student signs in with their email + this password.
-                    Leave empty to use the default <code>test@123</code>.
-                  </p>
+                  <div className="relative">
+                    <Input id="member-login-password" type={showPassword ? "text" : "password"} placeholder="Set a password (min. 6 characters)" autoComplete="new-password" {...register("loginPassword")}/>
+                    <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground transition-colors hover:text-primary">
+                      {showPassword ? <EyeOffIcon className="size-4"/> : <EyeIcon className="size-4"/>}
+                    </button>
+                  </div>
                   {errors.loginPassword ? (<p className="text-xs text-destructive">{errors.loginPassword.message}</p>) : null}
                 </div>
               </div>

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -8,12 +9,16 @@ import {
     ChevronRightIcon,
     ClipboardCheckIcon,
     DownloadIcon,
+    EyeIcon,
     GaugeIcon,
     HistoryIcon,
     Loader2Icon,
+    PencilIcon,
+    SaveIcon,
     SearchIcon,
     UsersIcon,
     XCircleIcon,
+    XIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,13 +26,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useData } from "@/auth/AuthProvider";
-import { useAsync } from "@/hooks";
+import { SmartImage } from "@/components/shared/SmartImage";
+import { useAuth, useData } from "@/auth/AuthProvider";
+import { useAsync, useDebounced } from "@/hooks";
 import { downloadCsv, toCsv } from "@/lib/csv";
-import { formatDateTime } from "@/lib/format";
+import { PAYMENT_METHOD_LABELS, formatDateTime, titleCase } from "@/lib/format";
+import { can } from "@/lib/permissions";
+import { SLOT_GROUPS, groupSlotsByTime, slotGroupOf } from "@/lib/slots";
 import { cn } from "@/lib/utils";
+import { AttendanceCorrectionDialog } from "./AttendanceCorrectionDialog";
 
 /** Status → label, dot colour, chip classes (Present / Late / Absent). */
 const STATUS_META = {
@@ -44,6 +53,61 @@ function StatusChip({ status }) {
       <span className={cn("size-1.5 rounded-full", meta.dot)}/>
       {meta.label}
     </Badge>);
+}
+
+/** Latest payment method chip (Cash / UPI / …). */
+function PaymentChip({ method }) {
+    if (!method) return <span className="text-xs text-muted-foreground">—</span>;
+    return (<span className="rounded-full border border-border/70 bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+      {PAYMENT_METHOD_LABELS[method] ?? titleCase(method)}
+    </span>);
+}
+
+/** Paid-class quota chip for the register — "4 left".
+ *  Colour rule: 4+ left green · 3–2 yellow · 1 or 0 red. Square corners. */
+function ClassLeftChip({ quota }) {
+    if (!quota) return <span className="text-xs text-muted-foreground">—</span>;
+    const tone = quota.remaining >= 4
+        ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+        : quota.remaining >= 2
+            ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400"
+            : "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400";
+    return (<Badge variant="outline" className={cn("rounded-none font-semibold tabular-nums", tone)}>
+      {quota.remaining} left
+      {quota.exceeded > 0 ? ` · ${quota.exceeded} over` : ""}
+    </Badge>);
+}
+
+/** Membership days-left chip for the register — "18 days". */
+function DaysLeftChip({ daysLeft }) {
+    if (daysLeft == null) return <span className="text-xs text-muted-foreground">—</span>;
+    if (daysLeft <= 0)
+        return (<Badge variant="outline" className="rounded-none border-red-500/40 bg-red-500/15 font-semibold text-red-600 dark:text-red-400">
+          Expired
+        </Badge>);
+    const tone = daysLeft <= 7
+        ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        : "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400";
+    return (<Badge variant="outline" className={cn("rounded-none font-semibold tabular-nums", tone)}>
+      {daysLeft} {daysLeft === 1 ? "day" : "days"}
+    </Badge>);
+}
+/** Paid-class quota for the marking sheet — "11/12 · 1 left".
+ *  Colour rule: 4+ left green · 2–3 yellow · 1 or 0 red. */
+function RosterQuota({ quota }) {
+    if (!quota || quota.status === "none") return <span className="text-xs text-muted-foreground">—</span>;
+    const tone = quota.remaining >= 4
+        ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-600"
+        : quota.remaining >= 2
+            ? "border-amber-500/30 bg-amber-500/15 text-amber-600"
+            : "border-red-500/30 bg-red-500/15 text-red-600";
+    return (<span className="flex items-center gap-2">
+      <span className="text-sm text-foreground tabular">{quota.attended}/{quota.quota}</span>
+      <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium tabular", tone)}>
+        {quota.remaining} left
+        {quota.exceeded > 0 ? ` · ${quota.exceeded} over` : ""}
+      </span>
+    </span>);
 }
 
 /** A stat card for the header strip (Total Students / Present / Absent / Rate). */
@@ -87,14 +151,14 @@ const toMin = (hhmm) => {
     return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : NaN;
 };
 
-/** Format a plain "HH:mm" studio time as "h:mm am/pm" (formatTime wants a Date). */
+/** Format a plain "HH:mm" studio time as "8:00 AM" (12-hour clock + AM/PM). */
 function fmtSlotTime(hhmm) {
     const m = toMin(hhmm);
     if (!Number.isFinite(m)) return "";
     const h24 = Math.floor(m / 60);
     const mins = String(m % 60).padStart(2, "0");
     const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-    return `${h12}:${mins} ${h24 < 12 ? "am" : "pm"}`;
+    return `${h12}:${mins} ${h24 < 12 ? "AM" : "PM"}`;
 }
 
 /**
@@ -120,6 +184,8 @@ function pickLiveSlot(activeSlots, now = new Date()) {
 
 export function AttendancePage() {
     const data = useData();
+    const { session } = useAuth();
+    const canCorrect = can(session?.profile.role, "attendance.correct");
 
     /* ------------------------------ header stats ----------------------------- */
     const [summaryDate] = useState(() => ymdOf(new Date()));
@@ -129,86 +195,215 @@ export function AttendancePage() {
     const slots = useAsync(() => data.listClassSlots(), [data]);
     const activeSlots = useMemo(() => (slots.data ?? []).filter((s) => s.isActive), [slots.data]);
 
-    const [slotId, setSlotId] = useState("");
+    // Three group dropdowns (Morning / Afternoon / Evening Slots). Only one
+    // group can be active at a time — the other two render disabled. Within
+    // the active group the pick is either "__all__" (Select All Slots) or a
+    // single class-slot id.
+    const [slotGroup, setSlotGroup] = useState(null); // "morning"|"afternoon"|"evening"|null
+    const [slotPick, setSlotPick] = useState(""); // slotId | "__all__" | ""
+    const [loadAll, setLoadAll] = useState(false); // Load All → every active slot's students
     const [markDate, setMarkDate] = useState(() => ymdOf(new Date()));
-    const [loadedQuery, setLoadedQuery] = useState(null); // { slotId, date } set by Load Students
-    const [statuses, setStatuses] = useState({}); // memberId -> present|late|absent
-    const [savingId, setSavingId] = useState(null);
+    const [loadedQuery, setLoadedQuery] = useState(null); // { slotIds: [], date }
+
+    const groupedSlots = useMemo(() => groupSlotsByTime(activeSlots, "startTime"), [activeSlots]);
+
+    // Which class slots the current pick resolves to.
+    const selectedSlotIds = useMemo(() => {
+        if (loadAll) return activeSlots.map((s) => s.id);
+        if (!slotGroup || !slotPick) return [];
+        const list = groupedSlots[slotGroup] ?? [];
+        if (slotPick === "__all__") return list.map((s) => s.id);
+        return list.some((s) => s.id === slotPick) ? [slotPick] : [];
+    }, [loadAll, slotGroup, slotPick, groupedSlots, activeSlots]);
+    const [statuses, setStatuses] = useState({}); // memberId -> present|late|absent (local, unsaved)
+    const [savedStatuses, setSavedStatuses] = useState({}); // last persisted statuses
+    const [savingId, setSavingId] = useState(null); // single-row save (edit mode)
+    const [savingAll, setSavingAll] = useState(false); // bulk Save button
+    const [editingId, setEditingId] = useState(null); // saved row being edited
     const [markAllChecked, setMarkAllChecked] = useState(false);
+    const [studentQuery, setStudentQuery] = useState("");
 
-    // Auto-select the live (or next) slot and preload its roster, so the
-    // Mark Attendance panel opens on whichever class is running right now.
+    // Auto-select the live (or next) slot ONCE so the panel opens on whichever
+    // class is running right now. A ref guard keeps it from re-picking after
+    // the admin clears the selection (that made the Clear button look broken).
+    const autoPickedRef = useRef(false);
     useEffect(() => {
-        if (slotId || activeSlots.length === 0) return;
+        if (autoPickedRef.current || activeSlots.length === 0) return;
         const pick = pickLiveSlot(activeSlots);
-        if (!pick) return;
-        setSlotId(pick.id);
-        setLoadedQuery({ slotId: pick.id, date: markDate });
-        // Only on first load — don't re-trigger when markDate changes.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeSlots, slotId]);
+        autoPickedRef.current = true;
+        if (pick) {
+            setSlotGroup(slotGroupOf(pick.startTime) ?? "morning");
+            setSlotPick(pick.id);
+        }
+        // Only on first load — never after a manual Clear.
+    }, [activeSlots]);
 
-    const roster = useAsync(
-        () => (loadedQuery ? data.getClassRoster(loadedQuery.slotId, loadedQuery.date) : Promise.resolve(null)),
-        [data, loadedQuery],
-        { enabled: !!loadedQuery },
-    );
+    // Load the roster automatically whenever the selection/date changes.
+    const selectedKey = selectedSlotIds.join(",");
+    useEffect(() => {
+        if (!selectedKey) {
+            setLoadedQuery(null);
+            return;
+        }
+        setLoadedQuery({ slotIds: selectedKey.split(","), date: markDate });
+    }, [selectedKey, markDate]);
+
+    // Combined roster: fetch every selected slot's roster in parallel and merge
+    // students (deduped by member), tagging each with the slot they belong to
+    // so Save marks every student in their OWN slot.
+    const roster = useAsync(async () => {
+        if (!loadedQuery || loadedQuery.slotIds.length === 0) return null;
+        if (loadedQuery.slotIds.length === 1) {
+            const single = await data.getClassRoster(loadedQuery.slotIds[0], loadedQuery.date);
+            if (!single) return single;
+            return {
+                ...single,
+                students: (single.students ?? []).map((s) => ({ ...s, slotId: loadedQuery.slotIds[0] })),
+            };
+        }
+        const results = await Promise.all(loadedQuery.slotIds.map((id) => data.getClassRoster(id, loadedQuery.date)));
+        const seen = new Set();
+        const students = [];
+        results.forEach((result, index) => {
+            for (const s of result.students ?? []) {
+                if (seen.has(s.memberId)) continue;
+                seen.add(s.memberId);
+                students.push({ ...s, slotId: loadedQuery.slotIds[index] });
+            }
+        });
+        return { students, date: loadedQuery.date };
+    }, [data, loadedQuery], { enabled: !!loadedQuery && loadedQuery.slotIds.length > 0 });
 
     // Seed the status map from the roster whenever it loads.
     useEffect(() => {
         if (!roster.data?.students) return;
         const next = {};
-        for (const s of roster.data.students) next[s.memberId] = s.attendanceStatus ?? "present";
+        for (const s of roster.data.students) next[s.memberId] = s.attendanceStatus ?? null;
         setStatuses(next);
+        setSavedStatuses(next);
         setMarkAllChecked(false);
+        setEditingId(null);
     }, [roster.data]);
 
-    const students = roster.data?.students ?? [];
+    const students = useMemo(() => roster.data?.students ?? [], [roster.data]);
+    // Filter the loaded roster by student name or ID.
+    const filteredStudents = useMemo(() => {
+        const q = studentQuery.trim().toLowerCase();
+        if (!q) return students;
+        return students.filter((s) => (s.fullName ?? "").toLowerCase().includes(q) ||
+            (s.memberCode ?? "").toLowerCase().includes(q));
+    }, [students, studentQuery]);
 
-    const handleLoad = () => {
+    /* ------------------------------ walk-in students ------------------------- */
+    // Students from OTHER slots who show up at a different time: search finds
+    // them outside the loaded roster and the admin can mark them present/absent
+    // for this session directly.
+    const debouncedQuery = useDebounced(studentQuery, 300);
+    const walkInSearch = useAsync(() => (debouncedQuery.trim()
+        ? data.listMembers({ search: debouncedQuery.trim(), pageSize: 5 })
+        : Promise.resolve({ items: [] })), [data, debouncedQuery], { enabled: debouncedQuery.trim().length > 0 });
+    const rosterIds = useMemo(() => new Set(students.map((s) => s.memberId)), [students]);
+    const walkIns = useMemo(() => (walkInSearch.data?.items ?? []).filter((m) => !rosterIds.has(m.id) && m.status === "active"), [walkInSearch.data, rosterIds]);
+    const [walkInSavingId, setWalkInSavingId] = useState(null);
+    const markWalkIn = async (memberId, status) => {
+        // Walk-ins land in the first selected slot of the active group.
+        const slotId = loadedQuery?.slotIds?.[0];
         if (!slotId) return;
-        setLoadedQuery({ slotId, date: markDate });
+        setWalkInSavingId(memberId);
+        try {
+            const result = await data.markClassAttendance({ slotId, date: markDate, memberId, method: "class" });
+            if (result.status === "ok") {
+                toast.success(`Marked ${status}`);
+                roster.reload();
+            }
+            else {
+                toast.error(result.message ?? "Could not mark attendance.");
+            }
+        }
+        catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to mark attendance.");
+        }
+        setWalkInSavingId(null);
     };
 
     const persist = async (marks) => {
         try {
-            const result = await data.markRosterAttendance({ slotId: loadedQuery.slotId, date: loadedQuery.date, marks });
-            if (result.status === "ok") {
-                toast.success(`Saved ${result.marked} ${result.marked === 1 ? "student" : "students"}`);
-                roster.reload();
-                summary.reload();
+            // A combined roster spans several class slots — group each student's
+            // mark by their own slot and commit one request per slot.
+            const bySlot = new Map();
+            const slotOf = new Map(students.map((s) => [s.memberId, s.slotId ?? loadedQuery?.slotIds?.[0]]));
+            for (const m of marks) {
+                const sid = slotOf.get(m.memberId) ?? loadedQuery?.slotIds?.[0];
+                if (!sid) continue;
+                if (!bySlot.has(sid)) bySlot.set(sid, []);
+                bySlot.get(sid).push(m);
             }
-            else {
-                toast.error(result.message ?? "Could not save attendance.");
+            let total = 0;
+            for (const [sid, slotMarks] of bySlot) {
+                const result = await data.markRosterAttendance({ slotId: sid, date: loadedQuery.date, marks: slotMarks });
+                if (result.status !== "ok") {
+                    toast.error(result.message ?? "Could not save attendance.");
+                    return false;
+                }
+                total += result.marked ?? slotMarks.length;
             }
+            toast.success(`Saved ${total} ${total === 1 ? "student" : "students"}`);
+            roster.reload(); // seed effect re-syncs statuses + savedStatuses from the server
+            summary.reload();
+            return true;
         }
         catch (error) {
             toast.error(error instanceof Error ? error.message : "Unable to save attendance.");
+            return false;
         }
     };
 
-    const selectStatus = async (memberId, status) => {
+    // Rows whose local selection differs from the last saved state.
+    const pendingCount = students.filter((s) => statuses[s.memberId] && (statuses[s.memberId] ?? null) !== (savedStatuses[s.memberId] ?? null)).length;
+    const hasChanges = pendingCount > 0;
+
+    // Clicking a status before saving = local selection only (no API call).
+    const selectStatus = (memberId, status) => {
+        setStatuses((prev) => ({ ...prev, [memberId]: status }));
+    };
+
+    // Bulk Save — persists every pending mark at once.
+    const saveAll = async () => {
+        setSavingAll(true);
+        const marks = students
+            .filter((s) => statuses[s.memberId])
+            .map((s) => ({ memberId: s.memberId, status: statuses[s.memberId] }));
+        if (marks.length > 0) await persist(marks);
+        setSavingAll(false);
+    };
+
+    // Independent per-student edit (after a save) — persists that one row immediately.
+    const saveStudent = async (memberId, status) => {
         setStatuses((prev) => ({ ...prev, [memberId]: status }));
         setSavingId(memberId);
-        await persist([{ memberId, status }]);
+        const ok = await persist([{ memberId, status }]);
         setSavingId(null);
+        if (ok) setEditingId(null);
     };
 
-    const markAll = async () => {
+    // Mark All = local selection only; the admin still hits Save to commit.
+    const markAll = () => {
         setMarkAllChecked(true);
-        const next = {};
+        const next = { ...statuses };
         for (const s of students) next[s.memberId] = "present";
         setStatuses(next);
-        await persist(students.map((s) => ({ memberId: s.memberId, status: "present" })));
     };
 
-    const selectedSlot = activeSlots.find((s) => s.id === (loadedQuery?.slotId ?? slotId)) ?? null;
+    // The class slots behind the current pick (1 for a single slot, many for Select All).
+    const selectedSlots = useMemo(() => selectedSlotIds
+        .map((id) => activeSlots.find((s) => s.id === id))
+        .filter(Boolean), [selectedSlotIds, activeSlots]);
 
     /* ------------------------------- view section ---------------------------- */
-    const [tab, setTab] = useState("view");
     const [viewSlotId, setViewSlotId] = useState("all");
     const [viewDate, setViewDate] = useState(() => ymdOf(new Date()));
     const [search, setSearch] = useState("");
+    const [editing, setEditing] = useState(null); // attendance record being corrected
 
     const dayRange = useMemo(() => {
         const [y, m, d] = viewDate.split("-").map(Number);
@@ -240,18 +435,30 @@ export function AttendancePage() {
 
     const slotNameOf = (row) => row.meta?.slotName ?? (row.classSlotId ? "Class" : "Walk-in");
 
+    /** Human day label shown in the register header ("Wed, 21 Oct 2026"). */
+    const viewDateLabel = (() => {
+        const parsed = new Date(`${viewDate}T00:00:00`);
+        return Number.isNaN(parsed.getTime()) ? "" : format(parsed, "EEE, d MMM yyyy");
+    })();
+
     const handleExport = () => {
         if (filteredRows.length === 0) {
             toast.info("Nothing to export for this day.");
             return;
         }
-        downloadCsv(`attendance-${viewDate}`, toCsv(filteredRows, [
-            { header: "Student", accessor: (r) => r.memberName ?? "" },
-            { header: "Student ID", accessor: (r) => r.memberCode ?? "" },
-            { header: "Class Slot", accessor: (r) => slotNameOf(r) },
-            { header: "Date", accessor: (r) => r.sessionDate ?? "" },
-            { header: "Status", accessor: (r) => STATUS_META[r.attendanceStatus]?.label ?? "" },
-            { header: "Marked By", accessor: (r) => r.scannerName ?? "" },
+        const indexed = filteredRows.map((row, index) => ({ row, index }));
+        downloadCsv(`attendance-${viewDate}`, toCsv(indexed, [
+            { header: "Sr. no.", accessor: (r) => r.index + 1 },
+            { header: "Student", accessor: (r) => r.row.memberName ?? "" },
+            { header: "Student ID", accessor: (r) => r.row.memberCode ?? "" },
+            { header: "Payment Mode", accessor: (r) => (r.row.paymentMethod ? PAYMENT_METHOD_LABELS[r.row.paymentMethod] ?? titleCase(r.row.paymentMethod) : "") },
+            { header: "Classes", accessor: (r) => (r.row.quota ? `${r.row.quota.attended}/${r.row.quota.quota}` : "") },
+            { header: "Class Left", accessor: (r) => (r.row.quota ? r.row.quota.remaining : "") },
+            { header: "Days Left", accessor: (r) => (r.row.daysLeft ?? "") },
+            { header: "Class Slot", accessor: (r) => slotNameOf(r.row) },
+            { header: "Date", accessor: (r) => r.row.sessionDate ?? "" },
+            { header: "Status", accessor: (r) => STATUS_META[r.row.attendanceStatus]?.label ?? "" },
+            { header: "Marked By", accessor: (r) => r.row.scannerName ?? "" },
         ]));
         toast.success(`Exported ${filteredRows.length} records`);
     };
@@ -284,25 +491,85 @@ export function AttendancePage() {
         <CardContent className="space-y-5 p-5">
           <SectionHeading icon={<ClipboardCheckIcon className="size-5"/>} title="Mark Attendance" description="Select a class, then mark attendance for each student."/>
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_180px_auto] lg:items-end">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">Pick one group (the other two disable), or load every student at once.</p>
+            <Button size="sm" variant="outline" className="h-8 gap-1.5 px-3" disabled={slots.loading || activeSlots.length === 0 || loadAll} onClick={() => {
+              setLoadAll(true);
+              setSlotGroup(null);
+              setSlotPick("");
+            }}>
+              <UsersIcon className="size-3.5"/> Load All
+            </Button>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {SLOT_GROUPS.map((group) => {
+              const groupSlots = groupedSlots[group.key] ?? [];
+              const isActive = !loadAll && slotGroup === group.key;
+              const isDisabled = slots.loading || loadAll || groupSlots.length === 0 || (slotGroup !== null && !isActive);
+              return (<div key={group.key} className="space-y-1.5">
+                <Label htmlFor={`slot-group-${group.key}`}>{group.label}</Label>
+                <Select
+                  id={`slot-group-${group.key}`}
+                  value={isActive && slotPick ? slotPick : "__none__"}
+                  disabled={isDisabled}
+                  onValueChange={(v) => {
+                    if (v === "__none__") {
+                      setSlotGroup(null);
+                      setSlotPick("");
+                      return;
+                    }
+                    setSlotGroup(group.key);
+                    setSlotPick(v);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={slots.loading
+                      ? "Loading slots…"
+                      : groupSlots.length === 0
+                        ? "No slots in this group"
+                        : slotGroup && !isActive
+                          ? `${SLOT_GROUPS.find((g) => g.key === slotGroup)?.label ?? "Another group"} selected — clear to switch`
+                          : `Select ${group.label.toLowerCase()}`}/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Select All Slots ({groupSlots.length})</SelectItem>
+                    {groupSlots.map((s) => (<SelectItem key={s.id} value={s.id}>
+                        {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
+                      </SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>);
+            })}
+          </div>
+          {slotGroup || loadAll ? (<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{loadAll ? "Load All:" : `${SLOT_GROUPS.find((g) => g.key === slotGroup)?.label}:`}</span>
+              {loadAll
+                ? `${selectedSlots.length} slots — every student loaded, each saved to their own slot`
+                : slotPick === "__all__"
+                  ? `${selectedSlots.length} slots selected — each student is saved to their own slot`
+                  : `${selectedSlots.length} slot selected`}
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" aria-label="Clear slot selection" onClick={() => {
+                setLoadAll(false);
+                setSlotGroup(null);
+                setSlotPick("");
+              }}>
+                <XIcon className="size-3"/> Clear
+              </Button>
+            </div>) : null}
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_180px] lg:items-end">
             <div className="space-y-1.5">
-              <Label>Class Slot</Label>
-              <Select value={slotId || "__none__"} onValueChange={(v) => setSlotId(v === "__none__" ? "" : v)} disabled={activeSlots.length === 0}>
-                <SelectTrigger className="w-full"><SelectValue placeholder={slots.loading ? "Loading slots…" : "Select class slot"}/></SelectTrigger>
-                <SelectContent>
-                  {activeSlots.map((s) => (<SelectItem key={s.id} value={s.id}>
-                      {s.name} · {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
-                    </SelectItem>))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="mark-student-search">Search student</Label>
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                <Input id="mark-student-search" placeholder="Name or ID…" value={studentQuery} onChange={(e) => setStudentQuery(e.target.value)} className="pl-9"/>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mark-date">Session Date</Label>
               <Input id="mark-date" type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)}/>
             </div>
-            <Button className="h-10 w-full lg:w-auto" onClick={handleLoad} disabled={!slotId}>
-              <UsersIcon className="size-4"/> Load Students
-            </Button>
           </div>
 
           {/* Students panel */}
@@ -310,7 +577,12 @@ export function AttendancePage() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <UsersIcon className="size-4 text-muted-foreground"/>
-                Students <span className="text-muted-foreground">({students.length} loaded)</span>
+                Students{" "}
+                <span className="text-muted-foreground">
+                  ({filteredStudents.length === students.length
+                    ? students.length
+                    : `${filteredStudents.length}/${students.length}`})
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-4">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="size-2 rounded-full bg-emerald-500"/> Present</span>
@@ -327,12 +599,18 @@ export function AttendancePage() {
                 <span className="flex size-12 items-center justify-center rounded-full border border-km-gold/30 bg-km-gold/10 text-km-gold">
                   <UsersIcon className="size-5"/>
                 </span>
-                <p className="text-sm font-medium">Select a class slot and date to load students</p>
+                <p className="text-sm font-medium">Select a slot from Morning / Afternoon / Evening to load students</p>
                 <p className="text-xs text-muted-foreground">Students will appear here to mark their attendance.</p>
               </div>) : roster.loading ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading students…</div>) : students.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No students are enrolled in this slot yet. Add them from Class Slots → Roster.
+              </div>) : filteredStudents.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No students match “{studentQuery.trim()}”.
               </div>) : (<ul className="divide-y divide-border/60">
-                {students.map((s) => (<li key={s.memberId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                {filteredStudents.map((s) => {
+              const saved = savedStatuses[s.memberId] ?? null;
+              const isEditing = editingId === s.memberId;
+              const isSaved = Boolean(saved) && !isEditing;
+              return (<li key={s.memberId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold uppercase text-muted-foreground">
                         {(s.fullName ?? "S").slice(0, 2)}
@@ -343,21 +621,81 @@ export function AttendancePage() {
                       </div>
                       {savingId === s.memberId ? <Loader2Icon className="size-3.5 animate-spin text-muted-foreground"/> : null}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {STATUS_ORDER.map((st) => {
+                    <div className="flex items-center gap-4">
+                      <span className="w-20 text-xs text-muted-foreground"><PaymentChip method={s.paymentMethod}/></span>
+                      <span className="w-28"><RosterQuota quota={s.quota}/></span>
+                    </div>
+                    {isSaved ? (<div className="flex items-center gap-2">
+                        <StatusChip status={saved}/>
+                        <Button size="sm" variant="outline" className="h-8 px-3" aria-label={`Edit attendance for ${s.fullName}`} onClick={() => {
+                setEditingId(s.memberId);
+                setStatuses((prev) => ({ ...prev, [s.memberId]: saved }));
+            }}>
+                          <PencilIcon className="size-3.5"/> Edit
+                        </Button>
+                      </div>) : (<div className="flex items-center gap-1.5">
+                        {STATUS_ORDER.map((st) => {
                 const meta = STATUS_META[st];
                 const active = statuses[s.memberId] === st;
-                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-pressed={active} className={cn("h-8 px-3", active && meta.chip)} onClick={() => selectStatus(s.memberId, st)}>
+                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-pressed={active} className={cn("h-8 px-3", active && meta.chip)} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
                               {meta.label}
                             </Button>);
             })}
-                    </div>
-                  </li>))}
+                        {isEditing ? (<Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground" aria-label="Cancel edit" onClick={() => setEditingId(null)}>
+                            <XIcon className="size-3.5"/>
+                          </Button>) : null}
+                      </div>)}
+                  </li>);
+            })}
               </ul>)}
+
+          {/* Walk-in students (search-only, outside the slot roster) — shown when
+              the search matches students not enrolled in this slot. */}
+          {studentQuery.trim() && walkIns.length > 0 ? (<div className="border-t border-border/70 px-4 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Walk-in · not in this slot</p>
+              <ul className="mt-2 space-y-2">
+                {walkIns.map((m) => (<li key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold uppercase text-muted-foreground">
+                        {(m.fullName ?? "S").slice(0, 2)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{m.fullName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{m.memberCode ?? "—"}{m.planName ? ` · ${m.planName}` : ""}</p>
+                      </div>
+                    </div>
+                    {walkInSavingId === m.id ? <Loader2Icon className="size-4 animate-spin text-muted-foreground"/> : (<div className="flex items-center gap-1.5">
+                        <Button size="sm" variant="outline" className="h-8 px-3 hover:border-emerald-500/40 hover:text-emerald-600" onClick={() => markWalkIn(m.id, "present")}>
+                          Present
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8 px-3 hover:border-red-500/40 hover:text-red-600" onClick={() => markWalkIn(m.id, "absent")}>
+                          Absent
+                        </Button>
+                      </div>)}
+                  </li>))}
+              </ul>
+            </div>) : null}
+
+          {/* Save bar — bulk commit at the bottom of the sheet. */}
+          {students.length > 0 ? (<div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
+              <p className="text-xs text-muted-foreground">
+                {hasChanges
+                  ? `${pendingCount} ${pendingCount === 1 ? "change" : "changes"} unsaved`
+                  : "All changes saved"}
+              </p>
+              <Button size="sm" className="h-8 gap-1.5 px-4" disabled={!hasChanges || savingAll} onClick={saveAll}>
+                {savingAll ? <Loader2Icon className="size-3.5 animate-spin"/> : <SaveIcon className="size-3.5"/>}
+                Save{pendingCount > 0 ? ` (${pendingCount})` : ""}
+              </Button>
+            </div>) : null}
           </div>
 
-          {selectedSlot && loadedQuery ? (<p className="text-xs text-muted-foreground">
-              {selectedSlot.instructorName ? <>Instructor: <span className="font-medium text-foreground">{selectedSlot.instructorName}</span></> : "No instructor assigned"}
+          {selectedSlots.length > 0 && loadedQuery ? (<p className="text-xs text-muted-foreground">
+              {[...new Set(selectedSlots.map((s) => s.instructorName).filter(Boolean))].map((name, i, arr) => (<span key={name}>
+                  {i === 0 ? "Instructor" : ""}: <span className="font-medium text-foreground">{name}</span>
+                  {i < arr.length - 1 ? ", " : ""}
+                </span>))}
+              {[...new Set(selectedSlots.map((s) => s.instructorName).filter(Boolean))].length === 0 ? "No instructor assigned" : null}
             </p>) : null}
         </CardContent>
       </Card>
@@ -365,96 +703,135 @@ export function AttendancePage() {
       {/* ------------------------------ View section ---------------------------- */}
       <Card className="graphite-surface border-border/70">
         <CardContent className="space-y-5 p-5">
-          {/* Tabs */}
-          <div className="flex items-center gap-1 rounded-lg border border-border/70 p-1" role="tablist" aria-label="Attendance view">
-            <Button size="sm" role="tab" aria-selected={tab === "view"} variant={tab === "view" ? "secondary" : "ghost"} className="h-8 gap-2 px-3" onClick={() => setTab("view")}>
-              <HistoryIcon className="size-4"/> View Attendance
-            </Button>
-            <Button size="sm" role="tab" aria-selected={tab === "stats"} variant={tab === "stats" ? "secondary" : "ghost"} className="h-8 gap-2 px-3" onClick={() => setTab("stats")}>
-              <GaugeIcon className="size-4"/> Attendance Stats
+          <SectionHeading icon={<HistoryIcon className="size-5"/>} title="View Attendance" description="Review a day's register — payment, class quota and days left for every student."/>
+
+          {/* Filters */}
+          <div className="grid gap-3 lg:grid-cols-[200px_auto_1fr_auto] lg:items-end">
+            <div className="space-y-1.5">
+              <Label>Class Slot</Label>
+              <Select value={viewSlotId} onValueChange={setViewSlotId}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="All Classes"/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {SLOT_GROUPS.map((group) => {
+                    const groupSlots = groupedSlots[group.key] ?? [];
+                    if (groupSlots.length === 0) return null;
+                    return (<SelectGroup key={group.key}>
+                      <SelectLabel>{group.label}</SelectLabel>
+                      {groupSlots.map((s) => (<SelectItem key={s.id} value={s.id}>
+                          {s.name ? `${s.name} · ` : ""}{fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
+                        </SelectItem>))}
+                    </SelectGroup>);
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date</Label>
+              <div className="flex items-center gap-2">
+                <Input type="date" value={viewDate} onChange={(e) => setViewDate(e.target.value)} className="w-[160px]"/>
+                <Button size="icon-sm" variant="outline" aria-label="Previous day" onClick={() => shiftDay(-1)}>
+                  <ChevronLeftIcon/>
+                </Button>
+                <Button size="icon-sm" variant="outline" aria-label="Next day" onClick={() => shiftDay(1)}>
+                  <ChevronRightIcon/>
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="student-search">Student</Label>
+              <div className="relative">
+                <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                <Input id="student-search" placeholder="Search by name or ID…" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)}/>
+              </div>
+            </div>
+            <Button variant="outline" onClick={handleExport} disabled={list.loading}>
+              {list.loading ? <Loader2Icon className="size-4 animate-spin"/> : <DownloadIcon className="size-4"/>}
+              Export CSV
             </Button>
           </div>
 
-          {tab === "view" ? (<>
-              {/* Filters */}
-              <div className="grid gap-3 lg:grid-cols-[200px_auto_1fr_auto] lg:items-end">
-                <div className="space-y-1.5">
-                  <Label>Class Slot</Label>
-                  <Select value={viewSlotId} onValueChange={setViewSlotId}>
-                    <SelectTrigger className="w-full"><SelectValue placeholder="All Classes"/></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Classes</SelectItem>
-                      {activeSlots.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Date</Label>
-                  <div className="flex items-center gap-2">
-                    <Input type="date" value={viewDate} onChange={(e) => setViewDate(e.target.value)} className="w-[160px]"/>
-                    <Button size="icon-sm" variant="outline" aria-label="Previous day" onClick={() => shiftDay(-1)}>
-                      <ChevronLeftIcon/>
-                    </Button>
-                    <Button size="icon-sm" variant="outline" aria-label="Next day" onClick={() => shiftDay(1)}>
-                      <ChevronRightIcon/>
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="student-search">Student</Label>
-                  <div className="relative">
-                    <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-                    <Input id="student-search" placeholder="Search by name or ID…" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)}/>
-                  </div>
-                </div>
-                <Button variant="outline" onClick={handleExport} disabled={list.loading}>
-                  {list.loading ? <Loader2Icon className="size-4 animate-spin"/> : <DownloadIcon className="size-4"/>}
-                  Export CSV
-                </Button>
+          {/* Register table */}
+          <div className="rounded-xl border border-border/70">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <CalendarCheckIcon className="size-4 text-muted-foreground"/>
+                Register{" "}
+                <span className="text-muted-foreground">
+                  ({filteredRows.length === classRows.length
+                    ? classRows.length
+                    : `${filteredRows.length}/${classRows.length}`})
+                </span>
               </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {viewDateLabel}
+              </div>
+            </div>
 
-              {/* Table */}
-              {list.loading ? (<div className="px-2 py-8 text-center text-sm text-muted-foreground">Loading attendance…</div>) : filteredRows.length === 0 ? (<div className="px-2 py-10 text-center text-sm text-muted-foreground">
-                  No attendance recorded for {formatDateTime(new Date(`${viewDate}T00:00:00`)).split(",")[0]}.
-                </div>) : (<>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10">#</TableHead>
-                          <TableHead>Student Name</TableHead>
-                          <TableHead>Student ID</TableHead>
-                          <TableHead>Class Slot</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Marked By</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredRows.map((row, index) => (<TableRow key={row.id}>
-                            <TableCell className="text-sm text-muted-foreground tabular-nums">{index + 1}</TableCell>
-                            <TableCell className="font-medium">{row.memberName ?? "Student"}</TableCell>
-                            <TableCell className="text-muted-foreground">{row.memberCode ?? "—"}</TableCell>
-                            <TableCell className="text-muted-foreground">{slotNameOf(row)}</TableCell>
-                            <TableCell className="text-sm tabular-nums text-muted-foreground">{row.sessionDate ?? "—"}</TableCell>
-                            <TableCell><StatusChip status={row.attendanceStatus}/></TableCell>
-                            <TableCell className="text-muted-foreground">{row.scannerName ?? "—"}</TableCell>
-                          </TableRow>))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Showing {filteredRows.length} of {classRows.length} {classRows.length === 1 ? "student" : "students"}
-                  </p>
-                </>)}
-            </>) : (<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard label="Total Students" value={summaryData?.totalStudents ?? 0} icon={<UsersIcon className="size-4"/>} tone="neutral"/>
-              <StatCard label="Present Today" value={summaryData?.presentToday ?? 0} icon={<CheckCircle2Icon className="size-4"/>} tone="present"/>
-              <StatCard label="Absent Today" value={summaryData?.absentToday ?? 0} icon={<XCircleIcon className="size-4"/>} tone="absent"/>
-              <StatCard label="Attendance Rate" value={`${summaryData?.attendanceRate ?? 0}%`} icon={<GaugeIcon className="size-4"/>} tone="rate"/>
-            </div>)}
+            {list.loading ? (<div className="px-4 py-10 text-center text-sm text-muted-foreground">Loading attendance…</div>) : filteredRows.length === 0 ? (<div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                No attendance recorded for {formatDateTime(new Date(`${viewDate}T00:00:00`)).split(",")[0]}.
+              </div>) : (<div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Sr. no.</TableHead>
+                      <TableHead>Student Name</TableHead>
+                      <TableHead>Payment Mode</TableHead>
+                      <TableHead>Classes</TableHead>
+                      <TableHead>Class Left</TableHead>
+                      <TableHead>Days Left</TableHead>
+                      <TableHead>Class Slot</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRows.map((row, index) => (<TableRow key={row.id}>
+                        <TableCell className="text-sm text-muted-foreground tabular-nums">{index + 1}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <SmartImage src={row.memberPhoto} name={row.memberName ?? "Student"} className="size-8 shrink-0"/>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{row.memberName ?? "Student"}</p>
+                              <p className="truncate text-xs text-muted-foreground">{row.memberCode ?? "—"}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell><PaymentChip method={row.paymentMethod}/></TableCell>
+                        <TableCell className="text-sm tabular-nums text-muted-foreground">
+                          {row.quota ? `${row.quota.attended}/${row.quota.quota}` : "—"}
+                        </TableCell>
+                        <TableCell><ClassLeftChip quota={row.quota}/></TableCell>
+                        <TableCell><DaysLeftChip daysLeft={row.daysLeft}/></TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{slotNameOf(row)}</TableCell>
+                        <TableCell><StatusChip status={row.attendanceStatus}/></TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button size="icon-xs" variant="ghost" aria-label={`Open ${row.memberName ?? "student"}'s profile`} asChild>
+                              <Link to={`/members/${row.memberId}`}>
+                                <EyeIcon/>
+                              </Link>
+                            </Button>
+                            {canCorrect ? (<Button size="icon-xs" variant="ghost" aria-label={`Correct attendance for ${row.memberName ?? "student"}`} onClick={() => setEditing(row)}>
+                                <PencilIcon/>
+                              </Button>) : null}
+                          </div>
+                        </TableCell>
+                      </TableRow>))}
+                  </TableBody>
+                </Table>
+              </div>)}
+          </div>
         </CardContent>
       </Card>
+
+      <AttendanceCorrectionDialog record={editing} open={editing !== null} onOpenChange={(open) => {
+            if (!open)
+                setEditing(null);
+        }} onSaved={() => {
+            list.reload();
+            summary.reload();
+        }}/>
 
       {/* History link */}
       <div className="flex justify-end">

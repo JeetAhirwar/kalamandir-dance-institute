@@ -72,4 +72,29 @@ router.get(
   }),
 );
 
+const updateMeSchema = z.object({
+  fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(120).optional(),
+  avatarUrl: z
+    .string({ invalid_type_error: "Avatar must be a URL or data URL" })
+    .max(800_000, "Photo is too large")
+    .nullable()
+    .optional(),
+});
+
+/** PATCH /api/auth/me { fullName?, avatarUrl? } → the updated user. */
+router.patch(
+  "/me",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const input = parseBody(updateMeSchema, req.body);
+    const updates = {};
+    if (input.fullName !== undefined) updates.fullName = input.fullName;
+    if (input.avatarUrl !== undefined) updates.avatarUrl = input.avatarUrl || null;
+    const user = await User.findByIdAndUpdate(req.user.id, { $set: updates }, { new: true }).lean();
+    if (!user) throw unauthorized();
+    const shaped = toPublicUser(user);
+    res.json({ ...shaped, user: shaped });
+  }),
+);
+
 export default router;

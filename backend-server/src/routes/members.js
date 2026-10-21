@@ -139,19 +139,34 @@ const MEMBER_AUDIT_KEYS = [
 /*  Members CRUD                                                       */
 /* ------------------------------------------------------------------ */
 
-/** Attach the derived class-quota ({attended, remaining, status, label}) to a page of member rows. */
+/** Attach the derived class-quota ({attended, remaining, status, label}) and the
+ *  student's latest payment method to a page of member rows. */
 async function attachQuotaToRows(rows) {
   const ids = rows.map((r) => r.membership?.id).filter(Boolean);
-  if (ids.length === 0) return;
-  const counts = await AttendanceRecord.aggregate([
-    { $match: { membershipId: { $in: ids.map((v) => new Types.ObjectId(v)) }, quotaCounted: true } },
-    { $group: { _id: "$membershipId", attended: { $sum: 1 } } },
+  const memberIds = rows.map((r) => r.id).filter(Boolean);
+  if (ids.length === 0 && memberIds.length === 0) return;
+  const [counts, payments] = await Promise.all([
+    ids.length
+      ? AttendanceRecord.aggregate([
+          { $match: { membershipId: { $in: ids.map((v) => new Types.ObjectId(v)) }, quotaCounted: true } },
+          { $group: { _id: "$membershipId", attended: { $sum: 1 } } },
+        ])
+      : Promise.resolve([]),
+    memberIds.length
+      ? PaymentRecord.aggregate([
+          { $match: { memberId: { $in: memberIds.map((v) => new Types.ObjectId(v)) } } },
+          { $sort: { paymentDate: -1, _id: -1 } },
+          { $group: { _id: "$memberId", method: { $first: "$method" } } },
+        ])
+      : Promise.resolve([]),
   ]);
   const byId = new Map(counts.map((c) => [String(c._id), c.attended]));
+  const methodByMember = new Map(payments.map((p) => [String(p._id), p.method]));
   for (const row of rows) {
     const quota = row.membership?.classQuota ?? null;
     row.quota =
       quota == null ? null : computeQuota({ quota, attended: byId.get(String(row.membership.id)) ?? 0 });
+    row.paymentMethod = methodByMember.get(String(row.id)) ?? null;
   }
 }
 

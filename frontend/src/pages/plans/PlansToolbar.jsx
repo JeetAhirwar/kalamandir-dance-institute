@@ -55,7 +55,6 @@ export const PlansToolbar = forwardRef(function PlansToolbar({ query, onQueryCha
                 ? "bg-km-burgundy text-km-ivory shadow-xs"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
               <Icon className="size-4"/>
-              <span className="hidden md:inline">{label}</span>
             </button>);
         })}
       </div>

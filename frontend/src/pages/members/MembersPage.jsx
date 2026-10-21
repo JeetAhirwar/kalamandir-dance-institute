@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, MoreHorizontalIcon, PencilIcon, PhoneIcon, PlusIcon, SearchIcon, TagIcon, Trash2Icon, UserCheckIcon, UserRoundPlusIcon, UserXIcon, UsersIcon, } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, MoreHorizontalIcon, PencilIcon, PhoneIcon, PlusIcon, SearchIcon, Trash2Icon, UserCheckIcon, UserRoundPlusIcon, UserXIcon, UsersIcon, } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, SearchEmptyState, TableSkeleton, Stagger } from "@/components/shared/States";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -14,11 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync, useDebounced } from "@/hooks";
-import { MEMBER_FILTER_LABELS, formatDate } from "@/lib/format";
+import { MEMBER_FILTER_LABELS, PAYMENT_METHOD_LABELS, formatDate } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { MemberFormDialog } from "./MemberFormDialog";
-import { TagsDialog } from "./TagsDialog";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 const PAGE_SIZE = 10;
 const STATUS_FILTERS = [
@@ -44,23 +43,30 @@ function DaysLeftCell({ member }) {
     }
     return <span className="tabular">{member.daysRemaining} days</span>;
 }
-/** "kitni class hui / bachi" — attended vs paid quota for the current plan. */
+/** "kitni class hui / bachi" — attended vs paid quota, shown as a compact stack.
+ *  Colour rule: 4+ left green · 2–3 yellow · 1 or 0 red. */
 function QuotaCell({ member }) {
     const q = member.quota;
     if (!q || q.status === "none") {
         return <span className="text-muted-foreground">—</span>;
     }
     if (q.status === "exceeded") {
-        return <span className="tabular text-destructive">{q.attended}/{q.quota} · {q.exceeded} over</span>;
+        return (<div className="flex flex-col leading-tight">
+      <span className="text-sm tabular">{q.attended} / {q.quota}</span>
+      <span className="text-xs text-destructive">{q.exceeded} over</span>
+    </div>);
     }
     if (q.status === "expired") {
-        return (<span className="tabular text-destructive">{q.attended}/{q.quota} · 0 left</span>);
+        return (<div className="flex flex-col leading-tight">
+      <span className="text-sm tabular">{q.attended} / {q.quota}</span>
+      <span className="text-xs text-destructive">0 left</span>
+    </div>);
     }
-    const tone = q.status === "critical" ? "text-destructive" : q.status === "warning" ? "text-warning" : "text-foreground";
-    return (<span className="tabular">
-      {q.attended}/{q.quota}
-      <span className={cn("ml-1.5 text-xs", tone)}>{q.remaining} left</span>
-    </span>);
+    const tone = q.remaining >= 4 ? "text-success" : q.remaining >= 2 ? "text-warning" : "text-destructive";
+    return (<div className="flex flex-col leading-tight">
+      <span className="text-sm tabular">{q.attended} / {q.quota}</span>
+      <span className={cn("text-xs tabular", tone)}>{q.remaining} left</span>
+    </div>);
 }
 export function MembersPage() {
     const data = useData();
@@ -73,7 +79,11 @@ export function MembersPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [search, setSearch] = useState("");
     const debouncedSearch = useDebounced(search, 350);
-    const [status, setStatus] = useState("all");
+    // Deep link: /members?status=active (dashboard stat cards) presets the filter.
+    const [status, setStatus] = useState(() => {
+        const preset = searchParams.get("status");
+        return preset && STATUS_FILTERS.includes(preset) ? preset : "all";
+    });
     const [planId, setPlanId] = useState("all");
     const [tagId, setTagId] = useState("all");
     const [sort, setSort] = useState("created");
@@ -82,11 +92,8 @@ export function MembersPage() {
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [deleting, setDeleting] = useState(null);
-    const [tagsOpen, setTagsOpen] = useState(false);
-    // Bumped after tag create/rename/delete so the filter list reloads.
-    const [tagsRev, setTagsRev] = useState(0);
     const plans = useAsync(() => data.listPlans(), [data]);
-    const tagsQ = useAsync(() => data.listTags(), [data, tagsRev]);
+    const tagsQ = useAsync(() => data.listTags(), [data]);
     const members = useAsync(() => data.listMembers({
         search: debouncedSearch.trim() || undefined,
         status,
@@ -102,15 +109,27 @@ export function MembersPage() {
         setPage(1);
     }, [debouncedSearch, status, planId, tagId, sort, dir]);
     // Deep link: /members?new=1 auto-opens the add dialog (dashboard quick action).
+    // The param is kept while the dialog should be open so a page-transition remount
+    // re-opens it; it is cleared only once the dialog is dismissed (or not permitted).
     useEffect(() => {
+        if (!session)
+            return; // auth still restoring — never consume the param early
         if (searchParams.get("new") !== "1")
             return;
         if (canCreate) {
             setEditing(null);
             setFormOpen(true);
         }
-        setSearchParams({}, { replace: true });
-    }, [searchParams, setSearchParams, canCreate]);
+        else {
+            setSearchParams({}, { replace: true });
+        }
+    }, [searchParams, setSearchParams, canCreate, session]);
+    const handleFormOpenChange = (open) => {
+        setFormOpen(open);
+        if (!open && searchParams.has("new")) {
+            setSearchParams({}, { replace: true });
+        }
+    };
     const hasFilters = debouncedSearch.trim() !== "" || status !== "all" || planId !== "all" || tagId !== "all";
     const clearFilters = () => {
         setSearch("");
@@ -183,70 +202,72 @@ export function MembersPage() {
     return (<div className="space-y-6">
       {header}
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1 sm:max-w-xs">
+      {/* Toolbar — search, filters and sort in one card, matching the plans page. */}
+      <div className="flex flex-col gap-3 rounded-xl border border-km-gold/25 bg-card/70 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
+        {/* Search */}
+        <div className="relative min-w-0 flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"/>
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, phone or Student ID…" className="pl-9" aria-label="Search students"/>
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, phone or Student ID…" className="h-9 border-km-gold/25 bg-background/60 pl-9 focus-visible:border-km-gold" aria-label="Search students"/>
         </div>
 
-        <Select value={status} onValueChange={(value) => setStatus(value)}>
-          <SelectTrigger size="sm" aria-label="Filter by status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_FILTERS.map((option) => (<SelectItem key={option} value={option}>
-                {MEMBER_FILTER_LABELS[option]}
-              </SelectItem>))}
-          </SelectContent>
-        </Select>
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={status} onValueChange={(value) => setStatus(value)}>
+            <SelectTrigger size="sm" className="border-km-gold/25 bg-background/60" aria-label="Filter by status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" align="end" className="min-w-40">
+              {STATUS_FILTERS.map((option) => (<SelectItem key={option} value={option}>
+                  {MEMBER_FILTER_LABELS[option]}
+                </SelectItem>))}
+            </SelectContent>
+          </Select>
 
-        <Select value={planId} onValueChange={setPlanId}>
-          <SelectTrigger size="sm" aria-label="Filter by plan">
-            <SelectValue placeholder="All plans"/>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All plans</SelectItem>
-            {(plans.data ?? []).map((plan) => (<SelectItem key={plan.id} value={plan.id}>
-                {plan.name}
-              </SelectItem>))}
-          </SelectContent>
-        </Select>
+          <Select value={planId} onValueChange={setPlanId}>
+            <SelectTrigger size="sm" className="border-km-gold/25 bg-background/60" aria-label="Filter by plan">
+              <SelectValue placeholder="All plans"/>
+            </SelectTrigger>
+            <SelectContent position="popper" align="end" className="min-w-44">
+              <SelectItem value="all">All plans</SelectItem>
+              {(plans.data ?? []).map((plan) => (<SelectItem key={plan.id} value={plan.id}>
+                  {plan.name}
+                </SelectItem>))}
+            </SelectContent>
+          </Select>
 
-        <Select value={tagId} onValueChange={setTagId}>
-          <SelectTrigger size="sm" aria-label="Filter by tag">
-            <SelectValue placeholder="All tags"/>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All tags</SelectItem>
-            {(tagsQ.data ?? []).map((tag) => (<SelectItem key={tag.id} value={tag.id}>
-                {tag.name}
-              </SelectItem>))}
-          </SelectContent>
-        </Select>
+          <Select value={tagId} onValueChange={setTagId}>
+            <SelectTrigger size="sm" className="border-km-gold/25 bg-background/60" aria-label="Filter by tag">
+              <SelectValue placeholder="All tags"/>
+            </SelectTrigger>
+            <SelectContent position="popper" align="end" className="min-w-40">
+              <SelectItem value="all">All tags</SelectItem>
+              {(tagsQ.data ?? []).map((tag) => (<SelectItem key={tag.id} value={tag.id}>
+                  {tag.name}
+                </SelectItem>))}
+            </SelectContent>
+          </Select>
 
-        {canEdit ? (<Button variant="outline" size="sm" className="gap-1.5" onClick={() => setTagsOpen(true)}>
-            <TagIcon className="size-3.5"/> Manage tags
-          </Button>) : null}
+          {/* Sort — field + direction as one compact group. */}
+          <div className="flex items-center gap-1 rounded-lg border border-km-gold/25 bg-background/60 p-1">
+            <Select value={sort} onValueChange={(value) => setSort(value)}>
+              <SelectTrigger size="sm" className="border-0 bg-transparent px-2 shadow-none focus-visible:ring-0" aria-label="Sort students">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" align="end" className="min-w-40">
+                {SORT_OPTIONS.map((option) => (<SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>))}
+              </SelectContent>
+            </Select>
+            <Button variant="ghost" size="icon-sm" className="size-7 text-muted-foreground" aria-label={dir === "asc" ? "Sort ascending (switch to descending)" : "Sort descending (switch to ascending)"} onClick={() => setDir((current) => (current === "asc" ? "desc" : "asc"))}>
+              {dir === "asc" ? <ArrowUpIcon className="size-4"/> : <ArrowDownIcon className="size-4"/>}
+            </Button>
+          </div>
 
-        <Select value={sort} onValueChange={(value) => setSort(value)}>
-          <SelectTrigger size="sm" aria-label="Sort students">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SORT_OPTIONS.map((option) => (<SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>))}
-          </SelectContent>
-        </Select>
-
-        <Button variant="outline" size="icon-sm" aria-label={dir === "asc" ? "Sort ascending (switch to descending)" : "Sort descending (switch to ascending)"} onClick={() => setDir((current) => (current === "asc" ? "desc" : "asc"))}>
-          {dir === "asc" ? <ArrowUpIcon className="size-4"/> : <ArrowDownIcon className="size-4"/>}
-        </Button>
-
-        {hasFilters ? (<Button variant="ghost" size="sm" onClick={clearFilters}>
-            Clear filters
-          </Button>) : null}
+          {hasFilters ? (<Button variant="ghost" size="sm" className="text-muted-foreground" onClick={clearFilters}>
+              Clear filters
+            </Button>) : null}
+        </div>
       </div>
 
       {/* Table */}
@@ -260,25 +281,26 @@ export function MembersPage() {
                       </Button>) : undefined}/>)}
             </div>) : (<>
               <div className={cn("transition-opacity", members.loading && "pointer-events-none opacity-60")}>
-                <Table>
+                <Table className="min-w-[900px] table-fixed">
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-56">Student</TableHead>
-                      <TableHead className="hidden sm:table-cell">Phone</TableHead>
-                      <TableHead className="hidden md:table-cell">Plan</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="hidden lg:table-cell">Days left</TableHead>
-                      <TableHead className="hidden lg:table-cell">Classes</TableHead>
-                      <TableHead className="w-10 text-right">
+                    <TableRow className="h-11">
+                      <TableHead className="w-[23%] px-3 align-middle">Student</TableHead>
+                      <TableHead className="w-[16%] px-3 align-middle">Phone</TableHead>
+                      <TableHead className="w-[14%] px-3 align-middle">Plan</TableHead>
+                      <TableHead className="w-[9%] px-3 align-middle">Status</TableHead>
+                      <TableHead className="w-[9%] px-3 align-middle">Days left</TableHead>
+                      <TableHead className="w-[13%] px-3 align-middle">Classes</TableHead>
+                      <TableHead className="w-[9%] px-3 align-middle">Payment</TableHead>
+                      <TableHead className="w-[7%] px-3 text-right align-middle">
                         <span className="sr-only">Actions</span>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((member) => (<TableRow key={member.id} className="cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}>
-                        <TableCell>
+                    {rows.map((member) => (<TableRow key={member.id} className="h-16 cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}>
+                        <TableCell className="px-3 align-middle">
                           <div className="flex items-center gap-3">
-                            <SmartImage src={member.photoUrl} name={member.fullName} className="size-9 shrink-0"/>
+                            <SmartImage src={member.photoUrl} name={member.fullName} className="size-11 shrink-0"/>
                             <div className="min-w-0">
                               <Link to={`/members/${member.id}`} onClick={(event) => event.stopPropagation()} className="block truncate text-sm font-medium hover:underline">
                                 {member.fullName}
@@ -287,35 +309,40 @@ export function MembersPage() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                            <PhoneIcon className="size-3.5"/>
+                        <TableCell className="px-3 align-middle">
+                          <span className="inline-flex items-center gap-2 whitespace-nowrap text-muted-foreground">
+                            <PhoneIcon className="size-3.5 shrink-0"/>
                             {member.phone}
                           </span>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {member.planName ? (<div>
-                              <p className="text-sm">{member.planName}</p>
-                              <p className="text-xs text-muted-foreground">ends {formatDate(member.endDate)}</p>
+                        <TableCell className="px-3 align-middle">
+                          {member.planName ? (<div className="min-w-0">
+                              <p className="truncate text-sm leading-tight">{member.planName}</p>
+                              <p className="truncate text-xs leading-tight text-muted-foreground">ends {formatDate(member.endDate)}</p>
                             </div>) : (<span className="text-muted-foreground">—</span>)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-3 align-middle">
                           <StatusBadge status={member.effectiveStatus}/>
                         </TableCell>
-                        <TableCell className="hidden text-sm lg:table-cell">
+                        <TableCell className="px-3 text-sm align-middle">
                           <DaysLeftCell member={member}/>
                         </TableCell>
-                        <TableCell className="hidden text-sm lg:table-cell">
+                        <TableCell className="px-3 text-sm align-middle">
                           <QuotaCell member={member}/>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="px-3 text-sm align-middle text-muted-foreground">
+                          {member.paymentMethod
+                            ? (PAYMENT_METHOD_LABELS[member.paymentMethod] ?? member.paymentMethod)
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="px-3 text-right align-middle">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon-xs" aria-label={`Actions for ${member.fullName}`} onClick={(event) => event.stopPropagation()}>
+                              <Button variant="ghost" size="icon-xs" aria-label={`Actions for ${member.fullName}`} className="ml-auto" onClick={(event) => event.stopPropagation()}>
                                 <MoreHorizontalIcon />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+                            <DropdownMenuContent align="end" sideOffset={6} onClick={(event) => event.stopPropagation()}>
                               <DropdownMenuItem onSelect={() => navigate(`/members/${member.id}`)}>
                                 <EyeIcon /> View profile
                               </DropdownMenuItem>
@@ -360,8 +387,7 @@ export function MembersPage() {
         </Card>
       </Stagger>
 
-      <MemberFormDialog open={formOpen} onOpenChange={setFormOpen} member={editing} plans={plans.data ?? []} onSave={handleSave}/>
-      <TagsDialog open={tagsOpen} onOpenChange={setTagsOpen} onChanged={() => setTagsRev((v) => v + 1)}/>
+      <MemberFormDialog open={formOpen} onOpenChange={handleFormOpenChange} member={editing} plans={plans.data ?? []} onSave={handleSave}/>
 
       <ConfirmActionDialog open={deleting !== null} onOpenChange={(open) => {
             if (!open)

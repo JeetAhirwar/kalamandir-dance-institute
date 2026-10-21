@@ -1,78 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, } from "recharts";
-import { motion } from "motion/react";
-import { ActivityIcon, BanknoteIcon, CalendarClockIcon, CameraIcon, IndianRupeeIcon, PlusIcon, UserPlusIcon, UserRoundCheckIcon, WalletIcon, } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState, ErrorState, Skeleton, Stagger } from "@/components/shared/States";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { motion, useReducedMotion } from "motion/react";
+import { ArrowRightIcon, BanknoteIcon, CalendarClockIcon, CameraIcon, IndianRupeeIcon, UserPlusIcon, UserRoundCheckIcon, WalletIcon } from "lucide-react";
+import { EmptyState, ErrorState, Skeleton } from "@/components/shared/States";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SmartImage } from "@/components/shared/SmartImage";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync } from "@/hooks";
 import { formatINR, formatDate, formatTime, relativeTime } from "@/lib/format";
+import { endOfDayInTz, startOfDayInTz, ymdInTz } from "@/lib/datetime";
 import { can } from "@/lib/permissions";
-import { cn } from "@/lib/utils";
+import { HeroBanner } from "./dashboard/HeroBanner";
+import { FinancialCard, MetricCard } from "./dashboard/DashboardCards";
+
 const CHART_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
-function CountUp({ value, format }) {
-    const [display, setDisplay] = useState(0);
-    const previous = useRef(0);
-    useEffect(() => {
-        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-        if (reduceMotion) {
-            setDisplay(value);
-            previous.current = value;
-            return;
-        }
-        const from = previous.current;
-        const start = performance.now();
-        const duration = 650;
-        let frame = 0;
-        const tick = (now) => {
-            const progress = Math.min(1, (now - start) / duration);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            setDisplay(Math.round(from + (value - from) * eased));
-            if (progress < 1)
-                frame = requestAnimationFrame(tick);
-            else
-                previous.current = value;
-        };
-        frame = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(frame);
-    }, [value]);
-    return <span className="tabular">{format ? format(display) : display.toLocaleString("en-IN")}</span>;
-}
-function StatCard({ label, value, icon, hint, tone = "default", format, }) {
-    const toneClass = tone === "success"
-        ? "text-primary"
-        : tone === "warning"
-            ? "text-warning"
-            : tone === "danger"
-                ? "text-destructive"
-                : "text-foreground";
-    const iconTone = tone === "success"
-        ? "bg-primary/10 text-primary"
-        : tone === "warning"
-            ? "bg-warning/10 text-warning"
-            : tone === "danger"
-                ? "bg-destructive/10 text-destructive"
-                : "bg-secondary text-km-gold-muted";
-    return (<Card className="graphite-surface border-border/60">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
-          <span className={cn("flex size-9 items-center justify-center rounded-xl", iconTone)}>
-            {icon}
-          </span>
-        </div>
-        <p className={cn("mt-4 text-3xl font-semibold tracking-tight", toneClass)}>
-          <CountUp value={value} format={format}/>
-        </p>
-        {hint ? <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p> : null}
-      </CardContent>
-    </Card>);
-}
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "2026-04-16" → "Apr 16" — compact, readable axis labels. */
+const dayTick = (v) => `${MONTH_SHORT[Number(v.slice(5, 7)) - 1]} ${Number(v.slice(8))}`;
+
 function ChartTooltipCard({ active, payload, label, isCurrency }) {
     if (!active || !payload || payload.length === 0)
         return null;
@@ -86,63 +32,95 @@ function ChartTooltipCard({ active, payload, label, isCurrency }) {
         </p>))}
     </div>);
 }
+
+function PanelHeader({ title, subtitle, action }) {
+    return (<div className="flex items-center justify-between gap-3 px-4 pt-4">
+      <div className="min-w-0">
+        <h2 className="truncate font-sans text-[14px] font-semibold text-[#28151F]">{title}</h2>
+        {subtitle ? <p className="mt-0.5 truncate text-[11.5px] text-[#78695F]">{subtitle}</p> : null}
+      </div>
+      {action}
+    </div>);
+}
+
+function PanelLink({ to, children }) {
+    return (<Link to={to} className="inline-flex shrink-0 items-center gap-1 text-[11.5px] font-medium text-primary transition-colors hover:text-km-wine">
+      {children}
+      <ArrowRightIcon aria-hidden="true" className="size-3"/>
+    </Link>);
+}
+
+/** Short fade-and-rise entrance that respects prefers-reduced-motion. */
+function FadeIn({ children, delay = 0, className }) {
+    const reduceMotion = useReducedMotion();
+    return (<motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }} className={className}>
+      {children}
+    </motion.div>);
+}
+
+const PANEL = "overflow-hidden rounded-xl border border-[#E9DECC] bg-[#FFFCF6] shadow-[0_2px_5px_rgba(49,13,32,0.06)]";
+
 export function DashboardPage() {
     const data = useData();
     const { session } = useAuth();
     const role = session?.profile.role;
     const stats = useAsync(() => data.getDashboardStats(), [data]);
-    const trend = useAsync(() => data.getAttendanceTrend(14), [data]);
+    const [trendDays, setTrendDays] = useState(14);
+    const trend = useAsync(() => data.getAttendanceTrend(trendDays), [data, trendDays]);
     const revenue = useAsync(() => data.getRevenueTrend(6), [data]);
     const distribution = useAsync(() => data.getPlanDistribution(), [data]);
     const recentCheckIns = useAsync(() => data.getRecentCheckIns(6), [data]);
     const recentMembers = useAsync(() => data.getRecentMembers(5), [data]);
     const expirations = useAsync(() => data.getUpcomingExpiries(5), [data]);
+    const todayClasses = useAsync(() => data.listClasses(startOfDayInTz(new Date()), endOfDayInTz(new Date())), [data]);
     const isNewGym = stats.data?.totalMembers === 0;
+    // Stat cards link into the matching page — payments only when the role may see it.
+    const canViewPayments = can(role, "payments.view");
+    const todayYmd = ymdInTz(new Date());
     const revenueDelta = stats.data && stats.data.previousMonthRevenue > 0
         ? Math.round(((stats.data.monthlyRevenue - stats.data.previousMonthRevenue) / stats.data.previousMonthRevenue) * 100)
         : null;
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    const quickActions = [
-        { to: "/members?new=1", label: "Add student", icon: UserPlusIcon, capability: "members.create" },
-        { to: "/payments?new=1", label: "Record payment", icon: WalletIcon, capability: "payments.record" },
-        { to: "/plans?new=1", label: "Add plan", icon: PlusIcon, capability: "plans.manage" },
-    ].filter((action) => can(role, action.capability));
+
     if (stats.loading) {
-        return (<div className="space-y-6">
-        <Skeleton className="h-20 w-full"/>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (<Skeleton key={index} className="h-32"/>))}
+        return (<div className="space-y-3">
+        <Skeleton className="h-[240px] rounded-[14px]"/>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (<Skeleton key={index} className="h-[118px]"/>))}
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Skeleton className="h-72"/>
-          <Skeleton className="h-72"/>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (<Skeleton key={index} className="h-[112px]"/>))}
+        </div>
+        <div className="grid gap-3 lg:grid-cols-[1.85fr_1fr]">
+          <Skeleton className="h-[268px]"/>
+          <Skeleton className="h-[268px]"/>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (<Skeleton key={index} className="h-[230px]"/>))}
         </div>
       </div>);
     }
     if (stats.error) {
         return <ErrorState message={stats.error} onRetry={stats.reload} title="Unable to load the dashboard"/>;
     }
-    return (<div className="space-y-6">
-      <PageHeader title={`${greeting}, ${session?.profile.fullName.split(" ")[0] ?? "there"}`} description={isNewGym
-            ? "Your database is ready — add your first plan and member to see live numbers here."
-            : "Here is what is happening at your institute today."} actions={<>
-            <Button variant="outline" asChild>
-              <Link to="/reports">
-                <ActivityIcon className="size-4"/> View reports
-              </Link>
-            </Button>
-            {quickActions.slice(0, 1).map((action) => (<Button key={action.to} asChild>
-                <Link to={action.to}>
-                  <action.icon className="size-4"/> {action.label}
-                </Link>
-              </Button>))}
-          </>}/>
 
-      {isNewGym ? (<Stagger>
-          <Card className="paper-surface paper-lift relative overflow-hidden border-0">
+    const totalThisMonth = (stats.data?.monthlyRevenue ?? 0) + (stats.data?.pendingAmount ?? 0);
+    const collected = stats.data?.monthlyRevenue ?? 0;
+    const remaining = stats.data?.pendingAmount ?? 0;
+    const collectedPct = totalThisMonth > 0 ? (collected / totalThisMonth) * 100 : null;
+    const remainingPct = totalThisMonth > 0 ? (remaining / totalThisMonth) * 100 : null;
+
+    const distributionRows = (distribution.data ?? []).filter((d) => d.count > 0);
+    const distributionTotal = distributionRows.reduce((sum, d) => sum + d.count, 0);
+    const revenueRows = revenue.data ?? [];
+    const currentMonthIdx = revenueRows.length - 1;
+
+    return (<div className="space-y-3">
+      <HeroBanner todayClassCount={todayClasses.data ? todayClasses.data.length : undefined} canAddStudent={can(role, "members.create")} canMarkAttendance={can(role, "attendance.mark")}/>
+
+      {isNewGym ? (<FadeIn>
+          <div className="paper-surface paper-lift relative overflow-hidden rounded-xl border-0">
             <span className="paper-tape" aria-hidden/>
-            <CardContent className="p-8">
+            <div className="p-8">
               <div className="max-w-2xl">
                 <p className="font-serif text-sm tracking-wide text-paper-foreground/70">Getting started</p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight">Two steps to a live studio</h2>
@@ -163,220 +141,181 @@ export function DashboardPage() {
                     </li>))}
                 </ol>
               </div>
-            </CardContent>
-          </Card>
-        </Stagger>) : null}
+            </div>
+          </div>
+        </FadeIn>) : null}
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stagger delayIndex={0}>
-          <StatCard label="Active students" value={stats.data?.activeMembers ?? 0} icon={<UserRoundCheckIcon className="size-4"/>} hint={`${stats.data?.totalMembers ?? 0} total on record`} tone="success"/>
-        </Stagger>
-        <Stagger delayIndex={1}>
-          <StatCard label="New this month" value={stats.data?.newThisMonth ?? 0} icon={<UserPlusIcon className="size-4"/>} hint="Joined in the current month"/>
-        </Stagger>
-        <Stagger delayIndex={2}>
-          <StatCard label="Expiring soon" value={stats.data?.expiringSoon ?? 0} icon={<CalendarClockIcon className="size-4"/>} hint={`${stats.data?.expiredMembers ?? 0} already expired`} tone="warning"/>
-        </Stagger>
-        <Stagger delayIndex={3}>
-          <StatCard label="Today's check-ins" value={stats.data?.todayAttendance ?? 0} icon={<CameraIcon className="size-4"/>} hint={session && data
-            ? `${stats.data?.currentCheckIns ?? 0} currently inside`
-            : undefined} tone="default"/>
-        </Stagger>
+      {/* Primary metrics — each card opens the matching filtered list. */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard index={0} label="Active students" value={stats.data?.activeMembers ?? 0} icon={<UserRoundCheckIcon className="size-[18px]"/>} hint={`${stats.data?.totalMembers ?? 0} total on record`} accent={{ bg: "#310D20", fg: "#E8D5AD" }} to="/members?status=active"/>
+        <MetricCard index={1} label="New this month" value={stats.data?.newThisMonth ?? 0} icon={<UserPlusIcon className="size-[18px]"/>} hint="Joined in the current month" accent={{ bg: "#C6A45B", fg: "#2D0A18" }} to="/members"/>
+        <MetricCard index={2} label="Expiring soon" value={stats.data?.expiringSoon ?? 0} icon={<CalendarClockIcon className="size-[18px]"/>} hint={`${stats.data?.expiredMembers ?? 0} already expired`} accent={{ bg: "#B97924", fg: "#FFF7EA" }} to="/members?status=expiring_soon"/>
+        <MetricCard index={3} label="Today's check-ins" value={stats.data?.todayAttendance ?? 0} icon={<CameraIcon className="size-[18px]"/>} hint={`${stats.data?.currentCheckIns ?? 0} currently inside`} accent={{ bg: "#48172C", fg: "#E8D5AD" }} to={`/attendance/history?from=${todayYmd}&to=${todayYmd}`}/>
       </div>
 
-{/* This month: Total | Collected | Remaining */}
-<div className="grid gap-4 sm:grid-cols-3">
-  <Stagger delayIndex={4}>
-    <StatCard
-      label="Total this month"
-      value={(stats.data?.monthlyRevenue ?? 0) + (stats.data?.pendingAmount ?? 0)}
-      format={(n) => formatINR(n)}
-      icon={<IndianRupeeIcon className="size-4" />}
-      hint="Collected + remaining"
-    />
-  </Stagger>
-  <Stagger delayIndex={5}>
-    <StatCard
-      label="Collected"
-      value={stats.data?.monthlyRevenue ?? 0}
-      format={(n) => formatINR(n)}
-      icon={<BanknoteIcon className="size-4" />}
-      hint={
-        revenueDelta !== null
-          ? `${revenueDelta >= 0 ? "+" : ""}${revenueDelta}% vs last month`
-          : "Payments received this month"
-      }
-      tone="success"
-    />
-  </Stagger>
-  <Stagger delayIndex={6}>
-    <StatCard
-      label="Remaining"
-      value={stats.data?.pendingAmount ?? 0}
-      format={(n) => formatINR(n)}
-      icon={<WalletIcon className="size-4" />}
-      hint={
-        stats.data?.pendingPayments
-          ? `${stats.data.pendingPayments} member${stats.data.pendingPayments === 1 ? "" : "s"} with dues`
-          : "No outstanding dues"
-      }
-      tone={stats.data && (stats.data.pendingAmount ?? 0) > 0 ? "danger" : "default"}
-    />
-  </Stagger>
-</div>
-
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="graphite-surface border-border/70 lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base">Attendance trend</CardTitle>
-              <p className="text-xs text-muted-foreground">Daily check-ins, last 14 days</p>
-            </div>
-            <Link to="/reports" className="text-xs text-primary hover:underline">
-              Full report
-            </Link>
-          </CardHeader>
-          <CardContent className="h-64 pb-4">
-            {trend.loading ? (<Skeleton className="size-full"/>) : trend.data ? (<ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trend.data} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="attendanceFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.35}/>
-                      <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0.02}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
-                  <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} minTickGap={18}/>
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={40}/>
-                  <Tooltip content={<ChartTooltipCard />} cursor={{ stroke: "var(--border)" }}/>
-                  <Area type="monotone" dataKey="count" name="Check-ins" stroke="var(--chart-1)" strokeWidth={2} fill="url(#attendanceFill)"/>
-                </AreaChart>
-              </ResponsiveContainer>) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="graphite-surface border-border/70">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base">Plan mix</CardTitle>
-              <p className="text-xs text-muted-foreground">Active memberships</p>
-            </div>
-          </CardHeader>
-          <CardContent className="h-64 pb-4">
-            {distribution.loading ? (<Skeleton className="size-full"/>) : distribution.data && distribution.data.some((d) => d.count > 0) ? (<ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={distribution.data.filter((d) => d.count > 0)} dataKey="count" nameKey="planName" innerRadius={52} outerRadius={80} paddingAngle={3} stroke="none">
-                    {distribution.data
-                .filter((d) => d.count > 0)
-                .map((entry, index) => (<Cell key={entry.planId} fill={CHART_COLORS[index % CHART_COLORS.length]}/>))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltipCard />}/>
-                </PieChart>
-              </ResponsiveContainer>) : (<EmptyState title="No active memberships yet" description="Assign a plan to A student to see the mix." className="h-full py-6"/>)}
-            {distribution.data && distribution.data.some((d) => d.count > 0) ? (<ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {distribution.data.filter((d) => d.count > 0).slice(0, 4).map((entry, index) => (<li key={entry.planId} className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-full" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }}/>
-                    {entry.planName} · {entry.count}
-                  </li>))}
-              </ul>) : null}
-          </CardContent>
-        </Card>
+      {/* This month: Total | Collected | Remaining */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <FinancialCard index={0} label="Total this month" value={totalThisMonth} format={(n) => formatINR(n)} icon={<IndianRupeeIcon className="size-[18px]"/>} hint="Collected + remaining" accent={{ bg: "#310D20", fg: "#E8D5AD" }} amountColor="#310D20" to={canViewPayments ? "/payments" : undefined}/>
+        <FinancialCard index={1} label="Collected" value={collected} format={(n) => formatINR(n)} icon={<BanknoteIcon className="size-[18px]"/>} hint={revenueDelta !== null
+            ? `${revenueDelta >= 0 ? "+" : ""}${revenueDelta}% vs last month`
+            : "Payments received this month"} accent={{ bg: "#287B53", fg: "#F1FAF5" }} amountColor="#287B53" barColor="#287B53" barPct={collectedPct} to={canViewPayments ? "/payments?status=paid" : undefined}/>
+        <FinancialCard index={2} label="Remaining" value={remaining} format={(n) => formatINR(n)} icon={<WalletIcon className="size-[18px]"/>} hint={stats.data?.pendingPayments
+            ? `${stats.data.pendingPayments} member${stats.data.pendingPayments === 1 ? "" : "s"} with dues`
+            : "No outstanding dues"} accent={{ bg: "#B83A35", fg: "#FFF3F1" }} amountColor="#B83A35" barColor="#B83A35" barPct={remainingPct} to={canViewPayments ? "/payments?status=pending" : undefined}/>
       </div>
 
-      {/* Revenue chart + lists */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="graphite-surface border-border/70 lg:col-span-1">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-base">Monthly revenue</CardTitle>
-            <p className="text-xs text-muted-foreground">Last 6 months (INR)</p>
-          </CardHeader>
-          <CardContent className="h-64 pb-4">
-            {revenue.loading ? (<Skeleton className="size-full"/>) : revenue.data ? (<ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenue.data} margin={{ top: 6, right: 8, left: -14, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false}/>
-                  <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={44}/>
-                  <Tooltip content={<ChartTooltipCard isCurrency/>} cursor={{ fill: "var(--accent)" }}/>
-                  <Bar dataKey="revenue" name="Revenue" fill="var(--chart-2)" radius={[6, 6, 0, 0]} maxBarSize={36}/>
-                </BarChart>
-              </ResponsiveContainer>) : null}
-          </CardContent>
-        </Card>
+      {/* Analytics: attendance trend + plan mix */}
+      <div className="grid gap-3 lg:grid-cols-[1.85fr_1fr]">
+        <FadeIn>
+          <section className={PANEL} aria-label="Attendance trend">
+            <PanelHeader title="Attendance trend" subtitle={`Daily check-ins, last ${trendDays} days`} action={<div className="flex items-center gap-1 rounded-full border border-[#E9DECC] bg-[#FBF7EF] p-0.5" role="group" aria-label="Attendance range">
+                {[7, 14, 30].map((days) => (<button key={days} type="button" onClick={() => setTrendDays(days)} aria-pressed={trendDays === days} className={trendDays === days
+                    ? "rounded-full bg-[#310D20] px-2.5 py-1 text-[11px] font-medium text-[#F5E8C8] transition-colors"
+                    : "rounded-full px-2.5 py-1 text-[11px] font-medium text-[#78695F] transition-colors hover:text-[#310D20]"}>
+                    {days}d
+                  </button>))}
+              </div>}/>
+            <div className="h-[212px] px-2 pt-3 pb-4">
+              {trend.loading ? (<Skeleton className="size-full"/>) : trend.data && trend.data.length > 0 ? (<ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trend.data} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="attendanceFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#C6A45B" stopOpacity={0.32}/>
+                        <stop offset="100%" stopColor="#310D20" stopOpacity={0.03}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false}/>
+                    <XAxis dataKey="date" tickFormatter={dayTick} tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} minTickGap={22}/>
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={36}/>
+                    <Tooltip content={<ChartTooltipCard isCurrency={false}/>} cursor={{ stroke: "var(--border)" }}/>
+                    <Area type="monotone" dataKey="count" name="Check-ins" stroke="var(--chart-1)" strokeWidth={2} fill="url(#attendanceFill)" dot={{ r: 2, strokeWidth: 0, fill: "#C6A45B" }} activeDot={{ r: 4 }}/>
+                  </AreaChart>
+                </ResponsiveContainer>) : (<EmptyState title="No attendance yet" description="Check-ins over the selected range will appear here." className="h-full py-6"/>)}
+            </div>
+          </section>
+        </FadeIn>
 
-        <Card className="graphite-surface border-border/70">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Recent check-ins</CardTitle>
-            <Link to="/attendance/history" className="text-xs text-primary hover:underline">
-              History
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {recentCheckIns.loading ? (<div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12"/>)}</div>) : (recentCheckIns.data ?? []).length === 0 ? (<EmptyState title="No check-ins yet" description="Scan A student QR to record the first visit." className="py-8"/>) : (<ul className="divide-y divide-border/60">
-                {(recentCheckIns.data ?? []).map((record, index) => (<motion.li key={record.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.04, duration: 0.25 }} className="flex items-center gap-3 py-2.5">
-                    <SmartImage src={record.memberPhoto} name={record.memberName ?? "Student"} className="size-9"/>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{record.memberName}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {record.memberCode} · {formatTime(record.checkIn)}
-                      </p>
+        <FadeIn delay={0.05}>
+          <section className={PANEL} aria-label="Plan mix">
+            <PanelHeader title="Plan mix" subtitle="Active memberships"/>
+            <div className="px-4 pt-2 pb-4">
+              {distribution.loading ? (<Skeleton className="h-[200px] w-full"/>) : distributionRows.length > 0 ? (<div className="flex flex-col items-center gap-4 sm:flex-row lg:flex-col xl:flex-row">
+                  <div className="relative h-[168px] w-[150px] shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={distributionRows} dataKey="count" nameKey="planName" innerRadius={44} outerRadius={66} paddingAngle={3} stroke="none" startAngle={90} endAngle={-270}>
+                          {distributionRows.map((entry, index) => (<Cell key={entry.planId} fill={CHART_COLORS[index % CHART_COLORS.length]}/>))}
+                        </Pie>
+                        <Tooltip content={<ChartTooltipCard isCurrency={false}/>}/>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <p className="text-[22px] leading-none font-semibold text-[#310D20] tabular">{distributionTotal}</p>
+                      <p className="mt-1 text-[9.5px] font-medium tracking-[0.12em] text-[#78695F] uppercase">members</p>
                     </div>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", record.status === "checked_out" ? "bg-secondary text-muted-foreground" : "bg-primary/10 text-primary")}>
-                      {record.status === "checked_out" ? "Checked out" : "In studio"}
-                    </span>
-                  </motion.li>))}
-              </ul>)}
-          </CardContent>
-        </Card>
+                  </div>
+                  <ul className="w-full min-w-0 space-y-2">
+                    {distributionRows.map((entry, index) => (<li key={entry.planId} className="flex w-full min-w-0 items-center gap-2">
+                        <span className="size-2.5 shrink-0 rounded-full" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} aria-hidden="true"/>
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#28151F]">{entry.planName}</span>
+                        <span className="shrink-0 text-[11.5px] text-[#78695F] tabular">
+                          {entry.count} · {Math.round((entry.count / distributionTotal) * 100)}%
+                        </span>
+                      </li>))}
+                  </ul>
+                </div>) : (<EmptyState title="No active memberships yet" description="Assign a plan to a student to see the mix." className="h-[200px] py-6"/>)}
+            </div>
+          </section>
+        </FadeIn>
+      </div>
 
-        <div className="space-y-4">
-          <Card className="graphite-surface border-border/70">
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">New students</CardTitle>
-              <Link to="/members" className="text-xs text-primary hover:underline">
-                All students
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {recentMembers.loading ? (<div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10"/>)}</div>) : (recentMembers.data ?? []).length === 0 ? (<EmptyState title="No students yet" description="Add your first student to get started." className="py-6"/>) : (<ul className="space-y-2.5">
-                  {(recentMembers.data ?? []).map((member) => (<li key={member.id} className="flex items-center gap-3">
+      {/* Lower grid: revenue · check-ins · new students · expiring */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <FadeIn>
+          <section className={PANEL + " h-full"} aria-label="Monthly revenue">
+            <PanelHeader title="Monthly revenue" subtitle="Last 6 months (INR)"/>
+            <div className="h-[188px] px-2 pt-3 pb-4">
+              {revenue.loading ? (<Skeleton className="size-full"/>) : revenueRows.length > 0 ? (<ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueRows} margin={{ top: 6, right: 8, left: -14, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false}/>
+                    <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval="preserveStartEnd"/>
+                    <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={40}/>
+                    <Tooltip content={<ChartTooltipCard isCurrency/>} cursor={{ fill: "rgba(198,164,91,0.14)" }}/>
+                    <Bar dataKey="revenue" name="Revenue" radius={[6, 6, 0, 0]} maxBarSize={34}>
+                      {revenueRows.map((entry, index) => (<Cell key={entry.month} fill={index === currentMonthIdx ? "var(--chart-1)" : "var(--chart-2)"}/>))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>) : (<EmptyState title="No revenue data yet" description="Recorded payments will appear here." className="h-full py-6"/>)}
+            </div>
+          </section>
+        </FadeIn>
+
+        <FadeIn delay={0.04}>
+          <section className={PANEL + " h-full"} aria-label="Recent check-ins">
+            <PanelHeader title="Recent check-ins" subtitle="Latest studio visits" action={<PanelLink to="/attendance/history">View all</PanelLink>}/>
+            <div className="px-4 pt-2 pb-3">
+              {recentCheckIns.loading ? (<div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (recentCheckIns.data ?? []).length === 0 ? (<EmptyState title="No check-ins yet" description="Scan a student QR to record the first visit." className="py-8"/>) : (<ul className="divide-y divide-[#E9DECC]/80">
+                  {(recentCheckIns.data ?? []).map((record) => (<li key={record.id} className="flex items-center gap-3 py-2">
+                      <SmartImage src={record.memberPhoto} name={record.memberName ?? "Student"} className="size-8"/>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-[#28151F]">{record.memberName}</p>
+                        <p className="truncate text-[11.5px] text-[#78695F]">
+                          {record.memberCode} · {formatTime(record.checkIn)}
+                        </p>
+                      </div>
+                      <span className={record.status === "checked_out"
+                        ? "rounded-full bg-[#F0E7D5] px-2 py-0.5 text-[10.5px] font-medium text-[#78695F]"
+                        : "rounded-full bg-[#E4F0EA] px-2 py-0.5 text-[10.5px] font-medium text-[#287B53]"}>
+                        {record.status === "checked_out" ? "Checked out" : "In studio"}
+                      </span>
+                    </li>))}
+                </ul>)}
+            </div>
+          </section>
+        </FadeIn>
+
+        <FadeIn delay={0.08}>
+          <section className={PANEL + " h-full"} aria-label="New students">
+            <PanelHeader title="New students" subtitle="Recently joined" action={<PanelLink to="/members">View all</PanelLink>}/>
+            <div className="px-4 pt-2 pb-3">
+              {recentMembers.loading ? (<div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (recentMembers.data ?? []).length === 0 ? (<EmptyState title="No students yet" description="Add your first student to get started." className="py-8"/>) : (<ul className="divide-y divide-[#E9DECC]/80">
+                  {(recentMembers.data ?? []).map((member) => (<li key={member.id} className="flex items-center gap-3 py-2">
                       <SmartImage src={member.photoUrl} name={member.fullName} className="size-8"/>
                       <div className="min-w-0 flex-1">
-                        <Link to={`/members/${member.id}`} className="truncate text-sm font-medium hover:underline">
+                        <Link to={`/members/${member.id}`} className="block truncate text-[13px] font-medium text-[#28151F] hover:underline">
                           {member.fullName}
                         </Link>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="truncate text-[11.5px] text-[#78695F]">
                           {member.memberCode} · joined {formatDate(member.joinDate)}
                         </p>
                       </div>
                       <StatusBadge status={member.effectiveStatus}/>
                     </li>))}
                 </ul>)}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
+        </FadeIn>
 
-          <Card className="graphite-surface border-border/70">
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">Expiring soon</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {expirations.loading ? (<div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10"/>)}</div>) : (expirations.data ?? []).length === 0 ? (<EmptyState title="Nothing expiring" description="Memberships ending soon will appear here." className="py-6"/>) : (<ul className="space-y-2.5">
-                  {(expirations.data ?? []).map((member) => (<li key={member.id} className="flex items-center gap-3">
+        <FadeIn delay={0.12}>
+          <section className={PANEL.replace("bg-[#FFFCF6]", "bg-[#FAF4E4]").replace("border-[#E9DECC]", "border-[#ECDEC0]") + " h-full"} aria-label="Expiring soon">
+            <PanelHeader title="Expiring soon" subtitle="Memberships ending soon" action={<PanelLink to="/members">View all</PanelLink>}/>
+            <div className="px-4 pt-2 pb-3">
+              {expirations.loading ? (<div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (expirations.data ?? []).length === 0 ? (<EmptyState title="Nothing expiring" description="Memberships ending soon will appear here." className="py-8"/>) : (<ul className="divide-y divide-[#ECDEC0]/80">
+                  {(expirations.data ?? []).map((member) => (<li key={member.id} className="flex items-center gap-3 py-2">
                       <div className="min-w-0 flex-1">
-                        <Link to={`/members/${member.id}`} className="truncate text-sm font-medium hover:underline">
+                        <Link to={`/members/${member.id}`} className="block truncate text-[13px] font-medium text-[#28151F] hover:underline">
                           {member.fullName}
                         </Link>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="truncate text-[11.5px] text-[#78695F]">
                           {member.planName} · ends {formatDate(member.endDate)} · {relativeTime(member.endDate)}
                         </p>
                       </div>
                       <StatusBadge status={member.effectiveStatus}/>
                     </li>))}
                 </ul>)}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </section>
+        </FadeIn>
       </div>
     </div>);
 }

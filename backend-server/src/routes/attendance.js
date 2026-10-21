@@ -14,6 +14,9 @@ import { requireAuth, requireCap } from "../middleware/auth.js";
 import { asyncHandler, badRequest, notFound, forbidden } from "../lib/errors.js";
 import { parseBody, intParam } from "../middleware/validate.js";
 import { toAttendance, toClassSlot } from "../lib/serialize.js";
+import { computeQuota } from "../lib/quota.js";
+import { currentMembership, daysRemaining } from "../lib/membership.js";
+import PaymentRecord from "../models/PaymentRecord.js";
 import { parseQrPayload } from "../lib/qr.js";
 import { writeAudit } from "../lib/audit.js";
 import {
@@ -161,6 +164,52 @@ router.get(
     );
     const isSlotDay = Array.isArray(slot.weekdays) && slot.weekdays.some((d) => Number(d) === weekday);
 
+    // Quota + last payment method per student (marking-sheet columns).
+    const memberships = memberIds.length
+      ? await MemberMembership.find({ memberId: { $in: memberIds }, startDate: { $lte: sessionDate } })
+          .sort({ startDate: -1 })
+          .lean()
+      : [];
+    const membershipsByMember = new Map();
+    for (const m of memberships) {
+      const key = String(m.memberId);
+      if (!membershipsByMember.has(key)) membershipsByMember.set(key, []);
+      membershipsByMember.get(key).push(m);
+    }
+    const currentByMember = new Map();
+    for (const [key, list] of membershipsByMember) currentByMember.set(key, currentMembership(list) ?? null);
+    const currentIds = [...currentByMember.values()].filter(Boolean).map((m) => m._id);
+    const [attendedCounts, lastPayments] = await Promise.all([
+      currentIds.length
+        ? AttendanceRecord.aggregate([
+            { $match: { membershipId: { $in: currentIds }, quotaCounted: true } },
+            { $group: { _id: "$membershipId", attended: { $sum: 1 } } },
+          ])
+        : Promise.resolve([]),
+      memberIds.length
+        ? PaymentRecord.aggregate([
+            { $match: { memberId: { $in: memberIds } } },
+            { $sort: { paymentDate: -1, _id: -1 } },
+            { $group: { _id: "$memberId", method: { $first: "$method" } } },
+          ])
+        : Promise.resolve([]),
+    ]);
+    const attendedByMembership = new Map(attendedCounts.map((c) => [String(c._id), c.attended]));
+    const methodByMember = new Map(lastPayments.map((p) => [String(p._id), p.method]));
+    const quotaForMember = (memberId) => {
+      const membership = currentByMember.get(String(memberId));
+      if (!membership || membership.classQuota == null) return null;
+      const attended = attendedByMembership.get(String(membership._id)) ?? 0;
+      const q = computeQuota({ quota: membership.classQuota, attended });
+      return {
+        quota: q.quota,
+        attended: q.attended,
+        remaining: q.remaining,
+        exceeded: q.exceeded,
+        status: q.status,
+      };
+    };
+
     res.json({
       slot: toClassSlot(slot, null, enrollments.length),
       date: dayKey,
@@ -175,6 +224,8 @@ router.get(
           status: m?.status ?? "inactive",
           marked: statusByMember.has(String(e.memberId)),
           attendanceStatus: statusByMember.get(String(e.memberId)) ?? null,
+          quota: quotaForMember(e.memberId),
+          paymentMethod: methodByMember.get(String(e.memberId)) ?? null,
         };
       }),
     });
@@ -271,12 +322,12 @@ const toMinutes = (hhmm) => {
   const [h, m] = String(hhmm).split(":").map(Number);
   return h * 60 + m;
 };
-/** `13:05` → `01:05 PM` — matches the Manage Gym slot labels. */
+/** `13:05` → `1:05 PM` — matches the Manage Gym slot labels (12-hour clock). */
 const fmt12h = (hhmm) => {
   const [h, m] = String(hhmm).split(":").map(Number);
   const suffix = h >= 12 ? "PM" : "AM";
   const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${String(hour12).padStart(2, "0")}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
+  return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
 };
 /** Great-circle distance in meters (Haversine) — GPS range check. */
 function haversineMeters(lat1, lng1, lat2, lng2) {
@@ -506,29 +557,75 @@ router.get(
         .lean(),
     ]);
 
+    const ctx = await loadGymContext(gymId);
     const memberIds = [...new Set(rows.map((r) => String(r.memberId)))];
     const scannerIds = [...new Set(rows.map((r) => r.scannerId).filter(Boolean).map(String))];
     const membershipIds = [...new Set(rows.map((r) => String(r.membershipId)).filter((v) => v && v !== "null" && v !== "undefined"))];
     const [members, scanners, memberships, plans] = await Promise.all([
       memberIds.length ? Member.find({ _id: { $in: memberIds } }).lean() : [],
       scannerIds.length ? User.find({ _id: { $in: scannerIds } }).select("fullName").lean() : [],
-      membershipIds.length ? MemberMembership.find({ _id: { $in: membershipIds } }).select("planId").lean() : [],
+      membershipIds.length
+        ? MemberMembership.find({ _id: { $in: membershipIds } }).select("planId classQuota startDate endDate status memberId").lean()
+        : [],
       MembershipPlan.find({ gymId }).select("name").lean(),
     ]);
     const memberById = new Map(members.map((m) => [String(m._id), m]));
     const scannerById = new Map(scanners.map((s) => [String(s._id), s]));
     const planById = new Map(plans.map((p) => [String(p._id), p.name]));
+    const membershipById = new Map(memberships.map((m) => [String(m._id), m]));
     const planNameByMembership = new Map(memberships.map((m) => [String(m._id), planById.get(String(m.planId)) ?? null]));
 
+    // Paid-class quota + latest payment method per row (view-register columns).
+    const validMembershipIds = membershipIds.filter((v) => Types.ObjectId.isValid(v)).map((v) => new Types.ObjectId(v));
+    const validMemberIds = memberIds.filter((v) => Types.ObjectId.isValid(v)).map((v) => new Types.ObjectId(v));
+    const [attendedCounts, lastPayments] = await Promise.all([
+      validMembershipIds.length
+        ? AttendanceRecord.aggregate([
+            { $match: { membershipId: { $in: validMembershipIds }, quotaCounted: true } },
+            { $group: { _id: "$membershipId", attended: { $sum: 1 } } },
+          ])
+        : Promise.resolve([]),
+      validMemberIds.length
+        ? PaymentRecord.aggregate([
+            { $match: { memberId: { $in: validMemberIds } } },
+            { $sort: { paymentDate: -1, _id: -1 } },
+            { $group: { _id: "$memberId", method: { $first: "$method" } } },
+          ])
+        : Promise.resolve([]),
+    ]);
+    const attendedByMembership = new Map(attendedCounts.map((c) => [String(c._id), c.attended]));
+    const methodByMember = new Map(lastPayments.map((p) => [String(p._id), p.method]));
+
     res.json({
-      items: rows.map((row) => ({
-        ...toAttendance(
-          row,
-          memberById.get(String(row.memberId)),
-          row.scannerId ? scannerById.get(String(row.scannerId)) : null,
-        ),
-        planName: planNameByMembership.get(String(row.membershipId)) ?? null,
-      })),
+      items: rows.map((row) => {
+        const membership = membershipById.get(String(row.membershipId)) ?? null;
+        const quota =
+          membership?.classQuota != null
+            ? computeQuota({
+                quota: membership.classQuota,
+                attended: attendedByMembership.get(String(row.membershipId)) ?? 0,
+              })
+            : null;
+        return {
+          ...toAttendance(
+            row,
+            memberById.get(String(row.memberId)),
+            row.scannerId ? scannerById.get(String(row.scannerId)) : null,
+          ),
+          planName: planNameByMembership.get(String(row.membershipId)) ?? null,
+          paymentMethod: methodByMember.get(String(row.memberId)) ?? null,
+          quota: quota
+            ? {
+                quota: quota.quota,
+                attended: quota.attended,
+                remaining: quota.remaining,
+                exceeded: quota.exceeded,
+                status: quota.status,
+              }
+            : null,
+          daysLeft: membership ? daysRemaining(membership, ctx.now, ctx.tz) : null,
+        };
+      }),
       total,
       page,
       pageSize,

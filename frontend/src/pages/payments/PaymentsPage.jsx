@@ -69,7 +69,11 @@ export function PaymentsPage() {
     const [search, setSearch] = useState("");
     const [from, setFrom] = useState("");
     const [to, setTo] = useState("");
-    const [status, setStatus] = useState("all");
+    // Deep link: /payments?status=paid (dashboard financial cards) presets the filter.
+    const [status, setStatus] = useState(() => {
+        const preset = searchParams.get("status");
+        return preset && STATUS_OPTIONS.includes(preset) ? preset : "all";
+    });
     const [method, setMethod] = useState("all");
     const [page, setPage] = useState(1);
     const debouncedSearch = useDebounced(search, 300);
@@ -107,19 +111,34 @@ export function PaymentsPage() {
         revenue.reload();
     }, [payments, dues, revenue]);
     // Auto-open the record dialog when arriving from /payments?new=1 (dashboard link).
+    // Keep the param while the dialog should be open (remount-safe); clear on dismiss.
     useEffect(() => {
+        if (!session)
+            return; // auth still restoring — never consume the param early
         if (searchParams.get("new") !== "1")
             return;
-        setSearchParams((prev) => {
-            const next = new URLSearchParams(prev);
-            next.delete("new");
-            return next;
-        }, { replace: true });
         if (canRecord) {
             setPreset(null);
             setRecordOpen(true);
         }
-    }, [searchParams, canRecord, setSearchParams]);
+        else {
+            setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete("new");
+                return next;
+            }, { replace: true });
+        }
+    }, [searchParams, canRecord, setSearchParams, session]);
+    const handleRecordOpenChange = (open) => {
+        setRecordOpen(open);
+        if (!open && searchParams.has("new")) {
+            setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete("new");
+                return next;
+            }, { replace: true });
+        }
+    };
     const months = revenue.data ?? [];
     const latest = months.length > 0 ? months[months.length - 1] : null;
     const duesRows = dues.data ?? [];
@@ -388,7 +407,7 @@ export function PaymentsPage() {
       </Card>
 
       {/* Dialogs */}
-      <PaymentRecordDialog open={recordOpen} onOpenChange={setRecordOpen} members={members.data ?? []} preset={preset} onSaved={reloadAll}/>
+      <PaymentRecordDialog open={recordOpen} onOpenChange={handleRecordOpenChange} members={members.data ?? []} preset={preset} onSaved={reloadAll}/>
       <ReceiptDialog payment={receiptFor} gym={gym.data ?? session?.gym ?? null} onOpenChange={(open) => {
             if (!open)
                 setReceiptFor(null);

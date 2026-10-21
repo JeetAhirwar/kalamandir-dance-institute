@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogOutIcon, MenuIcon, SearchIcon, SettingsIcon, ShieldAlertIcon, UserIcon, UserRoundIcon, } from "lucide-react";
+import { LogOutIcon, Loader2Icon, MenuIcon, DownloadIcon, QrCodeIcon, RefreshCwIcon, SettingsIcon, ShieldAlertIcon, UserIcon, UserRoundIcon, } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/auth/AuthProvider";
 import { NotificationBellPanel } from "@/components/shared/NotificationBellPanel";
+import { StudentSearchBox } from "@/components/shared/StudentSearchBox";
 import { SmartImage } from "@/components/shared/SmartImage";
-import { ROLE_LABELS } from "@/lib/permissions";
+import { ROLE_LABELS, can } from "@/lib/permissions";
+import { renderQrDataUrl } from "@/lib/qr";
 import { appVersion } from "@/config/env";
 export function Topbar({ onOpenMenu }) {
     const { session, data, signOut } = useAuth();
     const navigate = useNavigate();
-    const [query, setQuery] = useState("");
     const [unread, setUnread] = useState(0);
     useEffect(() => {
         if (!data)
@@ -35,29 +37,25 @@ export function Topbar({ onOpenMenu }) {
     }, [data]);
     const fetchNotifications = useCallback(async () => (await data?.listNotifications({ limit: 12 })) ?? [], [data]);
     const profile = session?.profile;
+    const fullName = profile?.fullName?.trim() || "User";
+    const roleLabel = ROLE_LABELS[profile?.role ?? "front_desk"] ?? "Staff";
     const demo = useMemo(() => Boolean(session?.demo), [session]);
-    function submitSearch(event) {
-        event.preventDefault();
-        const term = query.trim();
-        if (!term)
-            return;
-        navigate(`/members?search=${encodeURIComponent(term)}`);
-    }
     return (<header className="sticky top-0 z-30 border-b border-border bg-background/85 shadow-[0_1px_0_0_rgba(198,164,91,0.18)] backdrop-blur-md">
       <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
         <Button variant="ghost" size="icon" className="text-foreground/70 hover:bg-secondary hover:text-primary lg:hidden" onClick={onOpenMenu} aria-label="Open navigation">
           <MenuIcon className="size-5"/>
         </Button>
 
-        <form onSubmit={submitSearch} className="relative hidden max-w-md flex-1 sm:block" role="search">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"/>
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search students by name, phone or ID…" className="h-9 pl-9" aria-label="Search students"/>
-        </form>
+        {/* Live student search — type a letter, pick a result, profile opens. */}
+        <StudentSearchBox className="hidden max-w-md flex-1 sm:block"/>
 
         <div className="ml-auto flex items-center gap-2">
           {demo ? (<span className="hidden items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-warning sm:inline-flex">
               <ShieldAlertIcon className="size-3.5"/> DEMO MODE
             </span>) : null}
+
+          {/* Studio QR → dialog with the one front-desk QR students scan. */}
+          <StudioQrButton />
 
           {/* Bell → drops-down notification shade (no page jump). */}
           <NotificationBellPanel unreadCount={unread} fetchItems={fetchNotifications} onOpenItem={async (item) => {
@@ -74,8 +72,15 @@ export function Topbar({ onOpenMenu }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="flex items-center gap-2 rounded-full outline-none ring-offset-background transition-shadow focus-visible:ring-2 focus-visible:ring-ring" aria-label="Account menu">
-                <SmartImage src={profile?.avatarUrl} name={profile?.fullName ?? "User"} className="size-8 border border-km-gold/40 ring-1 ring-km-gold/25"/>
+              {/* Profile pill — soft gold ring + wine gradient. */}
+              <button type="button" className="group flex items-center gap-2.5 rounded-lg border border-km-gold/30 bg-gradient-to-r from-km-wine/10 via-transparent to-km-gold/10 py-1 pr-2.5 pl-1 outline-none ring-km-gold/30 transition-all hover:border-km-gold/60 hover:from-km-wine/20 hover:to-km-gold/20 focus-visible:ring-2" aria-label="Account menu">
+                <SmartImage src={profile?.avatarUrl} name={profile?.fullName ?? "User"} className="size-8 shrink-0 rounded-md border border-km-gold/50 ring-1 ring-km-gold/30"/>
+                <span className="hidden text-left sm:block">
+                  <span className="block max-w-[140px] truncate text-sm font-medium leading-tight" title={profile?.fullName}>
+                    {fullName.split(" ")[0] || fullName}
+                  </span>
+                  <span className="block text-[11px] leading-tight text-km-gold">{roleLabel}</span>
+                </span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
@@ -110,4 +115,116 @@ export function Topbar({ onOpenMenu }) {
         <UserRoundIcon />
       </span>
     </header>);
+}
+/**
+ * Topbar shortcut for the studio's ONE check-in QR — the same code Students
+ * scan from their portal. Admin-only (the API behind it requires
+ * `settings.manage`); fetched lazily so it only loads when the dialog opens.
+ */
+function StudioQrButton() {
+    const { session, data } = useAuth();
+    const [open, setOpen] = useState(false);
+    const [qrDataUrl, setQrDataUrl] = useState(null);
+    const [error, setError] = useState(null);
+    const [rotateArmed, setRotateArmed] = useState(false);
+    const [rotating, setRotating] = useState(false);
+    const canView = useMemo(() => can(session?.profile?.role, "settings.manage"), [session?.profile?.role]);
+    useEffect(() => {
+        if (!open || !canView || !data)
+            return;
+        let cancelled = false;
+        setQrDataUrl(null);
+        setError(null);
+        data.getGymQr()
+            .then(({ token }) => renderQrDataUrl(token, { width: 480 }))
+            .then((url) => {
+            if (!cancelled)
+                setQrDataUrl(url);
+        })
+            .catch((err) => {
+            if (!cancelled)
+                setError(err instanceof Error ? err.message : "Unable to load the studio QR code.");
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [open, canView, data]);
+    // Reset the destructive-action arm whenever the dialog closes.
+    useEffect(() => {
+        if (!open) {
+            setRotateArmed(false);
+            setRotating(false);
+        }
+    }, [open]);
+    const handleDownload = () => {
+        if (!qrDataUrl)
+            return;
+        const link = document.createElement("a");
+        link.href = qrDataUrl;
+        link.download = "studio-check-in-qr.png";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success("QR code downloaded");
+    };
+    const handleRotate = () => {
+        if (rotating || !data)
+            return;
+        // Two-step confirm — rotation invalidates every previously printed QR.
+        if (!rotateArmed) {
+            setRotateArmed(true);
+            toast.info("Click rotate again to confirm — every previously printed QR will stop working.");
+            return;
+        }
+        setRotating(true);
+        setQrDataUrl(null);
+        setError(null);
+        void (async () => {
+            try {
+                const { token } = await data.rotateGymQr();
+                const url = await renderQrDataUrl(token, { width: 480 });
+                setQrDataUrl(url);
+                setRotateArmed(false);
+                toast.success("Studio QR regenerated — print the new code and take down the old one.");
+            }
+            catch (err) {
+                setError(err instanceof Error ? err.message : "Unable to rotate the QR.");
+            }
+            finally {
+                setRotating(false);
+            }
+        })();
+    };
+    if (!canView)
+        return null;
+    return (<>
+      <Button variant="ghost" size="icon" className="text-foreground/70 hover:bg-secondary hover:text-primary" aria-label="Show studio check-in QR" onClick={() => setOpen(true)}>
+        <QrCodeIcon className="size-5"/>
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Studio check-in QR</DialogTitle>
+            <DialogDescription>
+              Students scan this code from their portal to check in and out of class.
+            </DialogDescription>
+          </DialogHeader>
+          {qrDataUrl ? (<div className="flex justify-center">
+              <img src={qrDataUrl} alt="Studio check-in QR code" className="size-60 rounded-lg border border-km-gold/30 bg-white p-2"/>
+            </div>) : error ? (<p className="py-8 text-center text-sm text-muted-foreground">{error}</p>) : (<div className="flex items-center justify-center py-10">
+              <Loader2Icon className="size-6 animate-spin text-primary"/>
+            </div>)}
+
+          <DialogFooter className="sm:justify-center">
+            <Button type="button" variant="outline" size="icon" disabled={!qrDataUrl} onClick={handleDownload} aria-label="Download QR code" title="Download QR code">
+              <DownloadIcon className="size-4"/>
+            </Button>
+            <Button type="button" variant={rotateArmed ? "destructive" : "outline"} size="icon" disabled={!qrDataUrl || rotating} onClick={handleRotate} aria-label={rotateArmed ? "Confirm rotate" : "Rotate QR code"} title={rotateArmed ? "Confirm rotate — old QR stops working" : "Rotate QR code"}>
+              <RefreshCwIcon className={rotating ? "size-4 animate-spin" : "size-4"}/>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>);
 }
