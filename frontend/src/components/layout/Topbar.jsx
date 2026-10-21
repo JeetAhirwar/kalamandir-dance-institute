@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogOutIcon, Loader2Icon, MenuIcon, DownloadIcon, QrCodeIcon, RefreshCwIcon, SettingsIcon, UserIcon, UserRoundIcon, } from "lucide-react";
 import { toast } from "sonner";
@@ -16,25 +16,41 @@ export function Topbar({ onOpenMenu }) {
     const { session, data, signOut } = useAuth();
     const navigate = useNavigate();
     const [unread, setUnread] = useState(0);
+    const seenIdsRef = useRef(new Set());
     useEffect(() => {
         if (!data)
             return;
         let cancelled = false;
         const refresh = () => void data
-            .getUnreadNotificationCount()
-            .then((count) => {
-            if (!cancelled)
-                setUnread(count);
-        })
+            .listNotifications({ unreadOnly: true, limit: 5 })
+            .then((rows) => {
+                if (cancelled)
+                    return;
+                const newUnread = rows.length;
+                for (const n of rows) {
+                    if (!seenIdsRef.current.has(n.id)) {
+                        seenIdsRef.current.add(n.id);
+                        if (seenIdsRef.current.size > rows.length) {
+                            toast(n.title, {
+                                description: n.body,
+                                action: n.link
+                                    ? { label: "View", onClick: () => navigate(n.link) }
+                                    : undefined,
+                            });
+                        }
+                    }
+                }
+                setUnread(newUnread);
+            })
             .catch(() => undefined);
         refresh();
         // Keep the bell badge fresh without a page reload.
-        const timer = window.setInterval(refresh, 15_000);
+        const timer = window.setInterval(refresh, 10_000);
         return () => {
             cancelled = true;
             window.clearInterval(timer);
         };
-    }, [data]);
+    }, [data, navigate]);
     const fetchNotifications = useCallback(async () => (await data?.listNotifications({ limit: 12 })) ?? [], [data]);
     const profile = session?.profile;
     const fullName = profile?.fullName?.trim() || "User";
