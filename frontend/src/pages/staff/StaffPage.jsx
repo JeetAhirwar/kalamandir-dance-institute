@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { motion, useReducedMotion } from "motion/react";
-import { ArchiveIcon, Grid2x2Icon, LayoutListIcon, PencilIcon, PlusIcon, Trash2Icon, UsersIcon } from "lucide-react";
+import { ArchiveIcon, CalendarDaysIcon, Grid2x2Icon, LayoutListIcon, PencilIcon, PlusIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, Skeleton, Stagger } from "@/components/shared/States";
 import { SmartImage } from "@/components/shared/SmartImage";
@@ -16,6 +16,8 @@ import { formatDate } from "@/lib/format";
 import { can, ROLE_LABELS } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { ArchiveStaffDialog } from "./ArchiveStaffDialog";
+import { AssignSlotDialog } from "./AssignSlotDialog";
+import { AssignStudentDialog } from "./AssignStudentDialog";
 import { DeleteStaffDialog } from "./DeleteStaffDialog";
 import { StaffFormDialog } from "./StaffFormDialog";
 const EMPLOYMENT_LABELS = {
@@ -37,9 +39,15 @@ const VIEW_OPTIONS = [
  * One staff member. `layout="list"` renders a compact horizontal row
  * (photo + identity, badges, joined + actions); "grid" is the original card.
  */
-function StaffCard({ member, layout = "grid", canManage, currentUserId, index = 0, onEdit, onArchive, onDelete }) {
+function StaffCard({ member, layout = "grid", canManage, currentUserId, index = 0, onEdit, onArchive, onDelete, onAssignStudents, onAssignSlots }) {
     const isList = layout === "list";
 const actions = canManage ? (<div className="flex items-center gap-1">
+        <Button size="icon-xs" variant="ghost" aria-label={`Assign students to ${member.fullName}`} onClick={() => onAssignStudents(member)} title="Assign students">
+          <UsersIcon className="size-3.5" />
+        </Button>
+        <Button size="icon-xs" variant="ghost" aria-label={`Assign slots to ${member.fullName}`} onClick={() => onAssignSlots(member)} title="Assign slots">
+          <CalendarDaysIcon className="size-3.5" />
+        </Button>
         <Button size="icon-xs" variant="ghost" aria-label={`Edit ${member.fullName}`} onClick={() => onEdit(member)}>
           <PencilIcon />
         </Button>
@@ -54,9 +62,6 @@ const actions = canManage ? (<div className="flex items-center gap-1">
       <Badge variant="outline" className={EMPLOYMENT_STYLES[member.employmentStatus]}>
         {EMPLOYMENT_LABELS[member.employmentStatus]}
       </Badge>
-      {member.specialization ? (<Badge variant="secondary" className="max-w-full truncate">
-          {member.specialization}
-        </Badge>) : null}
     </div>);
     return (<Stagger delayIndex={index} className="h-full">
       <Card className={cn("graphite-surface h-full border-border/70 transition-all duration-300 hover:-translate-y-0.5 hover:border-km-gold/60", isList && "rounded-xl")}>
@@ -74,6 +79,9 @@ const actions = canManage ? (<div className="flex items-center gap-1">
                 <p className="truncate text-xs text-muted-foreground">
                   {[member.email ?? "No email", member.phone ?? "—"].join(" · ")}
                 </p>
+                {member.specialization ? (<p className="truncate text-xs text-muted-foreground">
+                    {member.specialization}
+                  </p>) : null}
               </div>
             </div>
             {/* Status + specialization */}
@@ -97,6 +105,7 @@ const actions = canManage ? (<div className="flex items-center gap-1">
                   {member.email ?? "No email"}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{member.phone ?? "—"}</p>
+                {member.specialization ? (<p className="truncate text-xs text-muted-foreground">{member.specialization}</p>) : null}
               </div>
             </div>
 
@@ -124,6 +133,8 @@ export function StaffPage() {
     const [editing, setEditing] = useState(null);
     const [archiving, setArchiving] = useState(null);
     const [deleting, setDeleting] = useState(null);
+    const [assigningStudents, setAssigningStudents] = useState(null);
+    const [assigningSlots, setAssigningSlots] = useState(null);
     const staff = useAsync(() => data.listStaff(includeInactive), [data, includeInactive]);
     const openCreate = () => {
         setEditing(null);
@@ -229,7 +240,7 @@ export function StaffPage() {
           <motion.div key={view} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className={view === "list"
             ? "space-y-3"
             : "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"}>
-            {rows.map((member, index) => (<StaffCard key={member.id} member={member} layout={view} canManage={canManage} currentUserId={currentUserId} index={index} onEdit={openEdit} onArchive={setArchiving} onDelete={setDeleting}/>))}
+            {rows.map((member, index) => (<StaffCard key={member.id} member={member} layout={view} canManage={canManage} currentUserId={currentUserId} index={index} onEdit={openEdit} onArchive={setArchiving} onDelete={setDeleting} onAssignStudents={setAssigningStudents} onAssignSlots={setAssigningSlots}/>))}
           </motion.div>
 
           <p className="text-xs text-muted-foreground">
@@ -246,5 +257,7 @@ export function StaffPage() {
             if (!open)
                 setDeleting(null);
         }} onConfirm={handleDelete}/>
+      <AssignStudentDialog staff={assigningStudents} open={!!assigningStudents} onOpenChange={(o) => !o && setAssigningStudents(null)} onChanged={() => staff.reload()}/>
+      <AssignSlotDialog staff={assigningSlots} open={!!assigningSlots} onOpenChange={(o) => !o && setAssigningSlots(null)} onChanged={() => staff.reload()}/>
     </div>);
 }

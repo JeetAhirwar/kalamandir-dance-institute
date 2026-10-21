@@ -541,6 +541,12 @@ export class ApiDataService {
     async deleteStaff(id) {
         return apiDelete(`/staff/${encodeURIComponent(id)}`);
     }
+    async assignStaffSlots(staffId, slotIds) {
+        return apiPost(`/staff/${encodeURIComponent(staffId)}/assign-slots`, { slotIds });
+    }
+    async assignStaffStudents(staffId, memberIds) {
+        return apiPost(`/staff/${encodeURIComponent(staffId)}/assign-students`, { memberIds });
+    }
     /* ------------------------------- classes --------------------------- */
     async listClasses(from, to) {
         const rows = await apiGet("/classes", { from: from.toISOString(), to: to.toISOString() });

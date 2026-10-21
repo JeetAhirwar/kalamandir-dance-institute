@@ -36,6 +36,8 @@ const MemberSchema = new Schema(
     classTag: { type: String, enum: [...CLASS_TAGS, null], default: null },
     /** Assigned tag ids (student labels — dance styles, batches, events…). */
     tagIds: { type: [{ type: Schema.Types.ObjectId, ref: "Tag" }], default: () => [] },
+    /** Trainer assigned to this student (StaffProfile._id), null = unassigned. */
+    trainerId: { type: Schema.Types.ObjectId, ref: "StaffProfile", default: null },
     notes: { type: String, default: null },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     /** Internal mutex counter used to serialise concurrent check-in scans. */

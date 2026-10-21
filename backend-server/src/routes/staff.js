@@ -238,4 +238,68 @@ router.delete(
   }),
 );
 
+/** POST /api/staff/:id/assign-slots — assign class slots to a trainer. */
+router.post(
+  "/staff/:id/assign-slots",
+  requireAuth,
+  requireCap("slots.manage"),
+  asyncHandler(async (req, res) => {
+    const row = await findStaffOr404(req.user.gymId, req.params.id);
+    const slotIds = Array.isArray(req.body?.slotIds) ? req.body.slotIds : [];
+    // Remove this trainer from all previously assigned slots.
+    await ClassSlot.updateMany(
+      { gymId: req.user.gymId, instructorId: row._id },
+      { $set: { instructorId: null } },
+    );
+    // Assign selected slots to this trainer.
+    if (slotIds.length > 0) {
+      await ClassSlot.updateMany(
+        { gymId: req.user.gymId, _id: { $in: slotIds.map((id) => new Types.ObjectId(id)) } },
+        { $set: { instructorId: row._id } },
+      );
+    }
+    await writeAudit({
+      gymId: req.user.gymId,
+      actorId: req.user.id,
+      entity: "staff_profiles",
+      entityId: String(row._id),
+      action: "assign_slots",
+      newValues: { slotIds },
+    });
+    res.json({ ok: true });
+  }),
+);
+
+/** POST /api/staff/:id/assign-students — assign students to a trainer. */
+router.post(
+  "/staff/:id/assign-students",
+  requireAuth,
+  requireCap("staff.manage"),
+  asyncHandler(async (req, res) => {
+    const row = await findStaffOr404(req.user.gymId, req.params.id);
+    const memberIds = Array.isArray(req.body?.memberIds) ? req.body.memberIds : [];
+    // Remove this trainer from all previously assigned students.
+    await Member.updateMany(
+      { gymId: req.user.gymId, trainerId: row._id },
+      { $set: { trainerId: null } },
+    );
+    // Assign selected students to this trainer.
+    if (memberIds.length > 0) {
+      await Member.updateMany(
+        { gymId: req.user.gymId, _id: { $in: memberIds.map((id) => new Types.ObjectId(id)) } },
+        { $set: { trainerId: row._id } },
+      );
+    }
+    await writeAudit({
+      gymId: req.user.gymId,
+      actorId: req.user.id,
+      entity: "staff_profiles",
+      entityId: String(row._id),
+      action: "assign_students",
+      newValues: { memberIds },
+    });
+    res.json({ ok: true });
+  }),
+);
+
 export default router;

@@ -118,6 +118,8 @@ export function toMember(doc) {
     classTag: doc.classTag ?? null,
     /** Assigned tag ids (student labels — styles, batches, events…). */
     tagIds: (doc.tagIds ?? []).map((t) => String(t)),
+    /** Assigned trainer id (StaffProfile._id), null = unassigned. */
+    trainerId: id(doc.trainerId),
     createdBy: id(doc.createdBy),
     createdAt: iso(doc.createdAt),
     updatedAt: iso(doc.updatedAt),
