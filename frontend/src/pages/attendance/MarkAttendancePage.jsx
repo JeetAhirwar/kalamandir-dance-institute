@@ -90,7 +90,7 @@ export function MarkAttendancePage({ hideHeader = false }) {
     };
 
     const selected = activeSlots.find((s) => s.id === slotId) ?? null;
-    const students = roster.data?.students ?? [];
+    const students = (roster.data?.students ?? []).filter((s) => s.enrolled);
     const markedCount = students.filter((s) => s.marked).length;
 
     return (<div className="space-y-6">
