@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { useData } from "@/auth/AuthProvider";
 import { useAsync, useSubmitGuard } from "@/hooks";
+import { format12h } from "@/lib/format";
 
 export function AssignSlotDialog({ staff, open, onOpenChange, onChanged }) {
     const data = useData();
@@ -77,7 +78,7 @@ export function AssignSlotDialog({ staff, open, onOpenChange, onChanged }) {
                                         onChange={() => toggle(s.id)}
                                         className="size-4 rounded border-input"
                                     />
-                                    <span className="text-sm">{s.name} · {s.startTime}–{s.endTime}</span>
+                                    <span className="text-sm">{format12h(s.startTime)} – {format12h(s.endTime)}</span>
                                 </label>
                             ))
                         )}
