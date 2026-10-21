@@ -38,6 +38,7 @@ import {
   closeOpenVisit,
 } from "../services/gymSelfCheckin.js";
 
+
 const router = Router();
 
 const scanMethod = z.enum(["qr", "manual", "class"]);
