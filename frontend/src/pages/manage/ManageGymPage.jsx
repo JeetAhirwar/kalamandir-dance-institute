@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2Icon, ClockIcon, CrosshairIcon, Loader2Icon, PlusIcon, PrinterIcon, RefreshCwIcon, ShieldCheckIcon, TagIcon, Trash2Icon } from "lucide-react";
+import { Building2Icon, ClockIcon, CrosshairIcon, Loader2Icon, PlusIcon, PrinterIcon, RefreshCwIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,6 @@ import { renderQrDataUrl } from "@/lib/qr";
 import { format12h } from "@/lib/format";
 import { HOURLY_SLOTS, SLOT_GROUPS, slotGroupOf } from "@/lib/slots";
 import { TimeSelect } from "@/components/shared/TimeSelect";
-import { TagsDialog } from "@/pages/members/TagsDialog";
 
 /** Ready-made hourly slots (8:00 AM – 9:00 PM), grouped Morning/Afternoon/Evening. */
 function defaultSlots() {
@@ -38,7 +37,6 @@ export function ManageGymPage() {
     const [qrDataUrl, setQrDataUrl] = useState(null);
     const [rotateArmed, setRotateArmed] = useState(false);
     const [rotating, setRotating] = useState(false);
-    const [tagsOpen, setTagsOpen] = useState(false);
 
     useEffect(() => {
         if (gym.data) {
@@ -348,24 +346,5 @@ export function ManageGymPage() {
           </div>)}
         </CardContent>
       </Card>
-
-      {/* ---------------- Student tags ---------------- */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <TagIcon className="size-4 text-primary"/> Student tags
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Labels to group students by dance style, batch, event or level. They appear as a filter on the Students page and on each student's profile.
-          </p>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setTagsOpen(true)}>
-            <TagIcon className="size-3.5"/> Manage tags
-          </Button>
-        </CardContent>
-      </Card>
-
-      <TagsDialog open={tagsOpen} onOpenChange={setTagsOpen}/>
     </div>);
 }

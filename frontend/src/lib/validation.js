@@ -81,8 +81,6 @@ export const memberFormSchema = z
     ])
         .optional()
         .transform((v) => (v && v.trim() ? v.trim() : null)),
-    // Selected tag ids (student labels — dance styles, batches, events…).
-    tagIds: z.array(z.string()).max(20, "Pick at most 20 tags").optional(),
 })
     .refine((data) => !data.emergencyContactPhone || data.emergencyContactPhone.length > 0, {
     message: "Enter a valid emergency contact phone or leave it empty",

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRightIcon, CalendarClockIcon, CalendarDaysIcon, ClockIcon, KeyRoundIcon, MailIcon, Music2Icon, PhoneIcon, ShieldCheckIcon, TagIcon, TimerIcon, UserIcon, } from "lucide-react";
+import { ArrowRightIcon, CalendarClockIcon, CalendarDaysIcon, ClockIcon, KeyRoundIcon, MailIcon, Music2Icon, PhoneIcon, ShieldCheckIcon, TimerIcon, UserIcon, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -118,7 +118,6 @@ export function ProfilePage() {
                   <Field icon={CalendarDaysIcon} label="Date of birth" value={formatDate(me?.dateOfBirth)}/>
                   <Field icon={CalendarClockIcon} label="Student since" value={formatDate(me?.joinDate)}/>
                   <Field icon={ClockIcon} label="Preferred slot" value={timeSlotLabel(me?.preferredSlot)}/>
-                  <Field icon={TagIcon} label="Tags" value={me?.tags?.length ? me.tags.map((t) => t.name).join(", ") : null}/>
                 </div>
               </CardContent>
             </Card>

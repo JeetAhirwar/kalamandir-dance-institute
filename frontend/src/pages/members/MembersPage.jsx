@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, SearchEmptyState, TableSkeleton, Stagger } from "@/components/shared/States";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SmartImage } from "@/components/shared/SmartImage";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, } from "@/components/ui/dropdown-menu";
@@ -43,20 +44,24 @@ function ClassesCell({ member }) {
     }
     return <span className="text-sm tabular">{q.attended} / {q.quota}</span>;
 }
-/** Bachi hui classes (remaining quota) — same colour rule as the roster quota chip. */
+/** Bachi hui classes (remaining quota) — a tinted chip, same colour rule as
+ *  the roster quota: 4+ left green · 2–3 yellow · 0–1 red (over/expired red). */
 function ClassLeftCell({ member }) {
     const q = member.quota;
     if (!q || q.status === "none") {
         return <span className="text-muted-foreground">—</span>;
     }
-    if (q.status === "exceeded") {
-        return <span className="text-sm tabular text-destructive">{q.exceeded} over</span>;
-    }
-    if (q.status === "expired") {
-        return <span className="text-sm tabular text-destructive">0 left</span>;
-    }
-    const tone = q.remaining >= 4 ? "text-success" : q.remaining >= 2 ? "text-warning" : "text-destructive";
-    return <span className={cn("text-sm tabular", tone)}>{q.remaining} left</span>;
+    const tone = q.status === "exceeded" || q.status === "expired" || q.remaining < 2
+        ? "border-destructive/30 bg-destructive/10 text-destructive"
+        : q.remaining < 4
+            ? "border-warning/30 bg-warning/10 text-warning"
+            : "border-success/30 bg-success/10 text-success";
+    const label = q.status === "exceeded"
+        ? `${q.exceeded} over`
+        : q.status === "expired"
+            ? "0 left"
+            : `${q.remaining} left`;
+    return <Badge variant="outline" className={cn("font-medium tabular", tone)}>{label}</Badge>;
 }
 export function MembersPage() {
     const data = useData();
