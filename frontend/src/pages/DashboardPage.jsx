@@ -64,10 +64,12 @@ export function DashboardPage() {
     const data = useData();
     const { session } = useAuth();
     const role = session?.profile.role;
+    const canViewPayments = can(role, "payments.view");
     const stats = useAsync(() => data.getDashboardStats(), [data]);
     const [trendDays, setTrendDays] = useState(14);
     const trend = useAsync(() => data.getAttendanceTrend(trendDays), [data, trendDays]);
-    const revenue = useAsync(() => data.getRevenueTrend(6), [data]);
+    // Rupee trend lives behind payments.view — trainers skip the request.
+    const revenue = useAsync(() => (canViewPayments ? data.getRevenueTrend(6) : Promise.resolve([])), [data, canViewPayments]);
     const distribution = useAsync(() => data.getPlanDistribution(), [data]);
     const recentCheckIns = useAsync(() => data.getRecentCheckIns(6), [data]);
     const recentMembers = useAsync(() => data.getRecentMembers(5), [data]);
@@ -75,7 +77,6 @@ export function DashboardPage() {
     const todayClasses = useAsync(() => data.listClasses(startOfDayInTz(new Date()), endOfDayInTz(new Date())), [data]);
     const isNewGym = stats.data?.totalMembers === 0;
     // Stat cards link into the matching page — payments only when the role may see it.
-    const canViewPayments = can(role, "payments.view");
     const todayYmd = ymdInTz(new Date());
     const revenueDelta = stats.data && stats.data.previousMonthRevenue > 0
         ? Math.round(((stats.data.monthlyRevenue - stats.data.previousMonthRevenue) / stats.data.previousMonthRevenue) * 100)
@@ -153,16 +154,17 @@ export function DashboardPage() {
         <MetricCard index={3} label="Today's check-ins" value={stats.data?.todayAttendance ?? 0} icon={<CameraIcon className="size-[18px]"/>} hint={`${stats.data?.currentCheckIns ?? 0} currently inside`} accent={{ bg: "var(--km-wine)", fg: "var(--km-ivory)" }} to={`/attendance/history?from=${todayYmd}&to=${todayYmd}`}/>
       </div>
 
-      {/* This month: Total | Collected | Remaining */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <FinancialCard index={0} label="Total this month" value={totalThisMonth} format={(n) => formatINR(n)} icon={<IndianRupeeIcon className="size-[18px]"/>} hint="Collected + remaining" accent={{ bg: "var(--km-burgundy)", fg: "var(--km-ivory)" }} amountColor="var(--km-burgundy)" to={canViewPayments ? "/payments" : undefined}/>
+      {/* This month: Total | Collected | Remaining — rupee figures are
+          financial-role only (trainers never see them). */}
+      {canViewPayments ? (<div className="grid gap-3 sm:grid-cols-3">
+        <FinancialCard index={0} label="Total this month" value={totalThisMonth} format={(n) => formatINR(n)} icon={<IndianRupeeIcon className="size-[18px]"/>} hint="Collected + remaining" accent={{ bg: "var(--km-burgundy)", fg: "var(--km-ivory)" }} amountColor="var(--km-burgundy)" to="/payments"/>
         <FinancialCard index={1} label="Collected" value={collected} format={(n) => formatINR(n)} icon={<BanknoteIcon className="size-[18px]"/>} hint={revenueDelta !== null
             ? `${revenueDelta >= 0 ? "+" : ""}${revenueDelta}% vs last month`
-            : "Payments received this month"} accent={{ bg: "var(--success)", fg: "#F1FAF5" }} amountColor="var(--success)" barColor="var(--success)" barPct={collectedPct} to={canViewPayments ? "/payments?status=paid" : undefined}/>
+            : "Payments received this month"} accent={{ bg: "var(--success)", fg: "#F1FAF5" }} amountColor="var(--success)" barColor="var(--success)" barPct={collectedPct} to="/payments?status=paid"/>
         <FinancialCard index={2} label="Remaining" value={remaining} format={(n) => formatINR(n)} icon={<WalletIcon className="size-[18px]"/>} hint={stats.data?.pendingPayments
             ? `${stats.data.pendingPayments} member${stats.data.pendingPayments === 1 ? "" : "s"} with dues`
-            : "No outstanding dues"} accent={{ bg: "var(--destructive)", fg: "#FFF3F1" }} amountColor="var(--destructive)" barColor="var(--destructive)" barPct={remainingPct} to={canViewPayments ? "/payments?status=pending" : undefined}/>
-      </div>
+            : "No outstanding dues"} accent={{ bg: "var(--destructive)", fg: "#FFF3F1" }} amountColor="var(--destructive)" barColor="var(--destructive)" barPct={remainingPct} to="/payments?status=pending"/>
+      </div>) : null}
 
       {/* Analytics: attendance trend + plan mix */}
       <div className="grid gap-3 lg:grid-cols-[1.85fr_1fr]">
@@ -229,9 +231,10 @@ export function DashboardPage() {
         </FadeIn>
       </div>
 
-      {/* Lower grid: revenue · check-ins · new students · expiring */}
+      {/* Lower grid: revenue · check-ins · new students · expiring — the
+          revenue panel is financial-role only. */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <FadeIn>
+        {canViewPayments ? (<FadeIn>
           <section className={PANEL + " h-full"} aria-label="Monthly revenue">
             <PanelHeader title="Monthly revenue" subtitle="Last 6 months (INR)"/>
             <div className="h-[188px] px-2 pt-3 pb-4">
@@ -248,7 +251,7 @@ export function DashboardPage() {
                 </ResponsiveContainer>) : (<EmptyState title="No revenue data yet" description="Recorded payments will appear here." className="h-full py-6"/>)}
             </div>
           </section>
-        </FadeIn>
+        </FadeIn>) : null}
 
         <FadeIn delay={0.04}>
           <section className={PANEL + " h-full"} aria-label="Recent check-ins">

@@ -12,6 +12,8 @@ const router = Router();
 router.get(
   "/audit",
   requireAuth,
+  // The audit trail names who changed what — owners and admins only.
+  requireCap("settings.view"),
   asyncHandler(async (req, res) => {
     const limit = intParam(req.query.limit, 50, { min: 1, max: 200 });
     // Without ?page the route keeps returning a bare array (older clients);
@@ -19,13 +21,18 @@ router.get(
     const pageParam = req.query.page;
     const page = intParam(pageParam, 1, { min: 1, max: 10_000 });
     const filter = { gymId: req.user.gymId };
+    const rowsQuery = AuditLog.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(pageParam !== undefined ? (page - 1) * limit : 0)
+      .limit(limit)
+      .lean();
+    // Note: only ?page callers get countDocuments; the bare-array callers pay
+    // for neither count nor skip.
     const [rows, total] = await Promise.all([
-      AuditLog.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(pageParam !== undefined ? (page - 1) * limit : 0)
-        .limit(limit)
-        .lean(),
-      pageParam !== undefined ? AuditLog.countDocuments(filter) : Promise.resolve(rows.length),
+      rowsQuery,
+      pageParam !== undefined
+        ? AuditLog.countDocuments(filter)
+        : rowsQuery.then((found) => found.length),
     ]);
 
     const actorIds = [...new Set(rows.map((r) => r.actorId).filter(Boolean).map(String))];

@@ -5,8 +5,9 @@ import MembershipPlan from "../models/MembershipPlan.js";
 import AttendanceRecord from "../models/AttendanceRecord.js";
 import PaymentRecord from "../models/PaymentRecord.js";
 import User from "../models/User.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireCap } from "../middleware/auth.js";
 import { asyncHandler } from "../lib/errors.js";
+import { can } from "../lib/permissions.js";
 import { intParam } from "../middleware/validate.js";
 import { toAttendance, ymd } from "../lib/serialize.js";
 import { effectiveStatus } from "../lib/membership.js";
@@ -121,6 +122,8 @@ router.get(
 
     const revenueByKey = new Map(revenueRows.map((r) => [r._id, r.total]));
 
+    // Trainers get the operational stats but never the rupee figures.
+    const financial = can(req.user.role, "payments.view");
     res.json({
       activeMembers,
       newThisMonth,
@@ -129,11 +132,11 @@ router.get(
       todayAttendance,
       // Without checkout tracking, "currently inside" falls back to today's check-ins.
       currentCheckIns: settings.trackCheckout ? insideRows : todayAttendance,
-      monthlyRevenue: round2(revenueByKey.get(monthKey) ?? 0),
-      previousMonthRevenue: round2(revenueByKey.get(prevMonthKey) ?? 0),
-      pendingPayments: dues.length,
-      pendingAmount: round2(dues.reduce((sum, d) => sum + d.balance, 0)),
-      totalPayments: round2(totalPaidRows[0]?.total ?? 0),
+      monthlyRevenue: financial ? round2(revenueByKey.get(monthKey) ?? 0) : null,
+      previousMonthRevenue: financial ? round2(revenueByKey.get(prevMonthKey) ?? 0) : null,
+      pendingPayments: financial ? dues.length : null,
+      pendingAmount: financial ? round2(dues.reduce((sum, d) => sum + d.balance, 0)) : null,
+      totalPayments: financial ? round2(totalPaidRows[0]?.total ?? 0) : null,
       totalMembers: await Member.countDocuments({ gymId }),
     });
   }),
@@ -170,9 +173,11 @@ router.get(
 );
 
 /** GET /api/dashboard/revenue-trend?months=6 → MonthRevenue[] */
+/** GET /api/dashboard/revenue-trend?months=6 → DayRevenue[] (financial roles only) */
 router.get(
   "/dashboard/revenue-trend",
   requireAuth,
+  requireCap("payments.view"),
   asyncHandler(async (req, res) => {
     const ctx = await loadGymContext(req.user.gymId);
     const months = intParam(req.query.months, 6, { min: 1, max: 36 });
