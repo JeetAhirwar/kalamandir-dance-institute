@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -79,7 +79,30 @@ export function LoginPage() {
     const isMember = session?.profile.role === "member";
     const needsCheckin = Boolean(checkinToken) && isMember;
     const [checkinState, setCheckinState] = useState("idle"); // idle | working | done
+    const startedRef = useRef(false);
     const from = location.state?.from ?? "/";
+    useEffect(() => {
+        if (!needsCheckin || startedRef.current)
+            return;
+        startedRef.current = true;
+        setCheckinState("working");
+        void (async () => {
+            try {
+                const result = await selfCheckIn(getDataService(session), checkinToken);
+                if (result?.status === "ok")
+                    toast.success(result.message ?? "Attendance marked.");
+                else
+                    toast.info(result?.message ?? "Attendance was not marked.");
+            }
+            catch (err) {
+                toast.error(err instanceof Error ? err.message : "Unable to mark attendance.");
+            }
+            finally {
+                setCheckinState("done");
+                navigate("/portal", { replace: true });
+            }
+        })();
+    }, [needsCheckin, session, checkinToken, navigate]);
     const { register, handleSubmit, formState: { errors, isSubmitting }, } = useForm({
         resolver: zodResolver(loginSchema),
         defaultValues: {
