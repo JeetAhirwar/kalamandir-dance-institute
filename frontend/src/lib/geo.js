@@ -5,7 +5,7 @@
  * Best-effort by design: resolves `null` on denial/timeout so the caller can
  * fall through to the server's decision (the backend explains the rejection).
  */
-export function getCurrentCoords({ timeoutMs = 8000 } = {}) {
+export function getCurrentCoords({ timeoutMs = 5000 } = {}) {
     return new Promise((resolve) => {
         if (typeof navigator === "undefined" || !navigator.geolocation) {
             resolve(null);

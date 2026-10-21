@@ -90,7 +90,7 @@ async function parseBody(response) {
     }
 }
 export async function apiRequest(path, options = {}) {
-    const { method = "GET", body, query, signal, auth = true } = options;
+    const { method = "GET", body, query, signal, auth = true, timeoutMs = 30000 } = options;
     const headers = { Accept: "application/json" };
     const token = getAuthToken();
     if (auth && token)
@@ -99,18 +99,24 @@ export async function apiRequest(path, options = {}) {
         headers["Content-Type"] = "application/json";
     let response;
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        const combinedSignal = signal
+            ? (() => { const c = new AbortController(); signal.addEventListener("abort", () => c.abort()); controller.signal.addEventListener("abort", () => c.abort()); return c.signal; })()
+            : controller.signal;
         response = await fetch(buildUrl(path, query), {
             method,
             headers,
-            signal,
+            signal: combinedSignal,
             body: body !== undefined ? JSON.stringify(body) : undefined,
         });
+        clearTimeout(timeoutId);
     }
     catch (err) {
         if (err instanceof ApiError)
             throw err;
         const aborted = err instanceof DOMException && err.name === "AbortError";
-        throw new ApiError(0, aborted ? "aborted" : "network", aborted ? "The request was cancelled." : "Unable to reach the server. Check your connection and try again.");
+        throw new ApiError(0, aborted ? "timeout" : "network", aborted ? "Request timed out. The server may be starting up — please try again in a moment." : "Unable to reach the server. Check your connection and try again.");
     }
     const payload = await parseBody(response);
     if (!response.ok) {
@@ -119,8 +125,6 @@ export async function apiRequest(path, options = {}) {
             ? record.message
             : defaultMessageForStatus(response.status);
         const code = typeof record.code === "string" && record.code.trim().length > 0 ? record.code : codeForStatus(response.status);
-        // A 401 means the stored token is no longer usable — drop it so the app
-        // falls back to the signed-out state immediately.
         if (response.status === 401)
             setAuthToken(null);
         throw new ApiError(response.status, code, message);

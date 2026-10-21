@@ -368,7 +368,7 @@ export async function markDemoAttendance({
           classId: klass._id,
           sessionDate: parseDateOnly(dayKey),
           quotaCounted: false,
-          demo: true,
+          demo: false,
           dedupeKey,
         },
       ],
@@ -397,7 +397,7 @@ export async function markDemoAttendance({
       attendance: toAttendance(attendance, member, null),
       member: memberSummary(member, membership, planDoc, quota),
       quota,
-      demo: true,
+      demo: false,
     };
   });
 }
