@@ -26,7 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SmartImage } from "@/components/shared/SmartImage";
 import { useAuth, useData } from "@/auth/AuthProvider";
@@ -129,6 +129,13 @@ function fmtSlotTime(hhmm) {
     return `${h12}:${mins} ${h24 < 12 ? "AM" : "PM"}`;
 }
 
+/** Dot colour per time-of-day group, so a student's batch reads at a glance. */
+const GROUP_DOT = {
+    morning: "bg-amber-500",
+    afternoon: "bg-orange-500",
+    evening: "bg-sky-500",
+};
+
 /**
  * Pick the slot to preselect for marking: the one running RIGHT NOW,
  * else the next one to start later today, else the first active slot.
@@ -163,10 +170,9 @@ export function AttendancePage() {
     const slots = useAsync(() => data.listClassSlots(), [data]);
     const activeSlots = useMemo(() => (slots.data ?? []).filter((s) => s.isActive), [slots.data]);
 
-    // Three group dropdowns (Morning / Afternoon / Evening Slots). Only one
-    // group can be active at a time — the other two render disabled. Within
-    // the active group the pick is either "__all__" (Select All Slots) or a
-    // single class-slot id.
+    // One two-level "Slot" dropdown (Morning / Afternoon / Evening → that
+    // group's time slots). Only one group can be open at a time. Within it the
+    // pick is either "__all__" (Select All Slots) or a single class-slot id.
     const [slotGroup, setSlotGroup] = useState(null); // "morning"|"afternoon"|"evening"|null
     const [slotPick, setSlotPick] = useState(""); // slotId | "__all__" | ""
     const [loadAll, setLoadAll] = useState(false); // Load All → every active slot's students
@@ -174,6 +180,27 @@ export function AttendancePage() {
     const [loadedQuery, setLoadedQuery] = useState(null); // { slotIds: [], date }
 
     const groupedSlots = useMemo(() => groupSlotsByTime(activeSlots, "startTime"), [activeSlots]);
+
+    /* Single two-level "Slot" dropdown: level 1 = Morning / Afternoon / Evening,
+       level 2 = that group's time slots. These derive the trigger's label and
+       which list the open dropdown shows. */
+    const currentGroupSlots = slotGroup ? (groupedSlots[slotGroup] ?? []) : [];
+    const activeGroup = SLOT_GROUPS.find((g) => g.key === slotGroup) ?? null;
+    const pickedSlot = slotPick && slotPick !== "__all__" && slotPick !== "__none__"
+        ? currentGroupSlots.find((s) => s.id === slotPick) ?? null
+        : null;
+    const slotSelectLabel = slots.loading
+        ? "Loading slots…"
+        : loadAll
+            ? `All slots (${activeSlots.length})`
+            : !slotGroup
+                ? "Select a time of day…"
+                : pickedSlot
+                    ? `${fmtSlotTime(pickedSlot.startTime)} – ${fmtSlotTime(pickedSlot.endTime)}`
+                    : slotPick === "__all__"
+                        ? `${activeGroup?.label ?? "Slots"} · all ${currentGroupSlots.length}`
+                        : `${activeGroup?.label ?? "Slots"} · pick a time`;
+    const slotSelectIsPlaceholder = !slots.loading && !loadAll && !slotGroup;
 
     // Which class slots the current pick resolves to.
     const selectedSlotIds = useMemo(() => {
@@ -409,11 +436,37 @@ export function AttendancePage() {
      *  Uses the FULL slot list (not just active) so archived slots still resolve. */
     const slotById = useMemo(() => new Map((slots.data ?? []).map((s) => [String(s.id), s])), [slots.data]);
 
-    /** "7:00 AM – 8:15 AM" for a row's class slot; walk-ins have no time. */
+    /** "7:00 AM – 8:15 AM" for a row's class slot; walk-ins have no time.
+     *  Prefers the time the API already ships on the row, then falls back to a
+     *  lookup against the locally loaded slot list (covers records written
+     *  before the route started returning the times). */
     const slotTimeOf = (row) => {
-        const slot = slotById.get(String(row.classSlotId ?? ""));
+        const start = row.slotStartTime;
+        const end = row.slotEndTime;
+        if (start && end) return `${fmtSlotTime(start)} – ${fmtSlotTime(end)}`;
+        const slot = slotById.get(String(row.classSlotId ?? row.meta?.slotId ?? ""));
         if (!slot?.startTime || !slot?.endTime) return null;
         return `${fmtSlotTime(slot.startTime)} – ${fmtSlotTime(slot.endTime)}`;
+    };
+
+    /** Which batch a roster student belongs to → { key, text }
+     *  e.g. { key: "morning", text: "Morning · 8:00 AM – 9:00 AM" }.
+     *  Prefers their actual enrolments (the sheet lists everyone in the
+     *  studio), falling back to the slot this row was loaded for. */
+    const slotLabelOf = (s) => {
+        const ids = Array.isArray(s?.enrolledSlotIds) && s.enrolledSlotIds.length > 0
+            ? s.enrolledSlotIds
+            : (s?.slotId ? [s.slotId] : []);
+        const slot = slotById.get(String(ids[0] ?? ""));
+        if (!slot) return null;
+        const group = SLOT_GROUPS.find((g) => g.key === slotGroupOf(slot.startTime));
+        const time = slot.startTime && slot.endTime
+            ? `${fmtSlotTime(slot.startTime)} – ${fmtSlotTime(slot.endTime)}`
+            : "";
+        const extra = ids.length > 1 ? ` +${ids.length - 1}` : "";
+        if (!group) return { key: null, text: `${time || slot.name || "Class"}${extra}` };
+        const short = group.label.replace(/\s+Slots$/, "");
+        return { key: group.key, text: `${time ? `${short} · ${time}` : short}${extra}` };
     };
 
     /** Human day label shown in the register header ("Wed, 21 Oct 2026"). */
@@ -472,7 +525,7 @@ export function AttendancePage() {
           <SectionHeading icon={<ClipboardCheckIcon className="size-5"/>} title="Mark Attendance" description="Select a class, then mark attendance for each student."/>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground">Pick one group (the other two disable), or load every student at once.</p>
+            <p className="text-xs text-muted-foreground">Pick a time of day, then a class slot — or load every student at once.</p>
             <Button size="sm" variant="outline" className="h-8 gap-1.5 px-3" disabled={slots.loading || activeSlots.length === 0 || loadAll} onClick={() => {
               setLoadAll(true);
               setSlotGroup(null);
@@ -482,48 +535,59 @@ export function AttendancePage() {
             </Button>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            {SLOT_GROUPS.map((group) => {
-              const groupSlots = groupedSlots[group.key] ?? [];
-              const isActive = !loadAll && slotGroup === group.key;
-              const isDisabled = slots.loading || loadAll || groupSlots.length === 0 || (slotGroup !== null && !isActive);
-              return (<div key={group.key} className="space-y-1.5">
-                <Label htmlFor={`slot-group-${group.key}`}>{group.label}</Label>
-                <Select
-                  id={`slot-group-${group.key}`}
-                  value={isActive && slotPick ? slotPick : "__none__"}
-                  disabled={isDisabled}
-                  onValueChange={(v) => {
-                    if (v === "__none__") {
-                      setSlotGroup(null);
-                      setSlotPick("");
-                      return;
-                    }
-                    setSlotGroup(group.key);
-                    setSlotPick(v);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={slots.loading
-                      ? "Loading slots…"
-                      : groupSlots.length === 0
-                        ? "No slots in this group"
-                        : slotGroup && !isActive
-                          ? `${SLOT_GROUPS.find((g) => g.key === slotGroup)?.label ?? "Another group"} selected — clear to switch`
-                          : `Select ${group.label.toLowerCase()}`}/>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Select All Slots ({groupSlots.length})</SelectItem>
-                    {groupSlots.map((s) => (<SelectItem key={s.id} value={s.id}>
-                        {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
-                      </SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>);
-            })}
+          {/* One "Slot" dropdown with two levels: choose Morning / Afternoon /
+              Evening first, then the same dropdown flips to that group's times. */}
+          <div className="space-y-1.5">
+            <Label htmlFor="mark-slot-select">Slot</Label>
+            <Select
+              value={loadAll ? "__none__" : slotGroup ? (slotPick || `group:${slotGroup}`) : "__none__"}
+              disabled={slots.loading || activeSlots.length === 0}
+              onValueChange={(v) => {
+                if (v === "__none__") return;
+                if (v === "__back__") {
+                  setSlotGroup(null);
+                  setSlotPick("");
+                  return;
+                }
+                if (v.startsWith("group:")) {
+                  setLoadAll(false);
+                  setSlotGroup(v.slice("group:".length));
+                  setSlotPick("");
+                  return;
+                }
+                setLoadAll(false);
+                setSlotPick(v);
+              }}
+            >
+              <SelectTrigger id="mark-slot-select" className="w-full">
+                <span className={cn("truncate", slotSelectIsPlaceholder && "text-muted-foreground")}>{slotSelectLabel}</span>
+              </SelectTrigger>
+              <SelectContent>
+                {!slotGroup
+                  ? SLOT_GROUPS.map((group) => {
+                      const count = (groupedSlots[group.key] ?? []).length;
+                      return (<SelectItem key={group.key} value={`group:${group.key}`} disabled={count === 0}>
+                        <span className="flex w-full items-center justify-between gap-6">
+                          <span>{group.label}</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {count === 0 ? "none" : `${count} ${count === 1 ? "slot" : "slots"}`}
+                          </span>
+                        </span>
+                      </SelectItem>);
+                    })
+                  : (<>
+                      <SelectItem value="__back__">← Change time of day</SelectItem>
+                      <SelectItem value="__all__">Select All Slots ({currentGroupSlots.length})</SelectItem>
+                      <SelectSeparator/>
+                      {currentGroupSlots.map((s) => (<SelectItem key={s.id} value={s.id}>
+                          {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
+                        </SelectItem>))}
+                    </>)}
+              </SelectContent>
+            </Select>
           </div>
-          {slotGroup || loadAll ? (<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{loadAll ? "Load All:" : `${SLOT_GROUPS.find((g) => g.key === slotGroup)?.label}:`}</span>
+          {(loadAll || (slotGroup && slotPick)) ? (<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{loadAll ? "Load All:" : `${activeGroup?.label}:`}</span>
               {loadAll
                 ? `${selectedSlots.length} slots — every student loaded, each saved to their own slot`
                 : slotPick === "__all__"
@@ -579,7 +643,7 @@ export function AttendancePage() {
                 <span className="flex size-12 items-center justify-center rounded-full border border-km-gold/30 bg-km-gold/10 text-km-gold">
                   <UsersIcon className="size-5"/>
                 </span>
-                <p className="text-sm font-medium">Select a slot from Morning / Afternoon / Evening to load students</p>
+                <p className="text-sm font-medium">Pick a time of day, then a class slot, to load students</p>
                 <p className="text-xs text-muted-foreground">Students will appear here to mark their attendance.</p>
               </div>) : roster.loading ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading students…</div>) : students.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No students yet — add one from the Students page.
@@ -590,6 +654,7 @@ export function AttendancePage() {
               const saved = savedStatuses[s.memberId] ?? null;
               const isEditing = editingId === s.memberId;
               const isSaved = Boolean(saved) && !isEditing;
+              const enrolled = slotLabelOf(s);
               return (<li key={s.memberId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold uppercase text-muted-foreground">
@@ -597,7 +662,13 @@ export function AttendancePage() {
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{s.fullName}</p>
-                        <p className="truncate text-xs text-muted-foreground">{s.memberCode ?? "—"}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          <span>{s.memberCode ?? "—"}</span>
+                          {enrolled ? (<span className="ml-1.5 inline-flex items-center gap-1.5 align-middle whitespace-nowrap">
+                              <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", GROUP_DOT[enrolled.key] ?? "bg-muted-foreground/40")}/>
+                              <span>{enrolled.text}</span>
+                            </span>) : null}
+                        </p>
                       </div>
                       {savingId === s.memberId ? <Loader2Icon className="size-3.5 animate-spin text-muted-foreground"/> : null}
                     </div>

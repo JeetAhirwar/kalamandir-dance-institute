@@ -90,7 +90,6 @@ export function MemberPortalPage() {
     const now = new Date();
     const todayLabel = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     const stats = computeVisitStats(attendance.data ?? []);
-    const days = me?.daysRemaining ?? null;
     const quota = me?.quota ?? null;
 
     return (<div className="space-y-10 pb-6">
@@ -150,7 +149,6 @@ export function MemberPortalPage() {
             { label: "Visits this month", value: attendance.loading && !attendance.data ? "…" : stats.thisMonth, sub: "since the 1st" },
             { label: "Visit streak", value: attendance.loading && !attendance.data ? "…" : stats.streak, sub: stats.streak === 1 ? "day in a row" : "days in a row" },
             { label: "Total visits", value: attendance.loading && !attendance.data ? "…" : stats.total, sub: "on record" },
-            { label: "Days remaining", value: profile.loading && !me ? "…" : days === null ? "—" : Math.max(0, days), sub: days !== null && days <= 0 ? "renew at the desk" : "on your plan" },
             { label: "Classes left", value: profile.loading && !me ? "…" : !quota || quota.status === "none" ? "—" : quota.status === "exceeded" ? `${quota.exceeded} over` : quota.remaining, sub: !quota || quota.status === "none" ? "no class quota" : `of ${quota.quota} paid` },
         ]}/>
           {attendance.error && !attendance.data ? (<p className="mt-3 text-xs text-muted-foreground">

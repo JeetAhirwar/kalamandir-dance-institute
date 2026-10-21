@@ -135,15 +135,15 @@ const TAGS = [
 
 /** Recurring batches. `instructor` = index into the trainer staff list. */
 const SLOTS = [
-    { name: "Morning Kathak", description: "Beginner • All Levels", weekdays: [1, 3, 5], startTime: "08:00", endTime: "09:15", capacity: 20, instructor: 0 },
-    { name: "Bollywood Groove", description: "Intermediate • Choreography", weekdays: [2, 4], startTime: "18:00", endTime: "19:15", capacity: 25, instructor: 1 },
-    { name: "Sunset Yoga Flow", description: "All Levels • Mobility", weekdays: [0, 5], startTime: "18:30", endTime: "19:30", capacity: 18, instructor: 2 },
-    { name: "Hip-Hop Foundations", description: "Beginner • All Levels", weekdays: [6], startTime: "10:00", endTime: "11:30", capacity: 22, instructor: 1 },
-    { name: "Contemporary Express", description: "Advanced • Performance", weekdays: [3], startTime: "19:30", endTime: "21:00", capacity: 16, instructor: 2 },
-    { name: "Bharatanatyam Basics", description: "Beginner • Classical", weekdays: [2, 5], startTime: "17:00", endTime: "18:15", capacity: 18, instructor: 4 },
-    { name: "Kids Bollywood", description: "Ages 6–12 • Fun", weekdays: [6], startTime: "09:00", endTime: "10:00", capacity: 20, instructor: 1 },
-    { name: "Bhangra Fitness", description: "All Levels • Cardio", weekdays: [5], startTime: "20:00", endTime: "21:00", capacity: 30, instructor: 3 },
-    { name: "Salsa Social", description: "All Levels • Partner", weekdays: [4], startTime: "19:30", endTime: "21:00", capacity: 24, instructor: null },
+    { name: "Morning Kathak", description: "Beginner • All Levels", weekdays: [1, 3, 5], startTime: "08:00", endTime: "09:15", capacity: 20, instructor: 0, classTag: "Dance" },
+    { name: "Bollywood Groove", description: "Intermediate • Choreography", weekdays: [2, 4], startTime: "18:00", endTime: "19:15", capacity: 25, instructor: 1, classTag: "Dance" },
+    { name: "Sunset Yoga Flow", description: "All Levels • Mobility", weekdays: [0, 5], startTime: "18:30", endTime: "19:30", capacity: 18, instructor: 2, classTag: "Art" },
+    { name: "Hip-Hop Foundations", description: "Beginner • All Levels", weekdays: [6], startTime: "10:00", endTime: "11:30", capacity: 22, instructor: 1, classTag: "Dance" },
+    { name: "Contemporary Express", description: "Advanced • Performance", weekdays: [3], startTime: "19:30", endTime: "21:00", capacity: 16, instructor: 2, classTag: "Dance" },
+    { name: "Bharatanatyam Basics", description: "Beginner • Classical", weekdays: [2, 5], startTime: "17:00", endTime: "18:15", capacity: 18, instructor: 4, classTag: "Dance" },
+    { name: "Kids Bollywood", description: "Ages 6–12 • Fun", weekdays: [6], startTime: "09:00", endTime: "10:00", capacity: 20, instructor: 1, classTag: "Dance" },
+    { name: "Bhangra Fitness", description: "All Levels • Cardio", weekdays: [5], startTime: "20:00", endTime: "21:00", capacity: 30, instructor: 3, classTag: "Dance" },
+    { name: "Salsa Social", description: "All Levels • Partner", weekdays: [4], startTime: "19:30", endTime: "21:00", capacity: 24, instructor: null, classTag: "Art" },
 ];
 
 /** Dated classes for the visible week. [name, description, time, minutes, capacity] */
@@ -334,6 +334,7 @@ for (let i = 0; i < STUDENT_COUNT; i += 1) {
         status,
         plannedHoursPerDay: chance(0.5) ? pickInt(1, 3) : null,
         preferredSlot: chance(0.3) ? pick(["06:30-09:00", "16:00-21:30"]) : null,
+        classTag: chance(0.7) ? "Dance" : "Art",
         tagIds: memberTags,
         createdBy: adminId,
     }]);
@@ -427,6 +428,7 @@ const slots = await ClassSlot.insertMany(SLOTS.map((s) => ({
     startTime: s.startTime,
     endTime: s.endTime,
     capacity: s.capacity,
+    classTag: s.classTag,
     instructorId: s.instructor == null ? null : trainerIds[s.instructor] ?? null,
     isActive: true,
     createdBy: adminId,

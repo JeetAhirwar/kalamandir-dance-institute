@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { CLASS_TAGS } from "../lib/constants.js";
 
 const { Schema, model } = mongoose;
 
@@ -31,6 +32,8 @@ const MemberSchema = new Schema(
     plannedHoursPerDay: { type: Number, default: null },
     /** Preferred front-desk slot ("HH:mm-HH:mm", from gym.timeSlots); null = no preference. */
     preferredSlot: { type: String, default: null },
+    /** Class stream the student belongs to — "Art" | "Dance". */
+    classTag: { type: String, enum: [...CLASS_TAGS, null], default: null },
     /** Assigned tag ids (student labels — dance styles, batches, events…). */
     tagIds: { type: [{ type: Schema.Types.ObjectId, ref: "Tag" }], default: () => [] },
     notes: { type: String, default: null },

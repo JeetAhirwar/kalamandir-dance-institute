@@ -111,6 +111,8 @@ export function toMember(doc) {
     plannedHoursPerDay: doc.plannedHoursPerDay ?? null,
     /** Preferred front-desk slot ("HH:mm-HH:mm"); null = no preference. */
     preferredSlot: doc.preferredSlot ?? null,
+    /** Class stream the student belongs to — "Art" | "Dance". */
+    classTag: doc.classTag ?? null,
     /** Assigned tag ids (student labels — styles, batches, events…). */
     tagIds: (doc.tagIds ?? []).map((t) => String(t)),
     createdBy: id(doc.createdBy),
@@ -318,6 +320,8 @@ export function toClassSlot(doc, instructorDoc, enrolledCount) {
     startTime: doc.startTime,
     endTime: doc.endTime,
     capacity: doc.capacity ?? null,
+    /** Class stream this batch teaches — "Art" | "Dance". */
+    classTag: doc.classTag ?? null,
     instructorId: id(doc.instructorId),
     isActive: doc.isActive !== false,
     notes: doc.notes ?? null,

@@ -77,7 +77,6 @@ export function ProfilePage() {
     const membership = me?.membership ?? null;
     const stamp = STAMP_TONES[me?.effectiveStatus] ?? STAMP_TONES.none;
     const statusTone = STATUS_TEXT_TONES[me?.effectiveStatus] ?? STATUS_TEXT_TONES.none;
-    const days = me?.daysRemaining ?? null;
     const loginEmail = session?.profile?.email ?? me?.email ?? null;
     const gymName = session?.gym?.name ?? "Kalamandir Dance Institute";
     const duration = membership?.planDurationValue != null && membership?.planDurationUnit
@@ -133,9 +132,8 @@ export function ProfilePage() {
               </CardHeader>
               <CardContent>
                 {membership ? (<div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       <Tile label="Status" value={stamp.label} tone={statusTone}/>
-                      <Tile label="Days left" value={days === null ? "—" : Math.max(0, days)} tone="text-primary"/>
                       <Tile label="Duration" value={duration ?? "—"}/>
                       <Tile label="Valid till" value={formatDate(membership.endDate)}/>
                     </div>

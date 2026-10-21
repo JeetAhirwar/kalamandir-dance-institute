@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArchiveIcon, ArchiveRestoreIcon, CalendarRangeIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, Loader2Icon, MoreVerticalIcon, PencilIcon, PlusIcon, SearchIcon, UserIcon, UsersIcon, XIcon, } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, CalendarRangeIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, Loader2Icon, MoreVerticalIcon, PencilIcon, PlusIcon, SearchIcon, UserIcon, UsersIcon, XIcon, } from "lucide-react";
 import { EmptyState, ErrorState, Skeleton, TableSkeleton, Stagger } from "@/components/shared/States";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -61,7 +60,8 @@ export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
         }
     }, [open, slot]);
     const trainers = (staff.data ?? []).filter((s) => s.role === "trainer" && s.employmentStatus !== "resigned");
-    const set = (patch) => setValues((v) => ({ ...v, ...patch }));
+    /** Patch helper — accepts an object, or an updater fn (like setState). */
+    const set = (patch) => setValues((v) => ({ ...v, ...(typeof patch === "function" ? patch(v) : patch) }));
     const toggleDay = (d) => set((v) => ({
         weekdays: v.weekdays.includes(d) ? v.weekdays.filter((x) => x !== d) : [...v.weekdays, d],
     }));
@@ -115,13 +115,20 @@ export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
 
           <div className="space-y-1.5">
             <Label>Weekdays</Label>
+            {/* One <button> per day — a wrapping <label> + checkbox double-fires
+                the toggle (label re-dispatches its click onto the control). */}
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-              {DAY_CHIPS.map((label, d) => (<Label key={label} className={cn("flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border px-2 text-xs font-medium transition-colors", values.weekdays.includes(d)
-                    ? "border-km-gold/60 bg-km-gold/15 text-foreground"
-                    : "border-input text-muted-foreground hover:bg-secondary")}>
-                  <Checkbox checked={values.weekdays.includes(d)} onCheckedChange={() => toggleDay(d)}/>
-                  {label}
-                </Label>))}
+              {DAY_CHIPS.map((label, d) => {
+                const checked = values.weekdays.includes(d);
+                return (<button key={label} type="button" role="checkbox" aria-checked={checked} onClick={() => toggleDay(d)} className={cn("flex h-9 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors", checked
+                      ? "border-km-gold/60 bg-km-gold/15 text-foreground"
+                      : "border-input text-muted-foreground hover:bg-secondary")}>
+                    <span className={cn("flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border", checked ? "border-km-gold bg-km-gold text-background" : "border-muted-foreground/50 bg-background")}>
+                      {checked ? <CheckIcon className="size-2.5"/> : null}
+                    </span>
+                    {label}
+                  </button>);
+            })}
             </div>
           </div>
 

@@ -23,6 +23,7 @@ import { loadGymContext } from "../services/context.js";
 import { decorateAllMembers, decorateMember } from "../services/members.js";
 import { createPaymentRow } from "../services/payments.js";
 import { ensureMemberLogin, syncMemberLoginStatus } from "../lib/memberLogins.js";
+import { CLASS_TAGS } from "../lib/constants.js";
 
 const router = Router();
 
@@ -73,6 +74,11 @@ const createMemberSchema = z.object({
     .nullish(),
   /** Selected tag ids (student labels — dance styles, batches, events…). */
   tagIds: z.array(z.string().trim()).max(20, "Pick at most 20 tags").nullish(),
+  /** Class stream the student belongs to — required on create. */
+  classTag: z.enum(CLASS_TAGS, {
+    required_error: "Choose a class tag (Art or Dance)",
+    errorMap: () => ({ message: "Choose a class tag (Art or Dance)" }),
+  }),
   planId: z.string().min(1, "Plan is required"),
   membershipStart: z.string().min(4, "Membership start is required"),
   initialPayment: initialPaymentSchema.nullish(),
@@ -132,6 +138,7 @@ const MEMBER_AUDIT_KEYS = [
   "fullName", "email", "phone", "photoUrl", "dateOfBirth", "age", "gender", "address",
   "emergencyContactName", "emergencyContactPhone", "joinDate", "notes", "status", "plannedHoursPerDay",
   "preferredSlot",
+  "classTag",
   "tagIds",
 ];
 
@@ -308,6 +315,7 @@ router.post(
               notes: input.notes ?? null,
               plannedHoursPerDay: input.plannedHoursPerDay ?? null,
               preferredSlot: input.preferredSlot ?? null,
+              classTag: input.classTag,
               tagIds: await resolveTagIds(gymId, input.tagIds ?? []),
               createdBy: req.user.id,
             },

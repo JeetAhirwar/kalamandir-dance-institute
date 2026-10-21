@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { CLASS_TAGS } from "../lib/constants.js";
 
 const { Schema, model } = mongoose;
 
@@ -23,6 +24,8 @@ const ClassSlotSchema = new Schema(
     endTime: { type: String, required: true, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
     /** Seats in the room; null = unlimited / not enforced. */
     capacity: { type: Number, default: null, min: 1 },
+    /** Class stream this batch teaches — "Art" | "Dance" (from the Class Tag field). */
+    classTag: { type: String, enum: [...CLASS_TAGS, null], default: null },
     instructorId: { type: Schema.Types.ObjectId, ref: "StaffProfile", default: null },
     isActive: { type: Boolean, default: true },
     notes: { type: String, default: null },

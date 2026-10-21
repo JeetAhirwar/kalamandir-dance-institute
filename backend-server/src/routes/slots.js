@@ -12,10 +12,11 @@ import { toClassSlot, toSlotEnrollment } from "../lib/serialize.js";
 import { writeAudit, pick } from "../lib/audit.js";
 import { findInstructorConflict, toMinutes } from "../lib/schedule.js";
 import { loadGymContext } from "../services/context.js";
+import { CLASS_TAGS } from "../lib/constants.js";
 
 const router = Router();
 
-const SLOT_KEYS = ["name", "description", "weekdays", "startTime", "endTime", "capacity", "instructorId", "isActive", "notes"];
+const SLOT_KEYS = ["name", "description", "weekdays", "startTime", "endTime", "capacity", "classTag", "instructorId", "isActive", "notes"];
 
 const createSlotSchema = z.object({
   name: z.string().trim().min(1, "Slot name is required"),
@@ -27,6 +28,11 @@ const createSlotSchema = z.object({
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm"),
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm"),
   capacity: z.number().int().min(1).nullish(),
+  /** Class stream this batch teaches — required on create. */
+  classTag: z.enum(CLASS_TAGS, {
+    required_error: "Choose a class tag (Art or Dance)",
+    errorMap: () => ({ message: "Choose a class tag (Art or Dance)" }),
+  }),
   instructorId: z.string().nullish(),
   isActive: z.boolean().optional(),
   notes: z.string().nullish(),
@@ -193,6 +199,7 @@ router.post(
         startTime: input.startTime,
         endTime: input.endTime,
         capacity: input.capacity ?? null,
+        classTag: input.classTag,
         instructorId,
         isActive: input.isActive ?? true,
         notes: input.notes ?? null,
@@ -230,6 +237,7 @@ router.patch(
       startTime: input.startTime ?? existing.startTime,
       endTime: input.endTime ?? existing.endTime,
       capacity: input.capacity !== undefined ? input.capacity ?? null : existing.capacity,
+      classTag: input.classTag ?? existing.classTag ?? null,
       isActive: input.isActive ?? existing.isActive,
       notes: input.notes !== undefined ? input.notes ?? null : existing.notes,
     };

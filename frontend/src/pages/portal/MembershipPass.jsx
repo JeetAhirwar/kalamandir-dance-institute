@@ -5,7 +5,9 @@ import { formatDate, formatINR, timeSlotLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { membershipProgress } from "./paper";
 import { Stamp } from "./PaperBits";
-import gymImg from "../../../gym-img.jpg";
+
+/** Faded artwork printed behind the pass (public/images/…). */
+const PASS_ART = "/images/Person_dancing_inside_palace_20261020004636.gif";
 
 const STAMP_TONES = {
     active: { tone: "ok", label: "Active" },
@@ -49,7 +51,6 @@ export function MembershipPass({ profile }) {
 
     const me = profile ?? null;
     const membership = me?.membership ?? null;
-    const days = me?.daysRemaining ?? null;
     const slotLabel = timeSlotLabel(me?.preferredSlot);
     const stamp = STAMP_TONES[me?.effectiveStatus] ?? STAMP_TONES.none;
     const progress = membershipProgress(membership);
@@ -57,8 +58,8 @@ export function MembershipPass({ profile }) {
     return (<div className="pp-scene mx-auto max-w-2xl">
       <motion.div className="relative min-h-[210px] w-full sm:min-h-[225px]" style={{ rotateX: tiltEnabled ? rotateX : 0, rotateY: tiltEnabled ? rotateY : 0, transformStyle: "preserve-3d" }} onMouseMove={handleMove} onMouseLeave={handleLeave}>
         <div className="pp-face paper-surface paper-lift relative overflow-hidden rounded-2xl">
-          {/* printed gym photo, faded into the paper */}
-          <img src={gymImg} alt="" aria-hidden="true" loading="eager" className="pointer-events-none absolute inset-0 size-full object-cover opacity-[0.16] grayscale" onError={(event) => {
+          {/* dancer artwork, faded into the paper */}
+          <img src={PASS_ART} alt="" aria-hidden="true" loading="eager" className="pointer-events-none absolute inset-0 size-full object-cover opacity-[0.16] grayscale" onError={(event) => {
             event.currentTarget.style.display = "none";
         }}/>
           <span aria-hidden="true" className="paper-tape"/>
@@ -89,13 +90,7 @@ export function MembershipPass({ profile }) {
 
             <div className="flex items-end justify-between gap-4">
               <div className="min-w-0">
-                <p className="font-serif text-2xl leading-none sm:text-3xl">
-                  <span className="pp-mark">{days === null ? "—" : days <= 0 ? "0" : days}</span>
-                </p>
-                <p className="mt-1 text-[10px] tracking-[0.2em] text-paper-foreground/60 uppercase">
-                  {days === null ? "validity unavailable" : days <= 0 ? "expired — renew at desk" : days === 1 ? "day remaining" : "days remaining"}
-                </p>
-                {progress !== null ? (<div aria-label={`${Math.round(progress * 100)}% of membership elapsed`} className="mt-1.5 h-1.5 w-28 overflow-hidden rounded-full bg-paper-2 sm:w-36">
+                {progress !== null ? (<div aria-label={`${Math.round(progress * 100)}% of membership elapsed`} className="h-1.5 w-28 overflow-hidden rounded-full bg-paper-2 sm:w-36">
                     <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(4, Math.round(progress * 100))}%` }}/>
                   </div>) : null}
               </div>

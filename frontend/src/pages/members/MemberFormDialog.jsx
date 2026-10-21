@@ -18,7 +18,7 @@ import { useAsync, useSubmitGuard } from "@/hooks";
 import { toDateOnly } from "@/lib/datetime";
 import { durationLabel, formatINR, PAYMENT_METHOD_LABELS, timeSlotLabel } from "@/lib/format";
 import { SLOT_GROUPS, slotGroupOf } from "@/lib/slots";
-import { memberFormSchema } from "@/lib/validation";
+import { CLASS_TAGS, memberFormSchema } from "@/lib/validation";
 const GENDER_OPTIONS = [
     { value: "male", label: "Male" },
     { value: "female", label: "Female" },
@@ -41,6 +41,8 @@ function emptyValues() {
         joinDate: today,
         planId: "",
         membershipStart: today,
+        // Class stream (Art / Dance) — required; "" forces an explicit pick.
+        classTag: "",
         loginPassword: "",
         // Hidden flag: "create" requires a login password, "edit" does not.
         mode: "create",
@@ -93,6 +95,7 @@ function toIdentityInput(values) {
             ? values.plannedHoursPerDay
             : null,
         preferredSlot: trimOrNull(values.preferredSlot),
+        classTag: values.classTag,
         emergencyContactPhone: values.emergencyContactPhone ? values.emergencyContactPhone : null,
         joinDate: values.joinDate,
         notes: trimOrNull(values.notes),
@@ -173,6 +176,7 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
             notes: member.notes ?? "",
             plannedHoursPerDay: member.plannedHoursPerDay ?? Number.NaN,
             preferredSlot: member.preferredSlot ?? "",
+            classTag: member.classTag ?? "",
             age: typeof member.age === "number" && member.age > 0 ? member.age : Number.NaN,
             // Hidden in edit mode; the schema only requires it on create.
             mode: "edit",
@@ -266,6 +270,22 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
               <Label htmlFor="member-join">Join date</Label>
               <Input id="member-join" type="date" {...register("joinDate")}/>
               {errors.joinDate ? (<p className="text-xs text-destructive">{errors.joinDate.message}</p>) : null}
+            </div>
+
+            {/* Class stream — Art or Dance; required on both add & edit. */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Class tag</Label>
+              <Controller control={control} name="classTag" render={({ field }) => (<div className="flex gap-2">
+                  {CLASS_TAGS.map((tag) => {
+                    const active = field.value === tag;
+                    return (<button key={tag} type="button" onClick={() => field.onChange(tag)} aria-pressed={active} className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${active
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/60 bg-background text-muted-foreground hover:bg-accent"}`}>
+                        {tag}
+                      </button>);
+                  })}
+                </div>)}/>
+              {errors.classTag ? (<p className="text-xs text-destructive">{errors.classTag.message}</p>) : null}
             </div>
 
             {/* Preferred slot — the batch the student chose at joining (gym slots from Manage Institute). */}

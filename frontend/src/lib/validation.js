@@ -8,6 +8,13 @@ export const phoneSchema = z
     .trim()
     .min(1, "Phone number is required")
     .regex(/^\+?[0-9][0-9\s-]{8,16}$/, "Enter a valid phone number");
+/**
+ * Class tags — the two streams the studio runs. Shared by the New Class Slot
+ * form and the Add/Edit Student form (both required at creation time).
+ */
+export const CLASS_TAGS = ["Art", "Dance"];
+/** Human labels for the CLASS_TAGS values (order matters — keep in sync). */
+export const CLASS_TAG_LABELS = { Art: "Art", Dance: "Dance" };
 export const emailSchema = z
     .string()
     .trim()
@@ -81,6 +88,10 @@ export const memberFormSchema = z
     ])
         .optional()
         .transform((v) => (v && v.trim() ? v.trim() : null)),
+    // Class stream the student belongs to — required in both add & edit.
+    classTag: z.enum(CLASS_TAGS, {
+        errorMap: () => ({ message: "Choose a class tag (Art or Dance)" }),
+    }),
 })
     .refine((data) => !data.emergencyContactPhone || data.emergencyContactPhone.length > 0, {
     message: "Enter a valid emergency contact phone or leave it empty",

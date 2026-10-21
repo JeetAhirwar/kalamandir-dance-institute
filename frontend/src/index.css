@@ -12,7 +12,12 @@
    the workspace stays a warm neutral so dense tables remain highly readable.
    ========================================================================== */
 
-:root {
+/* The base block is BOTH the document default (light + Royal Burgundy) and the
+   "light" palette a `.theme-preview` box can opt into via data-mode="light". */
+:root,
+[data-mode="light"] {
+  color-scheme: light;
+
   /* Corner radius — 8–12px reads premium without going soft. */
   --radius: 0.625rem;
 
@@ -84,6 +89,504 @@
 
 html {
   color-scheme: light;
+}
+
+/* ==========================================================================
+   THEME RUNTIME — institute-wide theming
+   `<html>` (and any `.theme-preview` box) carries two attributes written by
+   `src/lib/theme.js`:
+     data-mode="light|dark"    — resolved mode ("system" resolves to one)
+     data-accent="<palette>"   — brand palette chosen in Manage Institute
+   Order matters at equal specificity, so these blocks run:
+     light neutrals → dark neutrals → light palettes → dark palettes.
+   ========================================================================== */
+
+/* ---- Dark mode: shared neutrals (tinted with the active palette) ------ */
+[data-mode="dark"] {
+  color-scheme: dark;
+
+  --background: color-mix(in srgb, #100d0f 90%, var(--primary));
+  --foreground: #f2ece7;
+
+  --card: color-mix(in srgb, #191417 90%, var(--primary));
+  --card-foreground: #efe8e3;
+
+  --popover: color-mix(in srgb, #1c171a 90%, var(--primary));
+  --popover-foreground: #efe8e3;
+
+  --muted: color-mix(in srgb, #241f22 88%, var(--primary));
+  --muted-foreground: #a4968f;
+
+  --destructive: #dd6a6a;
+  --destructive-foreground: #2a0e0e;
+  --success: #6fce9f;
+  --warning: #e0a44a;
+  --info: #6fb4d6;
+
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.14);
+
+  /* Scrollbars / skeleton shimmer follow the dark canvas too. */
+  --km-scroll: rgba(255, 255, 255, 0.22);
+}
+
+/* ---- Palettes — light ------------------------------------------------- */
+/* Royal Burgundy (default) — same values as the base block above, repeated so
+   a preview box can preview burgundy while another palette is live. */
+[data-accent="burgundy"] {
+  --km-burgundy: #310d20;
+  --km-wine: #48172c;
+  --km-plum: #6b2644;
+  --km-gold: #c6a45b;
+  --km-gold-muted: #9b8148;
+  --km-ivory: #f5e8c8;
+
+  --primary: #310d20;
+  --primary-foreground: #f7f0e2;
+  --secondary: #f0e7d5;
+  --secondary-foreground: #310d20;
+  --accent: #f3e6c8;
+  --accent-foreground: #310d20;
+  --ring: rgba(198, 164, 91, 0.75);
+
+  --sidebar: #2c0411;
+  --sidebar-foreground: #f0e2c4;
+  --sidebar-primary: #c6a45b;
+  --sidebar-primary-foreground: #2a0b1c;
+  --sidebar-accent: #48172c;
+  --sidebar-accent-foreground: #f5e8c8;
+  --sidebar-border: rgba(198, 164, 91, 0.18);
+  --sidebar-ring: rgba(198, 164, 91, 0.6);
+
+  --chart-1: #310d20;
+  --chart-2: #c6a45b;
+  --chart-3: #7a3350;
+  --chart-4: #9b8148;
+  --chart-5: #48172c;
+
+  --paper: #f7efdc;
+  --paper-2: #efe3c9;
+  --paper-foreground: #2a1a20;
+  --paper-edge: #e0d0ae;
+  --km-scroll: #d8c9a8;
+}
+
+/* Jade Emerald — deep green with a mint-gold highlight. */
+[data-accent="emerald"] {
+  --km-burgundy: #0e3b2f;
+  --km-wine: #14513f;
+  --km-plum: #1e6d55;
+  --km-gold: #5cc3a0;
+  --km-gold-muted: #3f9a7c;
+  --km-ivory: #e6f4ec;
+
+  --primary: #0e3b2f;
+  --primary-foreground: #f2fbf6;
+  --secondary: #e2efe8;
+  --secondary-foreground: #0e3b2f;
+  --accent: #d8efe4;
+  --accent-foreground: #0e3b2f;
+  --ring: rgba(92, 195, 160, 0.75);
+
+  --sidebar: #07281f;
+  --sidebar-foreground: #dcefe6;
+  --sidebar-primary: #5cc3a0;
+  --sidebar-primary-foreground: #06241c;
+  --sidebar-accent: #14513f;
+  --sidebar-accent-foreground: #e6f4ec;
+  --sidebar-border: rgba(92, 195, 160, 0.2);
+  --sidebar-ring: rgba(92, 195, 160, 0.6);
+
+  --chart-1: #0e3b2f;
+  --chart-2: #5cc3a0;
+  --chart-3: #1e6d55;
+  --chart-4: #3f9a7c;
+  --chart-5: #14513f;
+
+  --paper: #f0f6f1;
+  --paper-2: #e1eee6;
+  --paper-foreground: #16261f;
+  --paper-edge: #d2e3d8;
+  --km-scroll: #bfd8cb;
+}
+
+/* Royal Indigo — midnight indigo with periwinkle highlights. */
+[data-accent="indigo"] {
+  --km-burgundy: #221f57;
+  --km-wine: #322e78;
+  --km-plum: #4a46a3;
+  --km-gold: #6f66d6;
+  --km-gold-muted: #564eb8;
+  --km-ivory: #eeecfb;
+
+  --primary: #221f57;
+  --primary-foreground: #f6f5ff;
+  --secondary: #e8e6f7;
+  --secondary-foreground: #221f57;
+  --accent: #e4e1fb;
+  --accent-foreground: #221f57;
+  --ring: rgba(111, 102, 214, 0.75);
+
+  --sidebar: #16143f;
+  --sidebar-foreground: #e6e3fa;
+  --sidebar-primary: #6f66d6;
+  --sidebar-primary-foreground: #14123a;
+  --sidebar-accent: #322e78;
+  --sidebar-accent-foreground: #eeecfb;
+  --sidebar-border: rgba(111, 102, 214, 0.22);
+  --sidebar-ring: rgba(111, 102, 214, 0.6);
+
+  --chart-1: #221f57;
+  --chart-2: #6f66d6;
+  --chart-3: #4a46a3;
+  --chart-4: #8f88e8;
+  --chart-5: #322e78;
+
+  --paper: #f4f2fb;
+  --paper-2: #e7e3f7;
+  --paper-foreground: #1e1b3d;
+  --paper-edge: #d8d3ee;
+  --km-scroll: #c4c0e4;
+}
+
+/* Rose — raspberry with blush-gold highlights. */
+[data-accent="rose"] {
+  --km-burgundy: #6b1338;
+  --km-wine: #8a1c47;
+  --km-plum: #a83261;
+  --km-gold: #e59fb4;
+  --km-gold-muted: #c9798f;
+  --km-ivory: #fdeaf0;
+
+  --primary: #6b1338;
+  --primary-foreground: #fff4f7;
+  --secondary: #f9e4ea;
+  --secondary-foreground: #6b1338;
+  --accent: #fbe7ed;
+  --accent-foreground: #6b1338;
+  --ring: rgba(229, 159, 180, 0.8);
+
+  --sidebar: #450b24;
+  --sidebar-foreground: #fbe3ea;
+  --sidebar-primary: #e59fb4;
+  --sidebar-primary-foreground: #450e26;
+  --sidebar-accent: #8a1c47;
+  --sidebar-accent-foreground: #fdeaf0;
+  --sidebar-border: rgba(229, 159, 180, 0.3);
+  --sidebar-ring: rgba(229, 159, 180, 0.6);
+
+  --chart-1: #6b1338;
+  --chart-2: #e59fb4;
+  --chart-3: #a83261;
+  --chart-4: #c9798f;
+  --chart-5: #8a1c47;
+
+  --paper: #fbf2f1;
+  --paper-2: #f5e6e6;
+  --paper-foreground: #2e1a22;
+  --paper-edge: #e9d3d5;
+  --km-scroll: #e2c3cc;
+}
+
+/* Terracotta — warm clay with ochre highlights. */
+[data-accent="terracotta"] {
+  --km-burgundy: #5c2a17;
+  --km-wine: #7a3a1f;
+  --km-plum: #9a4f2b;
+  --km-gold: #d99a4e;
+  --km-gold-muted: #b87a38;
+  --km-ivory: #f9ecdb;
+
+  --primary: #5c2a17;
+  --primary-foreground: #fdf5ea;
+  --secondary: #f4e6d5;
+  --secondary-foreground: #5c2a17;
+  --accent: #f7e9d4;
+  --accent-foreground: #5c2a17;
+  --ring: rgba(217, 154, 78, 0.8);
+
+  --sidebar: #3a1a0d;
+  --sidebar-foreground: #f6e6d3;
+  --sidebar-primary: #d99a4e;
+  --sidebar-primary-foreground: #3a1a0c;
+  --sidebar-accent: #7a3a1f;
+  --sidebar-accent-foreground: #f9ecdb;
+  --sidebar-border: rgba(217, 154, 78, 0.3);
+  --sidebar-ring: rgba(217, 154, 78, 0.6);
+
+  --chart-1: #5c2a17;
+  --chart-2: #d99a4e;
+  --chart-3: #9a4f2b;
+  --chart-4: #b87a38;
+  --chart-5: #7a3a1f;
+
+  --paper: #faf1e4;
+  --paper-2: #f0e1cd;
+  --paper-foreground: #2c1d14;
+  --paper-edge: #e2cdb2;
+  --km-scroll: #dcc4a2;
+}
+
+/* Ocean — deep teal with aqua highlights. */
+[data-accent="ocean"] {
+  --km-burgundy: #0a3446;
+  --km-wine: #0f4a63;
+  --km-plum: #16657f;
+  --km-gold: #57bcd6;
+  --km-gold-muted: #3f9ab3;
+  --km-ivory: #e2f3f8;
+
+  --primary: #0a3446;
+  --primary-foreground: #effafd;
+  --secondary: #dfeef4;
+  --secondary-foreground: #0a3446;
+  --accent: #dcf0f6;
+  --accent-foreground: #0a3446;
+  --ring: rgba(87, 188, 214, 0.8);
+
+  --sidebar: #04212e;
+  --sidebar-foreground: #d8eef6;
+  --sidebar-primary: #57bcd6;
+  --sidebar-primary-foreground: #04212e;
+  --sidebar-accent: #0f4a63;
+  --sidebar-accent-foreground: #e2f3f8;
+  --sidebar-border: rgba(87, 188, 214, 0.3);
+  --sidebar-ring: rgba(87, 188, 214, 0.6);
+
+  --chart-1: #0a3446;
+  --chart-2: #57bcd6;
+  --chart-3: #16657f;
+  --chart-4: #3f9ab3;
+  --chart-5: #0f4a63;
+
+  --paper: #f0f7fa;
+  --paper-2: #e0edf3;
+  --paper-foreground: #16262e;
+  --paper-edge: #cadfe8;
+  --km-scroll: #b7d3de;
+}
+
+/* ---- Palettes — dark -------------------------------------------------- */
+[data-mode="dark"][data-accent="burgundy"] {
+  --km-burgundy: #3d1226;
+  --km-wine: #5a1f38;
+  --km-plum: #7d2f52;
+  --km-gold: #d8b877;
+  --km-gold-muted: #c2a35f;
+  --km-ivory: #f6ecd6;
+
+  --primary: #8f2f52;
+  --primary-foreground: #fff6f1;
+  --secondary: #2a1a21;
+  --secondary-foreground: #f0e2e6;
+  --accent: #331e27;
+  --accent-foreground: #f4e6ea;
+  --ring: rgba(216, 184, 119, 0.7);
+
+  --sidebar: #150509;
+  --sidebar-foreground: #eddfc9;
+  --sidebar-primary: #d8b877;
+  --sidebar-primary-foreground: #170608;
+  --sidebar-accent: #3d1226;
+  --sidebar-accent-foreground: #f6ecd6;
+  --sidebar-border: rgba(216, 184, 119, 0.2);
+  --sidebar-ring: rgba(216, 184, 119, 0.55);
+
+  --chart-1: #d8b877;
+  --chart-2: #a8456b;
+  --chart-3: #7d2f52;
+  --chart-4: #c2a35f;
+  --chart-5: #5a1f38;
+
+  --paper: #241a20;
+  --paper-2: #1c141a;
+  --paper-foreground: #f0e6e2;
+  --paper-edge: #3a2a33;
+}
+
+[data-mode="dark"][data-accent="emerald"] {
+  --km-burgundy: #0b2c23;
+  --km-wine: #12473a;
+  --km-plum: #1e6d55;
+  --km-gold: #6fd0af;
+  --km-gold-muted: #55b394;
+  --km-ivory: #e8f7f0;
+
+  --primary: #3aa886;
+  --primary-foreground: #04150f;
+  --secondary: #16241f;
+  --secondary-foreground: #dcefe6;
+  --accent: #1a2c25;
+  --accent-foreground: #e6f4ec;
+  --ring: rgba(111, 208, 175, 0.7);
+
+  --sidebar: #04150f;
+  --sidebar-foreground: #d6ece2;
+  --sidebar-primary: #6fd0af;
+  --sidebar-primary-foreground: #04150f;
+  --sidebar-accent: #0f3a2e;
+  --sidebar-accent-foreground: #e8f7f0;
+  --sidebar-border: rgba(111, 208, 175, 0.2);
+  --sidebar-ring: rgba(111, 208, 175, 0.55);
+
+  --chart-1: #6fd0af;
+  --chart-2: #2f8f72;
+  --chart-3: #1e6d55;
+  --chart-4: #55b394;
+  --chart-5: #14513f;
+
+  --paper: #14201c;
+  --paper-2: #0f1a16;
+  --paper-foreground: #e6f2ec;
+  --paper-edge: #24382f;
+}
+
+[data-mode="dark"][data-accent="indigo"] {
+  --km-burgundy: #1a1846;
+  --km-wine: #262365;
+  --km-plum: #4a46a3;
+  --km-gold: #8f88e8;
+  --km-gold-muted: #7d76df;
+  --km-ivory: #eceafc;
+
+  --primary: #544dc4;
+  --primary-foreground: #f7f6ff;
+  --secondary: #1e1b3f;
+  --secondary-foreground: #e0ddf7;
+  --accent: #232048;
+  --accent-foreground: #e6e3fa;
+  --ring: rgba(143, 136, 232, 0.7);
+
+  --sidebar: #100e33;
+  --sidebar-foreground: #dedbf7;
+  --sidebar-primary: #8f88e8;
+  --sidebar-primary-foreground: #12103a;
+  --sidebar-accent: #262365;
+  --sidebar-accent-foreground: #eceafc;
+  --sidebar-border: rgba(143, 136, 232, 0.22);
+  --sidebar-ring: rgba(143, 136, 232, 0.6);
+
+  --chart-1: #8f88e8;
+  --chart-2: #544dc4;
+  --chart-3: #4a46a3;
+  --chart-4: #d9c78a;
+  --chart-5: #322e78;
+
+  --paper: #1a1830;
+  --paper-2: #141226;
+  --paper-foreground: #e8e6fb;
+  --paper-edge: #2e2b52;
+}
+
+[data-mode="dark"][data-accent="rose"] {
+  --km-burgundy: #4a0f28;
+  --km-wine: #6b1739;
+  --km-plum: #a83261;
+  --km-gold: #f0b3c5;
+  --km-gold-muted: #d993a8;
+  --km-ivory: #fdeaf0;
+
+  --primary: #ad3a64;
+  --primary-foreground: #fff6f9;
+  --secondary: #2c1620;
+  --secondary-foreground: #f6dde5;
+  --accent: #331a24;
+  --accent-foreground: #fbe7ed;
+  --ring: rgba(240, 179, 197, 0.75);
+
+  --sidebar: #2a0716;
+  --sidebar-foreground: #f7dae4;
+  --sidebar-primary: #f0b3c5;
+  --sidebar-primary-foreground: #32091b;
+  --sidebar-accent: #6b1739;
+  --sidebar-accent-foreground: #fdeaf0;
+  --sidebar-border: rgba(240, 179, 197, 0.28);
+  --sidebar-ring: rgba(240, 179, 197, 0.6);
+
+  --chart-1: #f0b3c5;
+  --chart-2: #ad3a64;
+  --chart-3: #a83261;
+  --chart-4: #d993a8;
+  --chart-5: #8a1c47;
+
+  --paper: #241419;
+  --paper-2: #1c0f14;
+  --paper-foreground: #f4e5ea;
+  --paper-edge: #45262f;
+}
+
+[data-mode="dark"][data-accent="terracotta"] {
+  --km-burgundy: #3a1a0d;
+  --km-wine: #5c2a17;
+  --km-plum: #9a4f2b;
+  --km-gold: #e4ab63;
+  --km-gold-muted: #cf9148;
+  --km-ivory: #f9ecdb;
+
+  --primary: #b05f2b;
+  --primary-foreground: #fff7ee;
+  --secondary: #2b1a11;
+  --secondary-foreground: #f4e6d5;
+  --accent: #301d13;
+  --accent-foreground: #f7e9d4;
+  --ring: rgba(228, 171, 99, 0.75);
+
+  --sidebar: #241007;
+  --sidebar-foreground: #f2e0cb;
+  --sidebar-primary: #e4ab63;
+  --sidebar-primary-foreground: #2a130a;
+  --sidebar-accent: #5c2a17;
+  --sidebar-accent-foreground: #f9ecdb;
+  --sidebar-border: rgba(228, 171, 99, 0.3);
+  --sidebar-ring: rgba(228, 171, 99, 0.6);
+
+  --chart-1: #e4ab63;
+  --chart-2: #b05f2b;
+  --chart-3: #9a4f2b;
+  --chart-4: #cf9148;
+  --chart-5: #7a3a1f;
+
+  --paper: #241a13;
+  --paper-2: #1b130e;
+  --paper-foreground: #f1e4d6;
+  --paper-edge: #3d2c1e;
+}
+
+[data-mode="dark"][data-accent="ocean"] {
+  --km-burgundy: #04212e;
+  --km-wine: #0a3446;
+  --km-plum: #16657f;
+  --km-gold: #6fcbe2;
+  --km-gold-muted: #55b3cc;
+  --km-ivory: #e2f3f8;
+
+  --primary: #17728f;
+  --primary-foreground: #f0fbff;
+  --secondary: #0e2731;
+  --secondary-foreground: #dfeef4;
+  --accent: #102c38;
+  --accent-foreground: #dcf0f6;
+  --ring: rgba(111, 203, 226, 0.75);
+
+  --sidebar: #031620;
+  --sidebar-foreground: #d2ebf4;
+  --sidebar-primary: #6fcbe2;
+  --sidebar-primary-foreground: #03202c;
+  --sidebar-accent: #0a3446;
+  --sidebar-accent-foreground: #e2f3f8;
+  --sidebar-border: rgba(111, 203, 226, 0.28);
+  --sidebar-ring: rgba(111, 203, 226, 0.6);
+
+  --chart-1: #6fcbe2;
+  --chart-2: #17728f;
+  --chart-3: #16657f;
+  --chart-4: #55b3cc;
+  --chart-5: #0f4a63;
+
+  --paper: #0f2029;
+  --paper-2: #0b1a21;
+  --paper-foreground: #e2eff5;
+  --paper-edge: #234050;
 }
 
 @theme inline {

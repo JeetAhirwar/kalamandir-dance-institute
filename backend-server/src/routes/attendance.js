@@ -174,12 +174,35 @@ router.get(
     );
     const isSlotDay = Array.isArray(slot.weekdays) && slot.weekdays.some((d) => Number(d) === weekday);
 
-    // Quota + last payment method per student (marking-sheet columns).
-    const memberships = memberIds.length
-      ? await MemberMembership.find({ memberId: { $in: memberIds }, startDate: { $lte: sessionDate } })
-          .sort({ startDate: -1 })
-          .lean()
-      : [];
+    // Quota + last payment method per student (marking-sheet columns), plus the
+    // batches each student actually belongs to — the sheet lists EVERY studio
+    // member, so a row need not belong to the slot being marked.
+    const [memberships, slotEnrollments] = await Promise.all([
+      memberIds.length
+        ? MemberMembership.find({ memberId: { $in: memberIds }, startDate: { $lte: sessionDate } })
+            .sort({ startDate: -1 })
+            .lean()
+        : [],
+      memberIds.length
+        ? SlotEnrollment.find({ gymId: req.user.gymId, memberId: { $in: memberIds }, status: "enrolled" })
+            .select("memberId slotId")
+            .lean()
+        : [],
+    ]);
+    const enrolledSlotIdsByMember = new Map();
+    for (const e of slotEnrollments) {
+      const key = String(e.memberId);
+      const list = enrolledSlotIdsByMember.get(key) ?? [];
+      const id = String(e.slotId);
+      if (!list.includes(id)) list.push(id);
+      enrolledSlotIdsByMember.set(key, list);
+    }
+    /** A student's batch ids, with the slot being marked listed first. */
+    const slotIdsFor = (memberId) => {
+      const ids = enrolledSlotIdsByMember.get(String(memberId)) ?? [];
+      const current = String(slot._id);
+      return ids.includes(current) ? [current, ...ids.filter((v) => v !== current)] : ids;
+    };
     const membershipsByMember = new Map();
     for (const m of memberships) {
       const key = String(m.memberId);
@@ -231,6 +254,7 @@ router.get(
         photoUrl: m.photoUrl ?? null,
         status: m.status,
         enrolled: enrolledIds.has(String(m._id)),
+        enrolledSlotIds: slotIdsFor(m._id),
         marked: statusByMember.has(String(m._id)),
         attendanceStatus: statusByMember.get(String(m._id)) ?? null,
         quota: quotaForMember(m._id),
@@ -569,23 +593,39 @@ router.get(
     const memberIds = [...new Set(rows.map((r) => String(r.memberId)))];
     const scannerIds = [...new Set(rows.map((r) => r.scannerId).filter(Boolean).map(String))];
     const membershipIds = [...new Set(rows.map((r) => String(r.membershipId)).filter((v) => v && v !== "null" && v !== "undefined"))];
-    const [members, scanners, memberships, plans] = await Promise.all([
+    /* Class-slot ids carried by these rows — including the `meta.slotId` fallback,
+       so records written before `classSlotId` existed still resolve their time. */
+    const slotIds = [
+      ...new Set(
+        rows
+          .flatMap((r) => [r.classSlotId, r.meta?.slotId])
+          .filter((v) => v && v !== "null" && v !== "undefined")
+          .filter((v) => Types.ObjectId.isValid(v))
+          .map((v) => new Types.ObjectId(v)),
+      ),
+    ];
+    const [members, scanners, memberships, plans, classSlots] = await Promise.all([
       memberIds.length ? Member.find({ _id: { $in: memberIds } }).lean() : [],
       scannerIds.length ? User.find({ _id: { $in: scannerIds } }).select("fullName").lean() : [],
       membershipIds.length
         ? MemberMembership.find({ _id: { $in: membershipIds } }).select("planId classQuota startDate endDate status memberId").lean()
         : [],
       MembershipPlan.find({ gymId }).select("name").lean(),
+      slotIds.length ? ClassSlot.find({ _id: { $in: slotIds } }).select("name startTime endTime").lean() : [],
     ]);
     const memberById = new Map(members.map((m) => [String(m._id), m]));
     const scannerById = new Map(scanners.map((s) => [String(s._id), s]));
     const planById = new Map(plans.map((p) => [String(p._id), p.name]));
     const membershipById = new Map(memberships.map((m) => [String(m._id), m]));
+    const slotById = new Map(classSlots.map((s) => [String(s._id), s]));
     const planNameByMembership = new Map(memberships.map((m) => [String(m._id), planById.get(String(m.planId)) ?? null]));
 
     // Paid-class quota + latest payment method per row (view-register columns).
     const validMembershipIds = membershipIds.filter((v) => Types.ObjectId.isValid(v)).map((v) => new Types.ObjectId(v));
     const validMemberIds = memberIds.filter((v) => Types.ObjectId.isValid(v)).map((v) => new Types.ObjectId(v));
+    /** Row → its ClassSlot (matched on `classSlotId`, then the legacy `meta.slotId`). */
+    const slotFor = (row) =>
+      slotById.get(String(row.classSlotId ?? "")) ?? slotById.get(String(row.meta?.slotId ?? "")) ?? null;
     const [attendedCounts, lastPayments] = await Promise.all([
       validMembershipIds.length
         ? AttendanceRecord.aggregate([
@@ -622,6 +662,9 @@ router.get(
           ),
           planName: planNameByMembership.get(String(row.membershipId)) ?? null,
           paymentMethod: methodByMember.get(String(row.memberId)) ?? null,
+          slotName: slotFor(row)?.name ?? row.meta?.slotName ?? null,
+          slotStartTime: slotFor(row)?.startTime ?? null,
+          slotEndTime: slotFor(row)?.endTime ?? null,
           quota: quota
             ? {
                 quota: quota.quota,
