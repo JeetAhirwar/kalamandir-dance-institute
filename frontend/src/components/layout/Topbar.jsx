@@ -29,7 +29,7 @@ export function Topbar({ onOpenMenu }) {
             .catch(() => undefined);
         refresh();
         // Keep the bell badge fresh without a page reload.
-        const timer = window.setInterval(refresh, 60_000);
+        const timer = window.setInterval(refresh, 15_000);
         return () => {
             cancelled = true;
             window.clearInterval(timer);

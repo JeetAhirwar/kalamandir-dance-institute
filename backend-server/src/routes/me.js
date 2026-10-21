@@ -195,6 +195,24 @@ router.post(
         member: result.member ?? null,
       });
     }
+    // Notify the admin/front-desk that a member checked in via the studio QR.
+    try {
+      await AppNotification.create({
+        gymId: req.user.gymId,
+        userId: null,
+        memberId: member._id,
+        type: "checkin_success",
+        title: "Student checked in",
+        body: `${member.fullName} (${member.memberCode}) checked in via the studio QR.`,
+        severity: "success",
+        isRead: false,
+        dedupeKey: null,
+        link: `/members/${member._id}`,
+      });
+    } catch (err) {
+      // Best effort — never fail the check-in because of a notification write.
+    }
+
     res.json({
       status: "ok",
       message: "Checked in — your attendance is marked!",
