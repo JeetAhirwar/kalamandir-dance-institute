@@ -58,6 +58,22 @@ function trimOrNull(value) {
     const trimmed = value?.trim();
     return trimmed ? trimmed : null;
 }
+/** "2014-05-12" → 12 (whole years as of today); null when empty/junk/future. */
+function ageFrom(dob) {
+    if (!dob)
+        return null;
+    const [y, m, d] = String(dob).split("-").map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d))
+        return null;
+    const birth = new Date(y, m - 1, d);
+    if (Number.isNaN(birth.getTime()) || birth > new Date())
+        return null;
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    if (today.getMonth() < m - 1 || (today.getMonth() === m - 1 && today.getDate() < d))
+        age -= 1;
+    return age >= 0 ? age : null;
+}
 /** Concrete identity fields — required by create, all optional on update. */
 function toIdentityInput(values) {
     return {
@@ -66,10 +82,12 @@ function toIdentityInput(values) {
         phone: values.phone,
         photoUrl: trimOrNull(values.photoUrl),
         dateOfBirth: values.dateOfBirth ? values.dateOfBirth : null,
-        // Age in years (whole number, or null when not set).
-        age: typeof values.age === "number" && Number.isFinite(values.age) && values.age > 0
-            ? Math.trunc(values.age)
-            : null,
+        // Age is derived from the date of birth (never typed by hand). Falls
+        // back to the member's stored age only when no DOB is on file.
+        age: ageFrom(values.dateOfBirth)
+            ?? (typeof values.age === "number" && Number.isFinite(values.age) && values.age > 0
+                ? Math.trunc(values.age)
+                : null),
         gender: values.gender ?? null,
         address: trimOrNull(values.address),
         emergencyContactName: trimOrNull(values.emergencyContactName),
@@ -257,14 +275,14 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
 
             <div className="space-y-2">
               <Label htmlFor="member-dob">Date of birth</Label>
-              <Input id="member-dob" type="date" {...register("dateOfBirth")}/>
+              <Input id="member-dob" type="date" max={toDateOnly(new Date())} {...register("dateOfBirth")}/>
+              {(() => {
+                const derived = ageFrom(watch("dateOfBirth"));
+                return derived !== null
+                    ? (<p className="text-[11px] text-muted-foreground">Age: <span className="font-medium text-foreground">{derived} years</span> (calculated automatically)</p>)
+                    : (<p className="text-[11px] text-muted-foreground">Age is calculated from the date of birth.</p>);
+            })()}
               {errors.dateOfBirth ? (<p className="text-xs text-destructive">{errors.dateOfBirth.message}</p>) : null}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="member-age">Age (years)</Label>
-              <Input id="member-age" type="number" min={1} max={120} placeholder="e.g. 12" {...register("age", { valueAsNumber: true })}/>
-              {errors.age ? (<p className="text-xs text-destructive">{errors.age.message}</p>) : null}
             </div>
 
             <div className="space-y-2">
