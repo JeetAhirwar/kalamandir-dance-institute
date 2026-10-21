@@ -30,7 +30,6 @@ const createSlotSchema = z.object({
   capacity: z.number().int().min(1).nullish(),
   /** Class stream this batch teaches — required on create. */
   classTag: z.enum(CLASS_TAGS, {
-    required_error: "Choose a class tag (Art or Dance)",
     errorMap: () => ({ message: "Choose a class tag (Art or Dance)" }),
   }),
   instructorId: z.string().nullish(),

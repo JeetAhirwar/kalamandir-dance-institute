@@ -1,16 +1,45 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, useReducedMotion } from "motion/react";
-import { AlertTriangleIcon, EyeIcon, EyeOffIcon, Loader2Icon, LockKeyholeIcon, Music2Icon, } from "lucide-react";
+import { toast } from "sonner";
+import { EyeIcon, EyeOffIcon, Loader2Icon, LockKeyholeIcon, Music2Icon, QrCodeIcon, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/auth/AuthProvider";
+import { getDataService } from "@/data";
+import { getCurrentCoords } from "@/lib/geo";
+import { GYM_CHECKIN_PARAM } from "@/lib/qr";
 import { loginSchema } from "@/lib/validation";
-import { DEMO_CREDENTIALS } from "@/data";
+
+/**
+ * Mark attendance for a signed-in member who arrived via the studio QR link.
+ * Best-effort GPS first (only when the gym enforces a range), then the server
+ * re-validates eligibility/cooldown. Resolves to the CheckInResult.
+ */
+async function selfCheckIn(data, token) {
+    let coords = null;
+    try {
+        const gym = await data.getGymFresh();
+        if (gym?.locationRequired)
+            coords = await getCurrentCoords();
+    }
+    catch {
+        /* best effort — the server explains if a location fix is required */
+    }
+    return data.checkinGym(token, coords);
+}
+
+/** Full-screen state shown while a scanned QR is being checked in. */
+function MarkingAttendance() {
+    return (<div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
+      <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent"/>
+      <p className="text-sm">Marking your attendance…</p>
+    </div>);
+}
 
 // Local generated hero (palace scene with two classical dancers). If it fails
 // to load we fall back to a burgundy arch backdrop — never a broken image.
@@ -38,30 +67,74 @@ function GoldOrnament({ className }) {
 }
 
 export function LoginPage() {
-    const { session, signIn, loading, mode } = useAuth();
+    const { session, signIn, loading } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const reduceMotion = useReducedMotion();
     const [showPassword, setShowPassword] = useState(false);
     const [serverError, setServerError] = useState(null);
     const [heroFailed, setHeroFailed] = useState(false);
+    // Set when the page was opened by scanning the studio's shared QR.
+    const checkinToken = useMemo(() => new URLSearchParams(location.search).get(GYM_CHECKIN_PARAM), [location.search]);
+    const isMember = session?.profile.role === "member";
+    const needsCheckin = Boolean(checkinToken) && isMember;
+    const [checkinState, setCheckinState] = useState("idle"); // idle | working | done
     const from = location.state?.from ?? "/";
-    const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, } = useForm({
+    const { register, handleSubmit, formState: { errors, isSubmitting }, } = useForm({
         resolver: zodResolver(loginSchema),
         defaultValues: {
-            identifier: mode === "demo" ? DEMO_CREDENTIALS.email : "",
-            password: mode === "demo" ? DEMO_CREDENTIALS.password : "",
+            identifier: "",
+            password: "",
         },
     });
-    if (!loading && session)
+    // Already signed in as a member who scanned the studio QR → mark and go to
+    // the portal (and drop the ?checkin= query so a refresh can't re-fire it).
+    useEffect(() => {
+        if (!needsCheckin || checkinState !== "idle")
+            return;
+        setCheckinState("working");
+        let cancelled = false;
+        void (async () => {
+            try {
+                const result = await selfCheckIn(getDataService(session), checkinToken);
+                if (cancelled)
+                    return;
+                if (result?.status === "ok")
+                    toast.success(result.message ?? "Attendance marked.");
+                else
+                    toast.info(result?.message ?? "Attendance was not marked.");
+            }
+            catch (err) {
+                if (!cancelled)
+                    toast.error(err instanceof Error ? err.message : "Unable to mark attendance.");
+            }
+            finally {
+                if (!cancelled) {
+                    setCheckinState("done");
+                    navigate("/portal", { replace: true });
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [needsCheckin, checkinState, session, checkinToken, navigate]);
+    if (!loading && session) {
+        if (needsCheckin && checkinState !== "done")
+            return <MarkingAttendance />;
         return <Navigate to={from} replace/>;
+    }
     const onSubmit = handleSubmit(async (values) => {
         setServerError(null);
         try {
             // One endpoint for everyone — the server resolves the role from the
             // database and the router sends staff to the dashboard, members to
             // their portal. `identifier` is an email address or a printed Student ID.
-            await signIn(values.identifier.trim(), values.password);
+            const next = await signIn(values.identifier.trim(), values.password);
+            // Scanned the studio QR? The ?checkin= effect above marks attendance
+            // and redirects to the portal once the member session lands.
+            if (checkinToken && next?.profile.role === "member")
+                return;
             navigate(from, { replace: true });
         }
         catch (error) {
@@ -164,17 +237,11 @@ export function LoginPage() {
             <GoldOrnament className="mt-3 block text-km-gold-muted"/>
           </div>
 
-          {mode === "demo" ? (<Alert className="mt-6 border-warning/40 bg-warning/10">
-              <AlertTriangleIcon className="size-4 text-warning"/>
-              <AlertTitle className="text-warning">Demo mode</AlertTitle>
+          {checkinToken ? (<Alert className="mt-6 border-km-gold/40 bg-km-gold/10">
+              <QrCodeIcon className="size-4 text-km-gold"/>
+              <AlertTitle>Studio QR scanned</AlertTitle>
               <AlertDescription>
-                Local sample data is loaded. Credentials:{" "}
-                <button type="button" className="font-medium text-foreground underline underline-offset-2" onClick={() => {
-                setValue("identifier", DEMO_CREDENTIALS.email);
-                setValue("password", DEMO_CREDENTIALS.password);
-            }}>
-                  {DEMO_CREDENTIALS.email} / {DEMO_CREDENTIALS.password}
-                </button>
+                Sign in to mark your attendance for today.
               </AlertDescription>
             </Alert>) : null}
 

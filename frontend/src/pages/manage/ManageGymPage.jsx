@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2Icon, ClockIcon, CrosshairIcon, Loader2Icon, PlusIcon, PrinterIcon, RefreshCwIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
+import { Building2Icon, ClockIcon, CrosshairIcon, Loader2Icon, PaletteIcon, PlusIcon, PrinterIcon, RefreshCwIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,9 +10,10 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, Skeleton } from "@/components/shared/States";
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync, useSubmitGuard } from "@/hooks";
+import { applyTheme, resolveMode, THEME_ACCENTS, THEME_MODES } from "@/lib/theme";
 import { getCurrentCoords } from "@/lib/geo";
 import { can } from "@/lib/permissions";
-import { renderQrDataUrl } from "@/lib/qr";
+import { gymCheckinUrl, renderQrImage } from "@/lib/qr";
 import { format12h } from "@/lib/format";
 import { HOURLY_SLOTS, SLOT_GROUPS, slotGroupOf } from "@/lib/slots";
 import { TimeSelect } from "@/components/shared/TimeSelect";
@@ -27,12 +28,13 @@ function defaultSlots() {
  */
 export function ManageGymPage() {
     const data = useData();
-    const { session } = useAuth();
+    const { session, refresh } = useAuth();
     const canManage = can(session?.profile.role, "settings.manage");
     const gym = useAsync(() => (canManage ? data.getGymFresh() : Promise.resolve(null)), [data, canManage]);
     const qr = useAsync(() => (canManage ? data.getGymQr() : Promise.resolve(null)), [data, canManage]);
     const [slots, setSlots] = useState(null);
     const [guard, setGuard] = useState(null);
+    const [theme, setTheme] = useState({ mode: "light", accent: "burgundy" });
     const [saving, run] = useSubmitGuard();
     const [qrDataUrl, setQrDataUrl] = useState(null);
     const [rotateArmed, setRotateArmed] = useState(false);
@@ -48,6 +50,10 @@ export function ManageGymPage() {
                 locationLng: gym.data.locationLng ?? "",
                 locationRadiusM: gym.data.locationRadiusM ?? 200,
             });
+            setTheme({
+                mode: gym.data.themeMode ?? "light",
+                accent: gym.data.themeAccent ?? "burgundy",
+            });
         }
     }, [gym.data]);
     useEffect(() => {
@@ -56,7 +62,7 @@ export function ManageGymPage() {
         const token = qr.data?.token;
         if (!token)
             return;
-        renderQrDataUrl(token, { width: 480 })
+        renderQrImage(gymCheckinUrl(token), { width: 480 })
             .then((url) => {
             if (!cancelled)
                 setQrDataUrl(url);
@@ -125,6 +131,20 @@ export function ManageGymPage() {
             }
         });
     };
+    const handleSaveTheme = () => {
+        void run(async () => {
+            try {
+                const updated = await data.updateTheme({ themeMode: theme.mode, themeAccent: theme.accent });
+                applyTheme({ mode: updated?.themeMode ?? theme.mode, accent: updated?.themeAccent ?? theme.accent });
+                gym.reload();
+                void refresh();
+                toast.success("Theme saved — it will apply across the platform.");
+            }
+            catch (error) {
+                toast.error(error instanceof Error ? error.message : "Unable to save the theme.");
+            }
+        });
+    };
     const handleUseMyLocation = () => {
         void (async () => {
             const coords = await getCurrentCoords();
@@ -168,7 +188,7 @@ export function ManageGymPage() {
             toast.error("Allow pop-ups to print the QR code.");
             return;
         }
-        w.document.write(`<html><head><title>Studio QR — front desk</title></head><body style="display:flex;flex-direction:column;align-items:center;gap:12px;font-family:sans-serif;padding:24px"><h2 style="margin:0">${session?.gym?.name ?? "Studio"} — front desk</h2><img src="${qrDataUrl}" style="width:70vmin;max-width:520px"/><p style="margin:0">Students scan this QR from their Student portal to check in and out.</p></body></html>`);
+        w.document.write(`<html><head><title>Studio QR — front desk</title></head><body style="display:flex;flex-direction:column;align-items:center;gap:12px;font-family:sans-serif;padding:24px"><h2 style="margin:0">${session?.gym?.name ?? "Studio"} — front desk</h2><img src="${qrDataUrl}" style="width:70vmin;max-width:520px"/><p style="margin:0;max-width:520px;text-align:center">Scan with your phone camera, sign in, and your attendance is marked automatically.</p></body></html>`);
         w.document.close();
         w.focus();
         w.print();
@@ -189,8 +209,8 @@ export function ManageGymPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              One QR for the whole institute — print it and stick it at the front desk. Students scan it from their portal:
-              first scan starts the timer, the next scan checks them out.
+              One QR for the whole institute — print it and stick it at the front desk. Students scan it with
+              their phone camera, sign in, and their attendance is marked automatically.
             </p>
             {qr.loading && !qr.data ? (<Skeleton className="mx-auto size-56 rounded-lg"/>) : qr.error && !qr.data ? (<ErrorState title="Unable to load the studio QR" message={qr.error} onRetry={qr.reload}/>) : qrDataUrl ? (<div className="flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-white p-4">
                 <img src={qrDataUrl} alt="Institute front-desk QR code" className="size-52 rounded-md"/>
@@ -344,6 +364,98 @@ export function ManageGymPage() {
               </Button>
             </div>
           </div>)}
+        </CardContent>
+      </Card>
+
+      {/* ---------------- Theme ---------------- */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PaletteIcon className="size-4 text-primary"/> Institute theme
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Choose the colour palette and light/dark mode for the whole platform — staff app, member portal and login screen.
+            Changes apply the moment you save.
+          </p>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mode</p>
+            <div className="flex flex-wrap gap-2">
+              {THEME_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setTheme((prev) => ({ ...prev, mode: m.id }))}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    theme.mode === m.id
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/60 bg-background text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Colour palette</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {THEME_ACCENTS.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => setTheme((prev) => ({ ...prev, accent: a.id }))}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                    theme.accent === a.id
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/60 bg-background text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  <span className="flex -space-x-1">
+                    <span className="size-4 rounded-full ring-2 ring-background" style={{ backgroundColor: a.swatch[0] }}/>
+                    <span className="size-4 rounded-full ring-2 ring-background" style={{ backgroundColor: a.swatch[1] }}/>
+                  </span>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Live preview — uses the tokens of the selected palette/mode without
+              touching the rest of the app until Save is clicked. */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Preview</p>
+            <div
+              data-mode={resolveMode(theme.mode)}
+              data-accent={theme.accent}
+              className="overflow-hidden rounded-xl border border-border bg-background p-4 text-foreground"
+            >
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-sidebar text-xs font-bold text-sidebar-foreground">
+                  KM
+                </span>
+                <span className="text-sm font-medium">Institute name</span>
+              </div>
+              <div className="mt-3 rounded-lg border border-border bg-card p-3">
+                <p className="text-xs text-muted-foreground">Sample card with muted text</p>
+                <button
+                  type="button"
+                  className="mt-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                >
+                  Primary action
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button size="sm" disabled={saving} onClick={handleSaveTheme}>
+              {saving ? <Loader2Icon className="size-4 animate-spin"/> : null} Save theme
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>);

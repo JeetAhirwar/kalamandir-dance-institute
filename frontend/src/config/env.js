@@ -3,7 +3,6 @@
  * Values are baked in at build time by Vite (all VITE_* variables are PUBLIC).
  */
 const rawApiUrl = import.meta.env.VITE_API_URL || 'https://kalamandir-dance-institute.vercel.app/api';
-const rawDemo = import.meta.env.VITE_DEMO_MODE || 'false';
 const rawTimezone = import.meta.env.VITE_GYM_TIMEZONE || 'Asia/Kolkata';
 const rawGymName = import.meta.env.VITE_GYM_NAME || 'Kalamandir Dance Institute';
 /** Accepts only absolute http(s) URLs; trailing slashes are trimmed. */
@@ -32,12 +31,8 @@ function normalizeApiUrl(value)
 const PRODUCTION_API_URL = "https://gym-management-software-api.vercel.app/api";
 export const apiUrl = normalizeApiUrl(rawApiUrl) ?? (import.meta.env.PROD ? normalizeApiUrl(PRODUCTION_API_URL) : null);
 export const hasApiConfig = apiUrl !== null;
-/**
- * Demo mode is only honoured when no API URL is configured, so a real
- * backend can never be silently shadowed by local sample data.
- */
-export const isDemoMode = !hasApiConfig && rawDemo === "true";
-export const isUnconfigured = !hasApiConfig && !isDemoMode;
+export const isDemoMode = false;
+export const isUnconfigured = !hasApiConfig;
 export const gymTimezone = rawTimezone && rawTimezone.trim().length > 0 ? rawTimezone.trim() : "Asia/Kolkata";
 export const defaultGymName = rawGymName && rawGymName.trim().length > 0 ? rawGymName.trim() : "Kalamandir Dance Institute";
 export const appVersion = "1.0.0";

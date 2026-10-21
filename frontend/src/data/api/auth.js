@@ -45,6 +45,8 @@ export class ApiAuthProvider {
                 timezone: fallback.timezone ?? gymTimezone,
                 currency: fallback.currency ?? "INR",
                 logoUrl: fallback.logoUrl ?? null,
+                themeMode: fallback.themeMode ?? "light",
+                themeAccent: fallback.themeAccent ?? "burgundy",
                 address: fallback.address ?? null,
                 phone: fallback.phone ?? null,
                 email: fallback.email ?? null,

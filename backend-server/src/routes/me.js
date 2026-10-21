@@ -32,6 +32,11 @@ import { loadGymContext } from "../services/context.js";
 import { ymdInTz, timeZoneOffsetMs } from "../lib/dates.js";
 import { quotaForMembership, syncQuotaNotifications } from "../services/quota.js";
 import { writeAudit } from "../lib/audit.js";
+import {
+  assertGymQrToken,
+  assertSelfCheckinAllowed,
+  runMemberSelfCheckIn,
+} from "../services/gymSelfCheckin.js";
 
 /**
  * Member self-service portal — every route is scoped to the caller's own
@@ -124,7 +129,7 @@ router.get(
     res.json({
       user: toPublicUser(user),
       member: memberJson,
-      gym: { name: ctx.gym.name, timezone: ctx.tz },
+      gym: { name: ctx.gym.name, timezone: ctx.tz, themeMode: ctx.gym.themeMode ?? "light", themeAccent: ctx.gym.themeAccent ?? "burgundy" },
     });
   }),
 );
@@ -135,6 +140,68 @@ router.get(
   asyncHandler(async (req, res) => {
     const member = await loadSelf(req);
     res.json({ token: member.qrToken, status: member.qrStatus });
+  }),
+);
+
+const gymCheckinSchema = z.object({
+  token: z.string().min(1, "The studio QR token is required"),
+  /** Optional GPS fix (browser Geolocation API) — required when the gym enforces range. */
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  accuracy: z.number().min(0).optional(),
+});
+
+/**
+ * POST /api/me/checkin-gym { token, lat?, lng? } → { status, message, attendance?, member? }
+ *
+ * Scan-the-wall-QR flow: the studio's shared QR opens the login page; once the
+ * student is signed in, the app calls this to mark their attendance. Check-in
+ * ONLY (never checks out) and the same eligibility / duplicate / cooldown rules
+ * apply as a normal scan. The token must be the STUDIO's shared QR — a member's
+ * personal QR never passes here.
+ */
+router.post(
+  "/checkin-gym",
+  asyncHandler(async (req, res) => {
+    const input = parseBody(gymCheckinSchema, req.body);
+    const ctx = await loadGymContext(req.user.gymId);
+    const member = await loadSelf(req);
+
+    assertGymQrToken(ctx.gym, input.token);
+    assertSelfCheckinAllowed({
+      gym: ctx.gym,
+      tz: ctx.tz,
+      coords: {
+        latitude: input.latitude,
+        longitude: input.longitude,
+        accuracy: input.accuracy,
+      },
+    });
+
+    const result = await runMemberSelfCheckIn({
+      member,
+      actorId: req.user.id,
+      ctx,
+      notes: "Self check-in from the studio QR link",
+    });
+
+    // Rejections (expired / cooldown / duplicate …) are normal outcomes, not
+    // errors — return 200 with a status the login screen can show.
+    if (result.status !== "ok") {
+      return res.json({
+        status: "rejected",
+        reason: result.reason,
+        message: result.message,
+        member: result.member ?? null,
+      });
+    }
+    res.json({
+      status: "ok",
+      message: "Checked in — your attendance is marked!",
+      attendance: result.attendance,
+      member: result.member ?? null,
+      warning: result.warning ?? null,
+    });
   }),
 );
 

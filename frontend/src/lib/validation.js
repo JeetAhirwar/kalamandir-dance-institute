@@ -88,10 +88,16 @@ export const memberFormSchema = z
     ])
         .optional()
         .transform((v) => (v && v.trim() ? v.trim() : null)),
-    // Class stream the student belongs to — required in both add & edit.
-    classTag: z.enum(CLASS_TAGS, {
-        errorMap: () => ({ message: "Choose a class tag (Art or Dance)" }),
-    }),
+    // Class stream the student belongs to — required when creating a new
+    // student; optional on edit so existing records can be saved without
+    // forcing a tag pick (see superRefine below).
+    classTag: z
+        .union([
+        z.enum(CLASS_TAGS, { errorMap: () => ({ message: "Choose a class tag (Art or Dance)" }) }),
+        z.literal(""),
+    ])
+        .optional()
+        .transform((v) => (v === "" ? "" : v)),
 })
     .refine((data) => !data.emergencyContactPhone || data.emergencyContactPhone.length > 0, {
     message: "Enter a valid emergency contact phone or leave it empty",
@@ -104,6 +110,14 @@ export const memberFormSchema = z
             code: z.ZodIssueCode.custom,
             path: ["loginPassword"],
             message: "Set a portal password for the student",
+        });
+    }
+    // New students must be tagged Art or Dance; edits may leave it unset.
+    if (data.mode !== "edit" && !data.classTag) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["classTag"],
+            message: "Choose a class tag (Art or Dance)",
         });
     }
 });

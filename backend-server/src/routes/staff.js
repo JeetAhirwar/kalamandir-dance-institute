@@ -207,4 +207,27 @@ router.patch(
   }),
 );
 
+/** DELETE /api/staff/:id — permanently removes the staff profile. */
+router.delete(
+  "/staff/:id",
+  requireAuth,
+  requireCap("staff.manage"),
+  asyncHandler(async (req, res) => {
+    const row = await findStaffOr404(req.user.gymId, req.params.id);
+    await StaffProfile.deleteOne({ _id: row._id });
+    await setStaffLoginActive(row.profileId, false);
+
+    await writeAudit({
+      gymId: req.user.gymId,
+      actorId: req.user.id,
+      entity: "staff_profiles",
+      entityId: String(row._id),
+      action: "delete",
+      oldValues: { fullName: row.fullName, role: row.role, employmentStatus: row.employmentStatus },
+    });
+
+    res.status(204).send();
+  }),
+);
+
 export default router;

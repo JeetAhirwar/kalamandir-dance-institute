@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Navigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { appMode, getAuthProvider, getDataService } from "@/data";
+import { applyTheme } from "@/lib/theme";
 const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
     const [session, setSession] = useState(null);
@@ -36,11 +37,18 @@ export function AuthProvider({ children }) {
         });
         return unsubscribe;
     }, [refresh, mode]);
+    // Institute-wide theme (admin sets it in Manage Institute) drives the whole
+    // platform — staff app + member portal + login screen.
+    useEffect(() => {
+        if (session?.gym?.themeMode || session?.gym?.themeAccent)
+            applyTheme({ mode: session.gym.themeMode, accent: session.gym.themeAccent });
+    }, [session?.gym?.themeMode, session?.gym?.themeAccent]);
     const signIn = useCallback(async (identifier, password) => {
         const next = await getAuthProvider().signIn(identifier, password);
         setSession(next);
         setError(null);
         toast.success(`Welcome back, ${next.profile.fullName.split(" ")[0]}`);
+        return next;
     }, []);
     const signOut = useCallback(async () => {
         await getAuthProvider().signOut();

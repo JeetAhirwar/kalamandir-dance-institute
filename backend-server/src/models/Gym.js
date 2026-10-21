@@ -24,6 +24,9 @@ const GymSchema = new Schema(
     locationLng: { type: Number, default: null },
     locationRadiusM: { type: Number, default: 200 },
     enforceLocation: { type: Boolean, default: false },
+    /** Institute-wide theme (admin picks in Manage Institute). */
+    themeMode: { type: String, enum: ["light", "dark", "system"], default: "light" },
+    themeAccent: { type: String, enum: ["burgundy", "emerald", "indigo", "rose", "terracotta", "ocean"], default: "burgundy" },
   },
   { timestamps: true, versionKey: false, collection: "gyms" },
 );

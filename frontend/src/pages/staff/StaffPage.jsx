@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { motion, useReducedMotion } from "motion/react";
-import { ArchiveIcon, Grid2x2Icon, LayoutListIcon, PencilIcon, PlusIcon, UsersIcon } from "lucide-react";
+import { ArchiveIcon, Grid2x2Icon, LayoutListIcon, PencilIcon, PlusIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, Skeleton, Stagger } from "@/components/shared/States";
 import { SmartImage } from "@/components/shared/SmartImage";
@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/format";
 import { can, ROLE_LABELS } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { ArchiveStaffDialog } from "./ArchiveStaffDialog";
+import { DeleteStaffDialog } from "./DeleteStaffDialog";
 import { StaffFormDialog } from "./StaffFormDialog";
 const EMPLOYMENT_LABELS = {
     active: "Active",
@@ -36,7 +37,7 @@ const VIEW_OPTIONS = [
  * One staff member. `layout="list"` renders a compact horizontal row
  * (photo + identity, badges, joined + actions); "grid" is the original card.
  */
-function StaffCard({ member, layout = "grid", canManage, index = 0, onEdit, onArchive }) {
+function StaffCard({ member, layout = "grid", canManage, index = 0, onEdit, onArchive, onDelete }) {
     const isList = layout === "list";
     const actions = canManage ? (<div className="flex items-center gap-1">
         <Button size="icon-xs" variant="ghost" aria-label={`Edit ${member.fullName}`} onClick={() => onEdit(member)}>
@@ -45,6 +46,9 @@ function StaffCard({ member, layout = "grid", canManage, index = 0, onEdit, onAr
         {member.employmentStatus !== "resigned" ? (<Button size="icon-xs" variant="ghost" aria-label={`Archive ${member.fullName}`} onClick={() => onArchive(member)}>
             <ArchiveIcon />
           </Button>) : null}
+        <Button size="icon-xs" variant="ghost" aria-label={`Delete ${member.fullName}`} onClick={() => onDelete(member)} className="text-destructive hover:bg-destructive/10">
+          <Trash2Icon />
+        </Button>
       </div>) : null;
     const badges = (<div className="flex flex-wrap items-center gap-1.5">
       <Badge variant="outline" className={EMPLOYMENT_STYLES[member.employmentStatus]}>
@@ -118,6 +122,7 @@ export function StaffPage() {
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [archiving, setArchiving] = useState(null);
+    const [deleting, setDeleting] = useState(null);
     const staff = useAsync(() => data.listStaff(includeInactive), [data, includeInactive]);
     const openCreate = () => {
         setEditing(null);
@@ -156,6 +161,20 @@ export function StaffPage() {
         }
         catch (error) {
             toast.error(error instanceof Error ? error.message : "Unable to archive this staff member.");
+            return false;
+        }
+    };
+    const handleDelete = async () => {
+        if (!deleting)
+            return false;
+        try {
+            await data.deleteStaff(deleting.id);
+            toast.success(`${deleting.fullName} deleted`);
+            staff.reload();
+            return true;
+        }
+        catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to delete this staff member.");
             return false;
         }
     };
@@ -209,7 +228,7 @@ export function StaffPage() {
           <motion.div key={view} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className={view === "list"
             ? "space-y-3"
             : "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"}>
-            {rows.map((member, index) => (<StaffCard key={member.id} member={member} layout={view} canManage={canManage} index={index} onEdit={openEdit} onArchive={setArchiving}/>))}
+            {rows.map((member, index) => (<StaffCard key={member.id} member={member} layout={view} canManage={canManage} index={index} onEdit={openEdit} onArchive={setArchiving} onDelete={setDeleting}/>))}
           </motion.div>
 
           <p className="text-xs text-muted-foreground">
@@ -222,5 +241,9 @@ export function StaffPage() {
             if (!open)
                 setArchiving(null);
         }} onConfirm={handleArchive}/>
+      <DeleteStaffDialog staff={deleting} onOpenChange={(open) => {
+            if (!open)
+                setDeleting(null);
+        }} onConfirm={handleDelete}/>
     </div>);
 }

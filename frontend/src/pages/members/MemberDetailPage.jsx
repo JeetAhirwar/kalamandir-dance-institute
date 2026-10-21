@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import QRCode from "qrcode";
 import { toast } from "sonner";
-import { ArrowLeftIcon, CalendarDaysIcon, ClockIcon, CreditCardIcon, MailIcon, MapPinIcon, PencilIcon, PhoneIcon, PrinterIcon, QrCodeIcon, RefreshCwIcon, ShieldAlertIcon, UserRoundXIcon, UserXIcon, UserCheckIcon, WalletIcon, } from "lucide-react";
+import { ArrowLeftIcon, CalendarDaysIcon, ClockIcon, CreditCardIcon, MailIcon, MapPinIcon, PencilIcon, PhoneIcon, PrinterIcon, QrCodeIcon, RefreshCwIcon, ShieldAlertIcon, TagIcon, UserRoundXIcon, UserXIcon, UserCheckIcon, WalletIcon, } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, Skeleton, Stagger } from "@/components/shared/States";
 import { StatusBadge, PaymentBadge } from "@/components/shared/StatusBadge";
@@ -191,6 +191,7 @@ export function MemberDetailPage() {
                   <DetailRow icon={MailIcon} label="Email" value={current.email}/>
                   <DetailRow icon={MapPinIcon} label="Address" value={current.address}/>
                   <DetailRow icon={ClockIcon} label="Preferred slot" value={timeSlotLabel(current.preferredSlot)}/>
+                  <DetailRow icon={TagIcon} label="Class tag" value={current.classTag}/>
                   <DetailRow icon={ShieldAlertIcon} label={current.emergencyContactName
             ? `Emergency · ${current.emergencyContactName}`
             : "Emergency contact"} value={current.emergencyContactPhone}/>

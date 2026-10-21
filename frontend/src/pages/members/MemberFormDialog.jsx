@@ -95,7 +95,8 @@ function toIdentityInput(values) {
             ? values.plannedHoursPerDay
             : null,
         preferredSlot: trimOrNull(values.preferredSlot),
-        classTag: values.classTag,
+        // On edit, omit classTag when empty so the existing value isn't clobbered.
+        classTag: values.mode === "edit" ? (values.classTag || undefined) : values.classTag,
         emergencyContactPhone: values.emergencyContactPhone ? values.emergencyContactPhone : null,
         joinDate: values.joinDate,
         notes: trimOrNull(values.notes),
@@ -200,6 +201,10 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                 toast.error(error instanceof Error ? error.message : "Unable to save this student.");
             }
         });
+    }, (errors) => {
+        const firstKey = Object.keys(errors)[0];
+        const msg = (firstKey && errors[firstKey]?.message) || "Please fix the highlighted fields before saving.";
+        toast.error(msg);
     });
     return (<Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">

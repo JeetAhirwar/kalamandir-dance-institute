@@ -36,8 +36,8 @@ function ChartTooltipCard({ active, payload, label, isCurrency }) {
 function PanelHeader({ title, subtitle, action }) {
     return (<div className="flex items-center justify-between gap-3 px-4 pt-4">
       <div className="min-w-0">
-        <h2 className="truncate font-sans text-[14px] font-semibold text-[#28151F]">{title}</h2>
-        {subtitle ? <p className="mt-0.5 truncate text-[11.5px] text-[#78695F]">{subtitle}</p> : null}
+        <h2 className="truncate font-sans text-[14px] font-semibold text-foreground">{title}</h2>
+        {subtitle ? <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{subtitle}</p> : null}
       </div>
       {action}
     </div>);
@@ -58,7 +58,7 @@ function FadeIn({ children, delay = 0, className }) {
     </motion.div>);
 }
 
-const PANEL = "overflow-hidden rounded-xl border border-[#E9DECC] bg-[#FFFCF6] shadow-[0_2px_5px_rgba(49,13,32,0.06)]";
+const PANEL = "overflow-hidden rounded-xl border border-border bg-card shadow-[0_2px_5px_rgba(49,13,32,0.06)]";
 
 export function DashboardPage() {
     const data = useData();
@@ -147,31 +147,31 @@ export function DashboardPage() {
 
       {/* Primary metrics — each card opens the matching filtered list. */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard index={0} label="Active students" value={stats.data?.activeMembers ?? 0} icon={<UserRoundCheckIcon className="size-[18px]"/>} hint={`${stats.data?.totalMembers ?? 0} total on record`} accent={{ bg: "#310D20", fg: "#E8D5AD" }} to="/members?status=active"/>
-        <MetricCard index={1} label="New this month" value={stats.data?.newThisMonth ?? 0} icon={<UserPlusIcon className="size-[18px]"/>} hint="Joined in the current month" accent={{ bg: "#C6A45B", fg: "#2D0A18" }} to="/members"/>
-        <MetricCard index={2} label="Expiring soon" value={stats.data?.expiringSoon ?? 0} icon={<CalendarClockIcon className="size-[18px]"/>} hint={`${stats.data?.expiredMembers ?? 0} already expired`} accent={{ bg: "#B97924", fg: "#FFF7EA" }} to="/members?status=expiring_soon"/>
-        <MetricCard index={3} label="Today's check-ins" value={stats.data?.todayAttendance ?? 0} icon={<CameraIcon className="size-[18px]"/>} hint={`${stats.data?.currentCheckIns ?? 0} currently inside`} accent={{ bg: "#48172C", fg: "#E8D5AD" }} to={`/attendance/history?from=${todayYmd}&to=${todayYmd}`}/>
+        <MetricCard index={0} label="Active students" value={stats.data?.activeMembers ?? 0} icon={<UserRoundCheckIcon className="size-[18px]"/>} hint={`${stats.data?.totalMembers ?? 0} total on record`} accent={{ bg: "var(--km-burgundy)", fg: "var(--km-ivory)" }} to="/members?status=active"/>
+        <MetricCard index={1} label="New this month" value={stats.data?.newThisMonth ?? 0} icon={<UserPlusIcon className="size-[18px]"/>} hint="Joined in the current month" accent={{ bg: "var(--km-gold)", fg: "var(--km-burgundy)" }} to="/members"/>
+        <MetricCard index={2} label="Expiring soon" value={stats.data?.expiringSoon ?? 0} icon={<CalendarClockIcon className="size-[18px]"/>} hint={`${stats.data?.expiredMembers ?? 0} already expired`} accent={{ bg: "var(--warning)", fg: "#FFF7EA" }} to="/members?status=expiring_soon"/>
+        <MetricCard index={3} label="Today's check-ins" value={stats.data?.todayAttendance ?? 0} icon={<CameraIcon className="size-[18px]"/>} hint={`${stats.data?.currentCheckIns ?? 0} currently inside`} accent={{ bg: "var(--km-wine)", fg: "var(--km-ivory)" }} to={`/attendance/history?from=${todayYmd}&to=${todayYmd}`}/>
       </div>
 
       {/* This month: Total | Collected | Remaining */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <FinancialCard index={0} label="Total this month" value={totalThisMonth} format={(n) => formatINR(n)} icon={<IndianRupeeIcon className="size-[18px]"/>} hint="Collected + remaining" accent={{ bg: "#310D20", fg: "#E8D5AD" }} amountColor="#310D20" to={canViewPayments ? "/payments" : undefined}/>
+        <FinancialCard index={0} label="Total this month" value={totalThisMonth} format={(n) => formatINR(n)} icon={<IndianRupeeIcon className="size-[18px]"/>} hint="Collected + remaining" accent={{ bg: "var(--km-burgundy)", fg: "var(--km-ivory)" }} amountColor="var(--km-burgundy)" to={canViewPayments ? "/payments" : undefined}/>
         <FinancialCard index={1} label="Collected" value={collected} format={(n) => formatINR(n)} icon={<BanknoteIcon className="size-[18px]"/>} hint={revenueDelta !== null
             ? `${revenueDelta >= 0 ? "+" : ""}${revenueDelta}% vs last month`
-            : "Payments received this month"} accent={{ bg: "#287B53", fg: "#F1FAF5" }} amountColor="#287B53" barColor="#287B53" barPct={collectedPct} to={canViewPayments ? "/payments?status=paid" : undefined}/>
+            : "Payments received this month"} accent={{ bg: "var(--success)", fg: "#F1FAF5" }} amountColor="var(--success)" barColor="var(--success)" barPct={collectedPct} to={canViewPayments ? "/payments?status=paid" : undefined}/>
         <FinancialCard index={2} label="Remaining" value={remaining} format={(n) => formatINR(n)} icon={<WalletIcon className="size-[18px]"/>} hint={stats.data?.pendingPayments
             ? `${stats.data.pendingPayments} member${stats.data.pendingPayments === 1 ? "" : "s"} with dues`
-            : "No outstanding dues"} accent={{ bg: "#B83A35", fg: "#FFF3F1" }} amountColor="#B83A35" barColor="#B83A35" barPct={remainingPct} to={canViewPayments ? "/payments?status=pending" : undefined}/>
+            : "No outstanding dues"} accent={{ bg: "var(--destructive)", fg: "#FFF3F1" }} amountColor="var(--destructive)" barColor="var(--destructive)" barPct={remainingPct} to={canViewPayments ? "/payments?status=pending" : undefined}/>
       </div>
 
       {/* Analytics: attendance trend + plan mix */}
       <div className="grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <FadeIn>
           <section className={PANEL} aria-label="Attendance trend">
-            <PanelHeader title="Attendance trend" subtitle={`Daily check-ins, last ${trendDays} days`} action={<div className="flex items-center gap-1 rounded-full border border-[#E9DECC] bg-[#FBF7EF] p-0.5" role="group" aria-label="Attendance range">
+            <PanelHeader title="Attendance trend" subtitle={`Daily check-ins, last ${trendDays} days`} action={<div className="flex items-center gap-1 rounded-full border border-border bg-secondary p-0.5" role="group" aria-label="Attendance range">
                 {[7, 14, 30].map((days) => (<button key={days} type="button" onClick={() => setTrendDays(days)} aria-pressed={trendDays === days} className={trendDays === days
-                    ? "rounded-full bg-[#310D20] px-2.5 py-1 text-[11px] font-medium text-[#F5E8C8] transition-colors"
-                    : "rounded-full px-2.5 py-1 text-[11px] font-medium text-[#78695F] transition-colors hover:text-[#310D20]"}>
+                    ? "rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium text-km-ivory transition-colors"
+                    : "rounded-full px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-primary"}>
                     {days}d
                   </button>))}
               </div>}/>
@@ -180,15 +180,15 @@ export function DashboardPage() {
                   <AreaChart data={trend.data} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
                     <defs>
                       <linearGradient id="attendanceFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#C6A45B" stopOpacity={0.32}/>
-                        <stop offset="100%" stopColor="#310D20" stopOpacity={0.03}/>
+                        <stop offset="0%" stopColor="var(--km-gold)" stopOpacity={0.32}/>
+                        <stop offset="100%" stopColor="var(--km-burgundy)" stopOpacity={0.03}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false}/>
                     <XAxis dataKey="date" tickFormatter={dayTick} tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} minTickGap={22}/>
                     <YAxis allowDecimals={false} tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={36}/>
                     <Tooltip content={<ChartTooltipCard isCurrency={false}/>} cursor={{ stroke: "var(--border)" }}/>
-                    <Area type="monotone" dataKey="count" name="Check-ins" stroke="var(--chart-1)" strokeWidth={2} fill="url(#attendanceFill)" dot={{ r: 2, strokeWidth: 0, fill: "#C6A45B" }} activeDot={{ r: 4 }}/>
+                    <Area type="monotone" dataKey="count" name="Check-ins" stroke="var(--chart-1)" strokeWidth={2} fill="url(#attendanceFill)" dot={{ r: 2, strokeWidth: 0, fill: "var(--km-gold)" }} activeDot={{ r: 4 }}/>
                   </AreaChart>
                 </ResponsiveContainer>) : (<EmptyState title="No attendance yet" description="Check-ins over the selected range will appear here." className="h-full py-6"/>)}
             </div>
@@ -210,15 +210,15 @@ export function DashboardPage() {
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                      <p className="text-[22px] leading-none font-semibold text-[#310D20] tabular">{distributionTotal}</p>
-                      <p className="mt-1 text-[9.5px] font-medium tracking-[0.12em] text-[#78695F] uppercase">members</p>
+                      <p className="text-[22px] leading-none font-semibold text-primary tabular">{distributionTotal}</p>
+                      <p className="mt-1 text-[9.5px] font-medium tracking-[0.12em] text-muted-foreground uppercase">members</p>
                     </div>
                   </div>
                   <ul className="w-full min-w-0 space-y-2">
                     {distributionRows.map((entry, index) => (<li key={entry.planId} className="flex w-full min-w-0 items-center gap-2">
                         <span className="size-2.5 shrink-0 rounded-full" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} aria-hidden="true"/>
-                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#28151F]">{entry.planName}</span>
-                        <span className="shrink-0 text-[11.5px] text-[#78695F] tabular">
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{entry.planName}</span>
+                        <span className="shrink-0 text-[11.5px] text-muted-foreground tabular">
                           {entry.count} · {Math.round((entry.count / distributionTotal) * 100)}%
                         </span>
                       </li>))}
@@ -254,18 +254,18 @@ export function DashboardPage() {
           <section className={PANEL + " h-full"} aria-label="Recent check-ins">
             <PanelHeader title="Recent check-ins" subtitle="Latest studio visits" action={<PanelLink to="/attendance/history">View all</PanelLink>}/>
             <div className="px-4 pt-2 pb-3">
-              {recentCheckIns.loading ? (<div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (recentCheckIns.data ?? []).length === 0 ? (<EmptyState title="No check-ins yet" description="Scan a student QR to record the first visit." className="py-8"/>) : (<ul className="divide-y divide-[#E9DECC]/80">
+              {recentCheckIns.loading ? (<div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (recentCheckIns.data ?? []).length === 0 ? (<EmptyState title="No check-ins yet" description="Scan a student QR to record the first visit." className="py-8"/>) : (<ul className="divide-y divide-border/80">
                   {(recentCheckIns.data ?? []).map((record) => (<li key={record.id} className="flex items-center gap-3 py-2">
                       <SmartImage src={record.memberPhoto} name={record.memberName ?? "Student"} className="size-8"/>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium text-[#28151F]">{record.memberName}</p>
-                        <p className="truncate text-[11.5px] text-[#78695F]">
+                        <p className="truncate text-[13px] font-medium text-foreground">{record.memberName}</p>
+                        <p className="truncate text-[11.5px] text-muted-foreground">
                           {record.memberCode} · {formatTime(record.checkIn)}
                         </p>
                       </div>
                       <span className={record.status === "checked_out"
-                        ? "rounded-full bg-[#F0E7D5] px-2 py-0.5 text-[10.5px] font-medium text-[#78695F]"
-                        : "rounded-full bg-[#E4F0EA] px-2 py-0.5 text-[10.5px] font-medium text-[#287B53]"}>
+                        ? "rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground"
+                        : "rounded-full bg-success/12 px-2 py-0.5 text-[10.5px] font-medium text-success"}>
                         {record.status === "checked_out" ? "Checked out" : "In studio"}
                       </span>
                     </li>))}
@@ -278,14 +278,14 @@ export function DashboardPage() {
           <section className={PANEL + " h-full"} aria-label="New students">
             <PanelHeader title="New students" subtitle="Recently joined" action={<PanelLink to="/members">View all</PanelLink>}/>
             <div className="px-4 pt-2 pb-3">
-              {recentMembers.loading ? (<div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (recentMembers.data ?? []).length === 0 ? (<EmptyState title="No students yet" description="Add your first student to get started." className="py-8"/>) : (<ul className="divide-y divide-[#E9DECC]/80">
+              {recentMembers.loading ? (<div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (recentMembers.data ?? []).length === 0 ? (<EmptyState title="No students yet" description="Add your first student to get started." className="py-8"/>) : (<ul className="divide-y divide-border/80">
                   {(recentMembers.data ?? []).map((member) => (<li key={member.id} className="flex items-center gap-3 py-2">
                       <SmartImage src={member.photoUrl} name={member.fullName} className="size-8"/>
                       <div className="min-w-0 flex-1">
-                        <Link to={`/members/${member.id}`} className="block truncate text-[13px] font-medium text-[#28151F] hover:underline">
+                        <Link to={`/members/${member.id}`} className="block truncate text-[13px] font-medium text-foreground hover:underline">
                           {member.fullName}
                         </Link>
-                        <p className="truncate text-[11.5px] text-[#78695F]">
+                        <p className="truncate text-[11.5px] text-muted-foreground">
                           {member.memberCode} · joined {formatDate(member.joinDate)}
                         </p>
                       </div>
@@ -297,16 +297,16 @@ export function DashboardPage() {
         </FadeIn>
 
         <FadeIn delay={0.12}>
-          <section className={PANEL.replace("bg-[#FFFCF6]", "bg-[#FAF4E4]").replace("border-[#E9DECC]", "border-[#ECDEC0]") + " h-full"} aria-label="Expiring soon">
+          <section className={PANEL.replace("bg-card", "bg-secondary").replace("border-border", "border-border") + " h-full"} aria-label="Expiring soon">
             <PanelHeader title="Expiring soon" subtitle="Memberships ending soon" action={<PanelLink to="/members">View all</PanelLink>}/>
             <div className="px-4 pt-2 pb-3">
-              {expirations.loading ? (<div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (expirations.data ?? []).length === 0 ? (<EmptyState title="Nothing expiring" description="Memberships ending soon will appear here." className="py-8"/>) : (<ul className="divide-y divide-[#ECDEC0]/80">
+              {expirations.loading ? (<div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-11"/>)}</div>) : (expirations.data ?? []).length === 0 ? (<EmptyState title="Nothing expiring" description="Memberships ending soon will appear here." className="py-8"/>) : (<ul className="divide-y divide-border/80">
                   {(expirations.data ?? []).map((member) => (<li key={member.id} className="flex items-center gap-3 py-2">
                       <div className="min-w-0 flex-1">
-                        <Link to={`/members/${member.id}`} className="block truncate text-[13px] font-medium text-[#28151F] hover:underline">
+                        <Link to={`/members/${member.id}`} className="block truncate text-[13px] font-medium text-foreground hover:underline">
                           {member.fullName}
                         </Link>
-                        <p className="truncate text-[11.5px] text-[#78695F]">
+                        <p className="truncate text-[11.5px] text-muted-foreground">
                           {member.planName} · ends {formatDate(member.endDate)} · {relativeTime(member.endDate)}
                         </p>
                       </div>

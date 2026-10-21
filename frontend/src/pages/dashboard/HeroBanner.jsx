@@ -38,7 +38,7 @@ export function HeroBanner({ todayClassCount, canAddStudent, canMarkAttendance }
               <PlusIcon aria-hidden="true" className="size-3.5"/>
               Add student
             </Link>) : null}
-          {showToday ? (<span className="hidden h-[38px] items-center gap-2.5 rounded-full border border-km-gold/30 bg-[#210714]/60 px-3.5 sm:inline-flex">
+          {showToday ? (<Link to="/classes" className="group hidden h-[38px] items-center gap-2.5 rounded-full border border-km-gold/30 bg-[#210714]/60 px-3.5 sm:inline-flex">
               <CalendarDaysIcon aria-hidden="true" className="size-4 text-km-gold"/>
               <span className="leading-tight">
                 <span className="block text-[9px] font-medium tracking-[0.8px] text-[#FBF7EF]/60 uppercase">
@@ -48,7 +48,8 @@ export function HeroBanner({ todayClassCount, canAddStudent, canMarkAttendance }
                   {todayClassCount} {todayClassCount === 1 ? "class" : "classes"}
                 </span>
               </span>
-            </span>) : null}
+              <ArrowRightIcon className="size-3.5 text-km-gold/70 group-hover:translate-x-0.5 transition-transform"/>
+            </Link>) : null}
         </div>
       </div>
     </motion.section>);

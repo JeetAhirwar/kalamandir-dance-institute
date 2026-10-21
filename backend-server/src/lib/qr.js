@@ -27,6 +27,15 @@ export function parseQrPayload(payload) {
     const token = trimmed.slice(QR_PAYLOAD_PREFIX.length + 1).trim();
     return token.length >= 16 ? token : null;
   }
+  // Studio QR encodes a login URL (…/login?checkin=<token>) — scanned by any
+  // phone camera. Pull the token back out of the query string.
+  try {
+    const url = new URL(trimmed);
+    const token = url.searchParams.get("checkin");
+    if (token && token.length >= 16) return token.toLowerCase();
+  } catch {
+    /* not a URL — fall through to the raw-token check */
+  }
   // Raw token support (e.g. someone printed only the token).
   if (/^[a-f0-9]{32,128}$/i.test(trimmed)) return trimmed.toLowerCase();
   return null;

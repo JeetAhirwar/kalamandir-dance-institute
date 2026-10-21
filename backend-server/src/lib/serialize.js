@@ -32,6 +32,9 @@ export function toGym(doc) {
     enforceLocation: Boolean(doc.enforceLocation),
     /** True when a member's scan must include GPS (toggle on + gym coords saved). */
     locationRequired: Boolean(doc.enforceLocation) && doc.locationLat != null && doc.locationLng != null,
+    /** Institute-wide theme (admin picks in Manage Institute). */
+    themeMode: doc.themeMode ?? "light",
+    themeAccent: doc.themeAccent ?? "burgundy",
     createdAt: iso(doc.createdAt),
     updatedAt: iso(doc.updatedAt),
   };

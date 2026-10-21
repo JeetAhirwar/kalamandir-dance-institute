@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import Gym from "../models/Gym.js";
 import GymSettings from "../models/GymSettings.js";
+import ClassSlot from "../models/ClassSlot.js";
 import { requireAuth, requireCap } from "../middleware/auth.js";
 import { parseBody } from "../middleware/validate.js";
 import { asyncHandler, badRequest } from "../lib/errors.js";
@@ -9,8 +10,23 @@ import { toGym, toSettings } from "../lib/serialize.js";
 import { generateQrToken } from "../lib/qr.js";
 import { writeAudit } from "../lib/audit.js";
 import { loadGymContext } from "../services/context.js";
+import config from "../config.js";
 
 const router = Router();
+
+/**
+ * Login URL encoded into the printed studio QR. Scanning it with any phone
+ * camera opens the sign-in page with `?checkin=<token>`; the token is the only
+ * thing the QR carries — never a password or personal data.
+ */
+function gymCheckinUrl(token) {
+  const origin = String(config.clientOrigin ?? "")
+    .split(",")[0]
+    .trim()
+    .replace(/\/+$/, "");
+  if (!origin) return null;
+  return `${origin}/login?checkin=${encodeURIComponent(token)}`;
+}
 
 const settingsPatchSchema = z.object({
   // Gym profile fields editable alongside settings.
@@ -125,9 +141,12 @@ const gymPatchSchema = z.object({
   locationLng: z.number().min(-180).max(180).nullish(),
   locationRadiusM: z.number().int().min(50).max(5000).nullish(),
   enforceLocation: z.boolean().optional(),
+  /** Institute-wide theme (admin picks in Manage Institute). */
+  themeMode: z.enum(["light", "dark", "system"]).optional(),
+  themeAccent: z.enum(["burgundy", "emerald", "indigo", "rose", "terracotta", "ocean"]).optional(),
 });
 
-/** GET /api/gym/qr → { token } — the single front-desk gym QR members scan. */
+/** GET /api/gym/qr → { token, url } — the single front-desk gym QR members scan. */
 router.get(
   "/gym/qr",
   requireAuth,
@@ -139,11 +158,11 @@ router.get(
       token = generateQrToken();
       await Gym.updateOne({ _id: ctx.gym._id }, { $set: { gymQrToken: token } });
     }
-    res.json({ token });
+    res.json({ token, url: gymCheckinUrl(token) });
   }),
 );
 
-/** POST /api/gym/qr/rotate → { token } — invalidates every previously printed gym QR. */
+/** POST /api/gym/qr/rotate → { token, url } — invalidates every previously printed gym QR. */
 router.post(
   "/gym/qr/rotate",
   requireAuth,
@@ -160,7 +179,7 @@ router.post(
       action: "update",
       newValues: { gymQrRotated: true },
     });
-    res.json({ token });
+    res.json({ token, url: gymCheckinUrl(token) });
   }),
 );
 
@@ -182,6 +201,8 @@ router.patch(
     if (input.locationLng !== undefined) updates.locationLng = input.locationLng;
     if (input.locationRadiusM !== undefined) updates.locationRadiusM = input.locationRadiusM;
     if (input.enforceLocation !== undefined) updates.enforceLocation = input.enforceLocation;
+    if (input.themeMode !== undefined) updates.themeMode = input.themeMode;
+    if (input.themeAccent !== undefined) updates.themeAccent = input.themeAccent;
     if (Object.keys(updates).length === 0) throw badRequest("Nothing to update", "empty_patch");
 
     // Guard against a GPS requirement with no saved coordinates.
@@ -198,6 +219,37 @@ router.patch(
     }
 
     await Gym.updateOne({ _id: ctx.gym._id }, { $set: updates });
+
+    // Auto-sync ClassSlots from saved daily time slots, so the studio's
+    // operating hours become teachable batches (assign instructor/weekdays
+    // later via Classes & Schedule). Idempotent: a slot with the same time
+    // range is reused rather than duplicated.
+    if (input.timeSlots !== undefined) {
+      for (const ts of input.timeSlots) {
+        const start = ts.start;
+        const end = ts.end;
+        const existing = await ClassSlot.findOne({
+          gymId: ctx.gym._id,
+          startTime: start,
+          endTime: end,
+          isActive: true,
+        }).lean();
+        if (!existing) {
+          await ClassSlot.create({
+            gymId: ctx.gym._id,
+            name: `${start} – ${end}`,
+            weekdays: [0, 1, 2, 3, 4, 5, 6],
+            startTime: start,
+            endTime: end,
+            capacity: null,
+            instructorId: null,
+            isActive: true,
+            notes: "Auto-created from daily time slots",
+            createdBy: req.user.id,
+          });
+        }
+      }
+    }
     await writeAudit({
       gymId: ctx.gym._id,
       actorId: req.user.id,

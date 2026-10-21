@@ -24,14 +24,19 @@ import {
   addDays,
   hourInTz,
   hourLabel,
-  minutesInTz,
   parseDateOnly,
   ymdInTz,
 } from "../lib/dates.js";
 import { loadGymContext } from "../services/context.js";
 import { runCheckIn } from "../services/checkin.js";
 import { markSlotAttendance, markDemoAttendance, markRosterAttendance } from "../services/classAttendance.js";
-import { notifyIfOverPlanned, notifyExpiredScan } from "../services/overtime.js";
+import { notifyIfOverPlanned } from "../services/overtime.js";
+import {
+  assertGymQrToken,
+  assertSelfCheckinAllowed,
+  runMemberSelfCheckIn,
+  closeOpenVisit,
+} from "../services/gymSelfCheckin.js";
 
 const router = Router();
 
@@ -203,6 +208,21 @@ router.get(
       const current = String(slot._id);
       return ids.includes(current) ? [current, ...ids.filter((v) => v !== current)] : ids;
     };
+    /* Backfill — students created before auto-enrolment whose preferred slot
+       matches this batch get enrolled on read, so they show up immediately. */
+    const prefEnrollments = members
+      .filter((m) => !enrolledIds.has(String(m._id)) && m.preferredSlot === `${slot.startTime}-${slot.endTime}`)
+      .map((m) => ({ gymId: req.user.gymId, slotId: slot._id, memberId: m._id, status: "enrolled" }));
+    if (prefEnrollments.length > 0) {
+      await SlotEnrollment.insertMany(prefEnrollments, { ordered: false }).catch(() => undefined);
+      for (const e of prefEnrollments) {
+        enrolledIds.add(String(e.memberId));
+        const key = String(e.memberId);
+        const list = enrolledSlotIdsByMember.get(key) ?? [];
+        if (!list.includes(String(slot._id))) list.push(String(slot._id));
+        enrolledSlotIdsByMember.set(key, list);
+      }
+    }
     const membershipsByMember = new Map();
     for (const m of memberships) {
       const key = String(m.memberId);
@@ -255,6 +275,7 @@ router.get(
         status: m.status,
         enrolled: enrolledIds.has(String(m._id)),
         enrolledSlotIds: slotIdsFor(m._id),
+        preferredSlot: m.preferredSlot ?? null,
         marked: statusByMember.has(String(m._id)),
         attendanceStatus: statusByMember.get(String(m._id)) ?? null,
         quota: quotaForMember(m._id),
@@ -349,28 +370,6 @@ router.post(
   }),
 );
 
-/** `"06:30"` → 390 minutes since midnight (NaN on junk). */
-const toMinutes = (hhmm) => {
-  const [h, m] = String(hhmm).split(":").map(Number);
-  return h * 60 + m;
-};
-/** `13:05` → `1:05 PM` — matches the Manage Gym slot labels (12-hour clock). */
-const fmt12h = (hhmm) => {
-  const [h, m] = String(hhmm).split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
-};
-/** Great-circle distance in meters (Haversine) — GPS range check. */
-function haversineMeters(lat1, lng1, lat2, lng2) {
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 const gymScanSchema = z.object({
   token: z.string().min(8, "That does not look like the studio's QR code"),
   /** Optional GPS fix (browser Geolocation API) — required when the gym enforces range. */
@@ -398,114 +397,37 @@ router.post(
     const member = await Member.findOne({ _id: user.memberId, gymId: req.user.gymId }).lean();
     if (!member) throw notFound("Student not found");
 
-    // Tolerate both the bare token and the "PGS1:<token>" payload — but it
-    // must be the GYM's token, never another member's personal QR.
-    const token = parseQrPayload(input.token) ?? String(input.token).trim();
-    if (!ctx.gym.gymQrToken || token !== ctx.gym.gymQrToken) {
-      throw badRequest(
-        "That is not this studio's QR code. Please scan the QR at the front desk.",
-        "invalid_gym_qr",
-      );
-    }
+    // Must be the GYM's shared token — never another member's personal QR.
+    assertGymQrToken(ctx.gym, input.token);
 
-    const now = new Date();
     // Already inside → this same scan checks them out.
-    const open = await AttendanceRecord.findOne({
-      gymId: member.gymId,
-      memberId: member._id,
-      status: "checked_in",
-    })
-      .sort({ checkIn: -1 })
-      .lean();
-    if (open) {
-      // Close every open row defensively — stale opens would otherwise make
-      // the next scan check out again instead of checking in.
-      await AttendanceRecord.updateMany(
-        { gymId: member.gymId, memberId: member._id, status: "checked_in" },
-        { $set: { checkOut: now, status: "checked_out" } },
-      );
-      const updated = { ...open, checkOut: now, status: "checked_out" };
-      await writeAudit({
-        gymId: member.gymId,
-        actorId: req.user.id,
-        entity: "attendance_records",
-        entityId: String(updated._id),
-        action: "checkout",
-        oldValues: { status: "checked_in", checkOut: null },
-        newValues: { status: "checked_out" },
-      });
-      await notifyIfOverPlanned({ gymId: member.gymId, member, at: now });
+    const closed = await closeOpenVisit({ member, actorId: req.user.id });
+    if (closed) {
       return res.json({
         action: "check_out",
         message: "Checked out — see you next time!",
-        attendance: toAttendance(updated, member, null),
+        attendance: closed,
       });
     }
 
-    // ---- Self check-in guard rails (member-initiated scans only) ----
-    // Front-desk check-ins and check-outs stay free: nobody gets stuck inside.
-    // 1) Slot hours — check-ins only while the gym is open.
-    if (ctx.gym.enforceSlotHours !== false && (ctx.gym.timeSlots ?? []).length > 0) {
-      const nowMinutes = minutesInTz(now, ctx.tz);
-      const inSlot = ctx.gym.timeSlots.some((slot) => {
-        const start = toMinutes(slot.start);
-        const end = toMinutes(slot.end);
-        if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
-        // A slot may wrap midnight (e.g. 22:00–02:59).
-        return start <= end
-          ? nowMinutes >= start && nowMinutes <= end
-          : nowMinutes >= start || nowMinutes <= end;
-      });
-      if (!inSlot) {
-        const hours = ctx.gym.timeSlots
-          .map((slot) => `${fmt12h(slot.start)} – ${fmt12h(slot.end)}`)
-          .join(", ");
-        throw badRequest(
-          `The institute is closed right now. Check-in is allowed during class hours: ${hours}.`,
-          "gym_closed",
-        );
-      }
-    }
-    // 2) GPS range — on once the gym's location is saved in Manage Gym.
-    const gymLat = ctx.gym.locationLat;
-    const gymLng = ctx.gym.locationLng;
-    if (ctx.gym.enforceLocation && gymLat != null && gymLng != null) {
-      if (input.latitude == null || input.longitude == null) {
-        throw badRequest(
-          "Location access is required to check in here — allow location for this site, then scan again.",
-          "location_required",
-        );
-      }
-      const radius = ctx.gym.locationRadiusM ?? 200;
-      const distance = haversineMeters(gymLat, gymLng, input.latitude, input.longitude);
-      // Small GPS-noise allowance (accuracy capped so a bad fix can't help).
-      if (distance > radius + Math.min(input.accuracy ?? 0, 100)) {
-        throw badRequest(
-          `You are about ${Math.round(distance)} m from the studio — check-in works within ${radius} m of the front desk.`,
-          "too_far",
-        );
-      }
-    }
-
-    // Not inside → run the standard eligibility engine as a member self check-in.
-    const result = await runCheckIn({
-      gymId: member.gymId,
-      actorId: req.user.id,
-      lookup: { code: member.memberCode },
-      method: "qr",
-      notes: "Scanned the front-desk QR from the student portal",
-      ctx,
+    // Member-initiated check-in → opening hours + GPS guard rails apply.
+    assertSelfCheckinAllowed({
+      gym: ctx.gym,
+      tz: ctx.tz,
+      coords: {
+        latitude: input.latitude,
+        longitude: input.longitude,
+        accuracy: input.accuracy,
+      },
     });
-    if (result.status !== "ok") {
-      if (result.reason === "expired" || result.reason === "no_membership") {
-        await notifyExpiredScan({ gymId: member.gymId, member, at: now });
-      }
-      throw badRequest(result.message, result.reason);
-    }
-    if (result.warning === "expired") {
-      // Accepted because the gym allows expired check-ins — still warn the staff.
-      await notifyExpiredScan({ gymId: member.gymId, member, at: now });
-    }
+
+    const result = await runMemberSelfCheckIn({
+      member,
+      actorId: req.user.id,
+      ctx,
+      notes: "Scanned the front-desk QR from the student portal",
+    });
+    if (result.status !== "ok") throw badRequest(result.message, result.reason);
     res.json({
       action: "check_in",
       message: "Checked in — your timer has started!",

@@ -43,7 +43,7 @@ function GoldCorner() {
     </svg>);
 }
 
-const CARD_BASE = "group relative flex h-full flex-col overflow-hidden rounded-xl border border-[#E9DECC] bg-[#FFFCF6] shadow-[0_2px_5px_rgba(49,13,32,0.06)] transition-all duration-200 hover:-translate-y-[2px] hover:border-km-gold/45 hover:shadow-[0_6px_16px_rgba(49,13,32,0.10)]";
+const CARD_BASE = "group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_2px_5px_color-mix(in_srgb,var(--km-burgundy)_6%,transparent)] transition-all duration-200 hover:-translate-y-[2px] hover:border-km-gold/45 hover:shadow-[0_6px_16px_color-mix(in_srgb,var(--km-burgundy)_10%,transparent)]";
 
 /** Corner arrow shown only on cards that navigate somewhere. */
 function CardArrow() {
@@ -74,13 +74,13 @@ export function MetricCard({ label, value, icon, hint, accent, format, index = 0
             {icon}
           </span>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold tracking-[0.1em] text-[#78695F] uppercase">{label}</p>
-            <p className="mt-1 text-[28px] leading-none font-semibold text-[#310D20]">
+            <p className="text-[10px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">{label}</p>
+            <p className="mt-1 text-[28px] leading-none font-semibold text-primary">
               <CountUp value={value} format={format}/>
             </p>
           </div>
         </div>
-        {hint ? <p className="relative mt-2.5 text-[11.5px] leading-snug text-[#78695F]">{hint}</p> : null}
+        {hint ? <p className="relative mt-2.5 text-[11.5px] leading-snug text-muted-foreground">{hint}</p> : null}
       </CardFrame>
     </motion.div>);
 }
@@ -98,20 +98,20 @@ export function FinancialCard({ label, value, icon, hint, accent, amountColor, b
             {icon}
           </span>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold tracking-[0.1em] text-[#78695F] uppercase">{label}</p>
+            <p className="text-[10px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">{label}</p>
             <p className="mt-1 text-[26px] leading-none font-semibold" style={{ color: amountColor }}>
               <CountUp value={value} format={format}/>
             </p>
           </div>
         </div>
         <div className="relative mt-auto pt-3">
-          {hasBar ? (<div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E9DECC]" aria-hidden="true">
+          {hasBar ? (<div className="h-1.5 w-full overflow-hidden rounded-full bg-border" aria-hidden="true">
               <div className="h-full rounded-full transition-[width] duration-700" style={{
                     width: `${Math.max(0, Math.min(100, barPct))}%`,
                     backgroundColor: barColor,
                 }}/>
             </div>) : null}
-          {hint ? <p className="mt-1.5 text-[11.5px] leading-snug text-[#78695F]">{hint}</p> : null}
+          {hint ? <p className="mt-1.5 text-[11.5px] leading-snug text-muted-foreground">{hint}</p> : null}
         </div>
       </CardFrame>
     </motion.div>);

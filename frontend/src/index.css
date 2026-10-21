@@ -85,10 +85,7 @@
   --paper-2: #efe3c9;
   --paper-foreground: #2a1a20;
   --paper-edge: #e0d0ae;
-}
-
-html {
-  color-scheme: light;
+  --km-scroll: #d8c9a8;
 }
 
 /* ==========================================================================
@@ -718,14 +715,14 @@ html {
   /* Warm, quiet scrollbars */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #d8c9a8 transparent;
+    scrollbar-color: var(--km-scroll) transparent;
   }
   *::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
   *::-webkit-scrollbar-thumb {
-    background: #d8c9a8;
+    background: var(--km-scroll);
     border-radius: 999px;
     border: 3px solid transparent;
     background-clip: content-box;
@@ -748,8 +745,8 @@ html {
   background-color: var(--paper);
   color: var(--paper-foreground);
   background-image:
-    radial-gradient(circle at 18% 12%, rgba(198, 164, 91, 0.12) 0, transparent 55%),
-    radial-gradient(circle at 82% 88%, rgba(49, 13, 32, 0.06) 0, transparent 60%);
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--km-gold) 12%, transparent) 0, transparent 55%),
+    radial-gradient(circle at 82% 88%, color-mix(in srgb, var(--km-burgundy) 6%, transparent) 0, transparent 60%);
   isolation: isolate;
 }
 
@@ -804,7 +801,7 @@ html {
 .paper-lift {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 18px 34px -24px rgba(49, 13, 32, 0.5);
+    0 18px 34px -24px color-mix(in srgb, var(--km-burgundy) 50%, transparent);
 }
 
 .paper-tape {
@@ -813,9 +810,9 @@ html {
   left: 24px;
   width: 92px;
   height: 24px;
-  background: rgba(198, 164, 91, 0.85);
+  background: color-mix(in srgb, var(--km-gold) 85%, transparent);
   rotate: -2.5deg;
-  box-shadow: 0 6px 14px -8px rgba(49, 13, 32, 0.6);
+  box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--km-burgundy) 60%, transparent);
 }
 
 /* Fine gold rule with a repeating diamond motif — ornamental dividers. */
@@ -857,7 +854,7 @@ html {
 
 /* Soft gold halo used behind logos / active nav markers. */
 .gold-halo {
-  box-shadow: 0 6px 22px -8px rgba(198, 164, 91, 0.7);
+  box-shadow: 0 6px 22px -8px color-mix(in srgb, var(--km-gold) 70%, transparent);
 }
 
 } /* @layer components */
@@ -871,7 +868,7 @@ html {
 }
 
 .skeleton-shimmer {
-  background: linear-gradient(90deg, #f0e7d5 25%, #f7efdc 37%, #f0e7d5 63%);
+  background: linear-gradient(90deg, var(--secondary) 25%, var(--paper) 37%, var(--secondary) 63%);
   background-size: 400% 100%;
   animation: shimmer 1.4s ease infinite;
 }

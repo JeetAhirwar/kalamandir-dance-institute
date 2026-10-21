@@ -497,9 +497,27 @@ export class ApiDataService {
     async updateCheckinSettings(input) {
         return apiPatch("/gym", input);
     }
+    /** Institute-wide theme (palette + light/dark mode). */
+    async updateTheme(patch) {
+        const updated = await apiPatch("/gym", patch);
+        invalidateGymCache();
+        return updated;
+    }
     /** student scans the single front-desk studio QR → toggles check-in/out. */
     async gymScan(token, coords) {
         return apiPost("/attendance/gym-scan", {
+            token,
+            ...(coords
+                ? { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }
+                : {}),
+        });
+    }
+    /**
+     * Scan-the-wall-QR login flow → marks the signed-in member's attendance
+     * (check-in only). Returns `{ status, message, attendance?, member? }`.
+     */
+    async checkinGym(token, coords) {
+        return apiPost("/me/checkin-gym", {
             token,
             ...(coords
                 ? { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }
@@ -519,6 +537,9 @@ export class ApiDataService {
     }
     async archiveStaff(id) {
         return apiPatch(`/staff/${encodeURIComponent(id)}/archive`);
+    }
+    async deleteStaff(id) {
+        return apiDelete(`/staff/${encodeURIComponent(id)}`);
     }
     /* ------------------------------- classes --------------------------- */
     async listClasses(from, to) {

@@ -8,6 +8,8 @@ import MembershipPlan from "../models/MembershipPlan.js";
 import AttendanceRecord from "../models/AttendanceRecord.js";
 import PaymentRecord from "../models/PaymentRecord.js";
 import ClassEnrollment from "../models/ClassEnrollment.js";
+import ClassSlot from "../models/ClassSlot.js";
+import SlotEnrollment from "../models/SlotEnrollment.js";
 import { withTransaction } from "../db.js";
 import { requireAuth, requireCap } from "../middleware/auth.js";
 import { asyncHandler, badRequest, notFound, conflict } from "../lib/errors.js";
@@ -76,7 +78,6 @@ const createMemberSchema = z.object({
   tagIds: z.array(z.string().trim()).max(20, "Pick at most 20 tags").nullish(),
   /** Class stream the student belongs to — required on create. */
   classTag: z.enum(CLASS_TAGS, {
-    required_error: "Choose a class tag (Art or Dance)",
     errorMap: () => ({ message: "Choose a class tag (Art or Dance)" }),
   }),
   planId: z.string().min(1, "Plan is required"),
@@ -322,6 +323,64 @@ router.post(
           ],
           { session },
         );
+
+        // Enroll the student in the batch matching their preferred slot, so they
+        // show up as enrolled in Mark Attendance without a separate step. The
+        // batch is auto-created from daily time slots if it doesn't exist yet.
+        const slotMatch = String(input.preferredSlot ?? "").match(
+          /^(([01]\d|2[0-3]):[0-5]\d)-(([01]\d|2[0-3]):[0-5]\d)$/,
+        );
+        if (slotMatch) {
+          const start = slotMatch[1];
+          const end = slotMatch[3];
+          let slot = await ClassSlot.findOne({
+            gymId,
+            startTime: start,
+            endTime: end,
+            isActive: true,
+          })
+            .session(session)
+            .lean();
+          if (!slot) {
+            const [created] = await ClassSlot.create(
+              [
+                {
+                  gymId,
+                  name: `${start} – ${end}`,
+                  weekdays: [0, 1, 2, 3, 4, 5, 6],
+                  startTime: start,
+                  endTime: end,
+                  capacity: null,
+                  instructorId: null,
+                  isActive: true,
+                  notes: "Auto-created from student's preferred slot",
+                  createdBy: req.user.id,
+                },
+              ],
+              { session },
+            );
+            slot = created.toObject ? created.toObject() : created;
+          }
+          const existingEnrollment = await SlotEnrollment.findOne({
+            gymId,
+            slotId: slot._id,
+            memberId: member._id,
+          })
+            .session(session)
+            .lean();
+          if (!existingEnrollment) {
+            await SlotEnrollment.create(
+              [{ gymId, slotId: slot._id, memberId: member._id, status: "enrolled" }],
+              { session },
+            );
+          } else if (existingEnrollment.status !== "enrolled") {
+            await SlotEnrollment.updateOne(
+              { _id: existingEnrollment._id },
+              { $set: { status: "enrolled" } },
+              { session },
+            );
+          }
+        }
 
         // Portal login: the member can sign in with their member code.
         await ensureMemberLogin(

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync, useDebounced, useSubmitGuard } from "@/hooks";
 import { format12h, initialsOf } from "@/lib/format";
+import { CLASS_TAGS } from "@/lib/validation";
 import { can } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const EMPTY_SLOT = {
     // Every day by default — untick the days this batch does NOT run on.
     weekdays: [0, 1, 2, 3, 4, 5, 6],
     capacity: "",
+    classTag: "",
     instructorId: "",
     isActive: true,
 };
@@ -51,6 +53,7 @@ export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
                 slotKey: slot.startTime && slot.endTime ? slotKey(slot.startTime, slot.endTime) : "",
                 weekdays: slot.weekdays ?? [],
                 capacity: slot.capacity ?? "",
+                classTag: slot.classTag ?? "",
                 instructorId: slot.instructorId ?? "",
                 isActive: slot.isActive !== false,
             });
@@ -66,7 +69,7 @@ export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
         weekdays: v.weekdays.includes(d) ? v.weekdays.filter((x) => x !== d) : [...v.weekdays, d],
     }));
     const selected = useMemo(() => dailySlots.find((s) => slotKey(s.start, s.end) === values.slotKey) ?? null, [dailySlots, values.slotKey]);
-    const valid = Boolean(selected) && values.weekdays.length > 0;
+    const valid = Boolean(selected) && values.weekdays.length > 0 && !!values.classTag;
     const submit = () => {
         if (!valid || !selected)
             return;
@@ -75,6 +78,7 @@ export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
                 await onSave({
                     name: `${format12h(selected.start)} – ${format12h(selected.end)}`,
                     description: null,
+                    classTag: values.classTag,
                     weekdays: [...values.weekdays].sort(),
                     startTime: selected.start,
                     endTime: selected.end,
@@ -149,15 +153,28 @@ export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={values.isActive ? "active" : "archived"} onValueChange={(v) => set({ isActive: v === "active" })}>
-              <SelectTrigger className="w-full"><SelectValue/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Class tag</Label>
+              <Select value={values.classTag || "__none__"} onValueChange={(v) => set({ classTag: v === "__none__" ? "" : v })}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Choose Art or Dance"/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" disabled>Choose a tag</SelectItem>
+                  {CLASS_TAGS.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              {!values.classTag ? <p className="text-xs text-destructive">Choose a class tag</p> : null}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={values.isActive ? "active" : "archived"} onValueChange={(v) => set({ isActive: v === "active" })}>
+                <SelectTrigger className="w-full"><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -274,6 +291,9 @@ function SlotRow({ slot, index, canManage, onRoster, onEdit, onArchive, onRestor
         {slot.startTime && slot.endTime ? (<>
             {format12h(slot.startTime)} – {format12h(slot.endTime)}
           </>) : "—"}
+      </TableCell>
+      <TableCell>
+        {slot.classTag ? (<Badge variant="secondary" className="border-primary/30 bg-primary/10 text-primary">{slot.classTag}</Badge>) : (<span className="text-xs text-muted-foreground">—</span>)}
       </TableCell>
       <TableCell>
         {slot.instructorName ? (<div className="flex items-center gap-2">
@@ -425,12 +445,13 @@ export function ClassSlotsSection({ sectionRef }) {
           <Stagger>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table className="min-w-[880px]">
+                <Table className="min-w-[960px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-16">Slot</TableHead>
                       <TableHead>Days</TableHead>
                       <TableHead>Time</TableHead>
+                      <TableHead>Tag</TableHead>
                       <TableHead>Instructor</TableHead>
                       <TableHead>Enrolled</TableHead>
                       <TableHead>Status</TableHead>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogOutIcon, Loader2Icon, MenuIcon, DownloadIcon, QrCodeIcon, RefreshCwIcon, SettingsIcon, ShieldAlertIcon, UserIcon, UserRoundIcon, } from "lucide-react";
+import { LogOutIcon, Loader2Icon, MenuIcon, DownloadIcon, QrCodeIcon, RefreshCwIcon, SettingsIcon, UserIcon, UserRoundIcon, } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,7 +10,7 @@ import { NotificationBellPanel } from "@/components/shared/NotificationBellPanel
 import { StudentSearchBox } from "@/components/shared/StudentSearchBox";
 import { SmartImage } from "@/components/shared/SmartImage";
 import { ROLE_LABELS, can } from "@/lib/permissions";
-import { renderQrDataUrl } from "@/lib/qr";
+import { gymCheckinUrl, renderQrImage } from "@/lib/qr";
 import { appVersion } from "@/config/env";
 export function Topbar({ onOpenMenu }) {
     const { session, data, signOut } = useAuth();
@@ -39,7 +39,6 @@ export function Topbar({ onOpenMenu }) {
     const profile = session?.profile;
     const fullName = profile?.fullName?.trim() || "User";
     const roleLabel = ROLE_LABELS[profile?.role ?? "front_desk"] ?? "Staff";
-    const demo = useMemo(() => Boolean(session?.demo), [session]);
     return (<header className="sticky top-0 z-30 border-b border-border bg-background/85 shadow-[0_1px_0_0_rgba(198,164,91,0.18)] backdrop-blur-md">
       <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
         <Button variant="ghost" size="icon" className="text-foreground/70 hover:bg-secondary hover:text-primary lg:hidden" onClick={onOpenMenu} aria-label="Open navigation">
@@ -50,10 +49,6 @@ export function Topbar({ onOpenMenu }) {
         <StudentSearchBox className="hidden max-w-md flex-1 sm:block"/>
 
         <div className="ml-auto flex items-center gap-2">
-          {demo ? (<span className="hidden items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-warning sm:inline-flex">
-              <ShieldAlertIcon className="size-3.5"/> DEMO MODE
-            </span>) : null}
-
           {/* Studio QR → dialog with the one front-desk QR students scan. */}
           <StudioQrButton />
 
@@ -136,7 +131,7 @@ function StudioQrButton() {
         setQrDataUrl(null);
         setError(null);
         data.getGymQr()
-            .then(({ token }) => renderQrDataUrl(token, { width: 480 }))
+            .then(({ token }) => renderQrImage(gymCheckinUrl(token), { width: 480 }))
             .then((url) => {
             if (!cancelled)
                 setQrDataUrl(url);
@@ -182,8 +177,8 @@ function StudioQrButton() {
         void (async () => {
             try {
                 const { token } = await data.rotateGymQr();
-                const url = await renderQrDataUrl(token, { width: 480 });
-                setQrDataUrl(url);
+                const qrUrl = await renderQrImage(gymCheckinUrl(token), { width: 480 });
+                setQrDataUrl(qrUrl);
                 setRotateArmed(false);
                 toast.success("Studio QR regenerated — print the new code and take down the old one.");
             }
@@ -207,7 +202,7 @@ function StudioQrButton() {
           <DialogHeader>
             <DialogTitle>Studio check-in QR</DialogTitle>
             <DialogDescription>
-              Students scan this code from their portal to check in and out of class.
+              One QR for the whole institute — students scan it with their phone camera, sign in, and their attendance is marked.
             </DialogDescription>
           </DialogHeader>
           {qrDataUrl ? (<div className="flex justify-center">
