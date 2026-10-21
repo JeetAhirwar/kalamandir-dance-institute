@@ -14,13 +14,14 @@ const TIMES = (() => {
  * Time picker dropdown that always DISPLAYS the 12-hour clock with AM/PM
  * ("1:00 PM", never "14:00") while storing "HH:mm" for the API.
  */
-export function TimeSelect({ value, onValueChange, id, ariaLabel, className, disabled }) {
+export function TimeSelect({ value, onValueChange, id, ariaLabel, className, disabled, times }) {
+    const options = times ?? TIMES;
     return (<Select value={value ?? ""} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger id={id} aria-label={ariaLabel} className={className}>
         <SelectValue placeholder="Select time"/>
       </SelectTrigger>
       <SelectContent>
-        {TIMES.map((t) => (<SelectItem key={t} value={t}>
+        {options.map((t) => (<SelectItem key={t} value={t}>
             {format12h(t)}
           </SelectItem>))}
       </SelectContent>

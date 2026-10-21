@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/pages/LoginPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { StaffPage } from "@/pages/staff/StaffPage";
+import { StaffDetailPage } from "@/pages/staff/StaffDetailPage";
 import { ClassesPage } from "@/pages/classes/ClassesPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
 import { NotificationsPage } from "@/pages/notifications/NotificationsPage";
@@ -39,6 +40,7 @@ function StaffRoutes() {
         <Route path="/plans" element={<PlansPage />}/>
         <Route path="/payments" element={<PaymentsPage />}/>
         <Route path="/staff" element={<StaffPage />}/>
+        <Route path="/staff/:staffId" element={<StaffDetailPage />}/>
         <Route path="/classes" element={<ClassesPage />}/>
         {/* Class Slots now lives inside the merged Classes & Schedule page. */}
         <Route path="/slots" element={<Navigate to="/classes" replace/>}/>

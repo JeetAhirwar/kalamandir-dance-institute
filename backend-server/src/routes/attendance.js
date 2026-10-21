@@ -161,14 +161,17 @@ router.get(
       .sort({ enrolledAt: 1 })
       .lean();
     const enrolledIds = new Set(enrollments.map((e) => String(e.memberId)));
-    const [allMembers, marked] = await Promise.all([
+    const [allMembers, marked, assignedTrainers] = await Promise.all([
       Member.find({ gymId: req.user.gymId, status: "active" })
         .sort({ fullName: 1 })
         .lean(),
       AttendanceRecord.find({ gymId: req.user.gymId, classSlotId: slot._id, sessionDate })
         .select("memberId attendanceStatus")
         .lean(),
+      // Assigned trainer per student (staff those students belong to).
+      StaffProfile.find({ gymId: req.user.gymId }).select("fullName").lean(),
     ]);
+    const trainerNameById = new Map(assignedTrainers.map((t) => [String(t._id), t.fullName ?? null]));
     // Enrolled first (roster order), then everyone else alphabetically.
     const members = [
       ...allMembers.filter((m) => enrolledIds.has(String(m._id))),
@@ -275,6 +278,8 @@ router.get(
         fullName: m.fullName ?? "Student",
         photoUrl: m.photoUrl ?? null,
         status: m.status,
+        trainerId: m.trainerId ? String(m.trainerId) : null,
+        trainerName: m.trainerId ? (trainerNameById.get(String(m.trainerId)) ?? null) : null,
         enrolled: enrolledIds.has(String(m._id)),
         enrolledSlotIds: slotIdsFor(m._id),
         preferredSlot: m.preferredSlot ?? null,

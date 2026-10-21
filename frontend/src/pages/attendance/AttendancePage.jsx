@@ -5,8 +5,6 @@ import { format } from "date-fns";
 import {
     CalendarCheckIcon,
     CheckCircle2Icon,
-    ChevronLeftIcon,
-    ChevronRightIcon,
     ClipboardCheckIcon,
     DownloadIcon,
     EyeIcon,
@@ -23,11 +21,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SmartImage } from "@/components/shared/SmartImage";
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync, useDebounced } from "@/hooks";
@@ -40,9 +36,9 @@ import { AttendanceCorrectionDialog } from "./AttendanceCorrectionDialog";
 
 /** Status → label, dot colour, chip classes (Present / Late / Absent). */
 const STATUS_META = {
-    present: { label: "Present", dot: "bg-emerald-500", chip: "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-    late: { label: "Late", dot: "bg-amber-500", chip: "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-    absent: { label: "Absent", dot: "bg-red-500", chip: "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400" },
+    present: { label: "Present", short: "P", dot: "bg-emerald-500", chip: "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+    late: { label: "Late", short: "L", dot: "bg-amber-500", chip: "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+    absent: { label: "Absent", short: "A", dot: "bg-red-500", chip: "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400" },
 };
 const STATUS_ORDER = ["present", "late", "absent"];
 
@@ -97,18 +93,6 @@ function StatCard({ label, value, icon, tone }) {
         </span>
       </CardContent>
     </Card>);
-}
-
-function SectionHeading({ icon, title, description }) {
-    return (<div className="flex items-start gap-3">
-      <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl border border-km-gold/30 bg-km-gold/10 text-km-gold">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-    </div>);
 }
 
 const ymdOf = (d) => format(d, "yyyy-MM-dd");
@@ -198,7 +182,6 @@ export function AttendancePage() {
     const [savingId, setSavingId] = useState(null); // single-row save (edit mode)
     const [savingAll, setSavingAll] = useState(false); // bulk Save button
     const [editingId, setEditingId] = useState(null); // saved row being edited
-    const [markAllChecked, setMarkAllChecked] = useState(false);
     const [studentQuery, setStudentQuery] = useState("");
 
     // Auto-select the live (or next) slot ONCE so the panel opens on whichever
@@ -263,7 +246,6 @@ export function AttendancePage() {
         for (const s of roster.data.students) next[s.memberId] = s.attendanceStatus ?? null;
         setStatuses(next);
         setSavedStatuses(next);
-        setMarkAllChecked(false);
         setEditingId(null);
     }, [roster.data]);
 
@@ -374,14 +356,6 @@ export function AttendancePage() {
         if (ok) setEditingId(null);
     };
 
-    // Mark All = local selection only; the admin still hits Save to commit.
-    const markAll = () => {
-        setMarkAllChecked(true);
-        const next = { ...statuses };
-        for (const s of students) next[s.memberId] = "present";
-        setStatuses(next);
-    };
-
     // The class slots behind the current pick (1 for a single slot, many for Select All).
     const selectedSlots = useMemo(() => selectedSlotIds
         .map((id) => activeSlots.find((s) => s.id === id))
@@ -415,11 +389,6 @@ export function AttendancePage() {
             return true;
         });
     }, [classRows, viewSlotId, search]);
-
-    const shiftDay = (dir) => {
-        const [y, m, d] = viewDate.split("-").map(Number);
-        setViewDate(ymdOf(new Date(y, m - 1 + dir, d)));
-    };
 
     /** slotId → slot lookup, so a row can show its class time ("7:00 AM – 8:15 AM").
      *  Uses the FULL slot list (not just active) so archived slots still resolve. */
@@ -476,11 +445,6 @@ export function AttendancePage() {
         };
     };
 
-    /** Human day label shown in the register header ("Wed, 21 Oct 2026"). */
-    const viewDateLabel = (() => {
-        const parsed = new Date(`${viewDate}T00:00:00`);
-        return Number.isNaN(parsed.getTime()) ? "" : format(parsed, "EEE, d MMM yyyy");
-    })();
 
     const handleExport = () => {
         if (filteredRows.length === 0) {
@@ -526,86 +490,35 @@ export function AttendancePage() {
         </div>
       </div>
 
-      {/* ---------------------------- Mark Attendance --------------------------- */}
+      {/* --------------------- Tabs: Mark | View Attendance -------------------- */}
+      <Tabs defaultValue="mark" className="space-y-6">
+      <TabsList>
+          <TabsTrigger value="mark" className="gap-1.5">
+            <ClipboardCheckIcon className="size-4"/> Mark Attendance
+          </TabsTrigger>
+          <TabsTrigger value="view" className="gap-1.5">
+            <HistoryIcon className="size-4"/> View Attendance
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="mark">
       <Card className="graphite-surface border-border/70">
         <CardContent className="space-y-5 p-5">
-          <SectionHeading icon={<ClipboardCheckIcon className="size-5"/>} title="Mark Attendance" description="Select a class, then mark attendance for each student."/>
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground">Pick a slot (and its timing) — or load every student at once.</p>
-            <Button size="sm" variant="outline" className="h-8 gap-1.5 px-3" disabled={slots.loading || activeSlots.length === 0 || loadAll} onClick={() => {
-              setLoadAll(true);
-              setSlotGroup("all");
-              setSlotPick("");
-            }}>
-              <UsersIcon className="size-3.5"/> Load All
-            </Button>
-          </div>
-
-          {/* Two cascading dropdowns: Slot (All/Morning/Afternoon/Evening) and
-              Slot Timings (that scope's time slots). */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="mark-slot-group">Slot</Label>
-              <select
-                id="mark-slot-group"
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
-                disabled={slots.loading || activeSlots.length === 0 || loadAll}
-                value={slotGroup}
-                onChange={(e) => {
-                  setLoadAll(false);
-                  setSlotGroup(e.target.value);
-                  setSlotPick("");
-                }}
-              >
-                <option value="all">All Slots</option>
-                {SLOT_GROUPS.map((group) => {
-                  const count = (groupedSlots[group.key] ?? []).length;
-                  return (<option key={group.key} value={group.key} disabled={count === 0}>
-                    {group.label.replace(/\s+Slots$/, "")}{count === 0 ? " (none)" : ` (${count})`}
-                  </option>);
-                })}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="mark-slot-timings">Slot Timings</Label>
-              <select
-                id="mark-slot-timings"
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
-                disabled={slots.loading || activeSlots.length === 0 || loadAll}
-                value={slotPick}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "") { setSlotPick(""); return; }
-                  setLoadAll(false);
-                  setSlotPick(v);
-                }}
-              >
-                <option value="" disabled>Select a time…</option>
-                <option value="__all__">Select All Slots ({currentGroupSlots.length})</option>
-                {slotGroup === "all"
-                  ? SLOT_GROUPS.map((group) => {
-                      const gs = groupedSlots[group.key] ?? [];
-                      if (gs.length === 0) return null;
-                      return (<optgroup key={group.key} label={group.label.replace(/\s+Slots$/, "")}>
-                        {gs.map((s) => (<option key={s.id} value={s.id}>
-                          {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
-                        </option>))}
-                      </optgroup>);
-                    })
-                  : currentGroupSlots.map((s) => (<option key={s.id} value={s.id}>
-                      {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
-                    </option>))}
-              </select>
-            </div>
-          </div>
-          {(loadAll || slotPick) ? (<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {(loadAll || slotPick) ? (() => {
+            const instructorNames = [...new Set(selectedSlots
+              .map((s) => s.instructorName)
+              .filter(Boolean))];
+            return (<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="font-medium text-foreground">{loadAll ? "Load All:" : slotGroup === "all" ? "All Slots:" : `${activeGroup?.label}:`}</span>
               {loadAll
                 ? `${selectedSlots.length} slots — every student loaded, each saved to their own slot`
                 : slotPick === "__all__"
                   ? `${selectedSlots.length} slots selected — each student is saved to their own slot`
                   : `${selectedSlots.length} slot selected`}
+              {instructorNames.length > 0 ? (<Badge variant="outline" className="gap-1 border-primary/30 bg-primary/10 px-2 py-0 font-medium text-primary">
+                  <UsersIcon className="size-3"/> {instructorNames.join(", ")}
+                </Badge>) : (<span>No instructor assigned</span>)}
               <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" aria-label="Clear slot selection" onClick={() => {
                 setLoadAll(false);
                 setSlotGroup("all");
@@ -613,25 +526,12 @@ export function AttendancePage() {
               }}>
                 <XIcon className="size-3"/> Clear
               </Button>
-            </div>) : null}
-
-          <div className="grid gap-4 lg:grid-cols-[1fr_180px] lg:items-end">
-            <div className="space-y-1.5">
-              <Label htmlFor="mark-student-search">Search student</Label>
-              <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-                <Input id="mark-student-search" placeholder="Name or ID…" value={studentQuery} onChange={(e) => setStudentQuery(e.target.value)} className="pl-9"/>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="mark-date">Session Date</Label>
-              <Input id="mark-date" type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)}/>
-            </div>
-          </div>
+            </div>);
+          })() : null}
 
           {/* Students panel */}
           <div className="rounded-xl border border-border/70">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-2.5">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <UsersIcon className="size-4 text-muted-foreground"/>
                 Students{" "}
@@ -641,14 +541,60 @@ export function AttendancePage() {
                     : `${filteredStudents.length}/${students.length}`})
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-4">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="size-2 rounded-full bg-emerald-500"/> Present</span>
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="size-2 rounded-full bg-red-500"/> Absent</span>
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="size-2 rounded-full bg-amber-500"/> Late</span>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <Checkbox checked={markAllChecked} disabled={students.length === 0} onCheckedChange={(v) => v === true ? markAll() : setMarkAllChecked(false)}/>
-                  Mark All
-                </label>
+              {/* Compact filters: Slot | Slot Timings | Search student | Date */}
+              <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
+                <select
+                  aria-label="Slot"
+                  className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-auto"
+                  disabled={slots.loading || activeSlots.length === 0 || loadAll}
+                  value={slotGroup}
+                  onChange={(e) => {
+                    setLoadAll(false);
+                    setSlotGroup(e.target.value);
+                    setSlotPick("");
+                  }}
+                >
+                  <option value="all">Slot: All</option>
+                  {SLOT_GROUPS.map((group) => {
+                    const count = (groupedSlots[group.key] ?? []).length;
+                    return (<option key={group.key} value={group.key} disabled={count === 0}>
+                      {group.label.replace(/\s+Slots$/, "")}{count === 0 ? " (none)" : ` (${count})`}
+                    </option>);
+                  })}
+                </select>
+                <select
+                  aria-label="Slot Timings"
+                  className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-auto sm:max-w-52"
+                  disabled={slots.loading || activeSlots.length === 0 || loadAll}
+                  value={slotPick}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") { setSlotPick(""); return; }
+                    setLoadAll(false);
+                    setSlotPick(v);
+                  }}
+                >
+                  <option value="" disabled>Slot Timings</option>
+                  <option value="__all__">Select All ({currentGroupSlots.length})</option>
+                  {slotGroup === "all"
+                    ? SLOT_GROUPS.map((group) => {
+                        const gs = groupedSlots[group.key] ?? [];
+                        if (gs.length === 0) return null;
+                        return (<optgroup key={group.key} label={group.label.replace(/\s+Slots$/, "")}>
+                          {gs.map((s) => (<option key={s.id} value={s.id}>
+                            {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
+                          </option>))}
+                        </optgroup>);
+                      })
+                    : currentGroupSlots.map((s) => (<option key={s.id} value={s.id}>
+                        {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
+                      </option>))}
+                </select>
+                <div className="relative w-full sm:w-40">
+                  <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
+                  <Input aria-label="Search student" placeholder="Search student" value={studentQuery} onChange={(e) => setStudentQuery(e.target.value)} className="h-8 w-full pl-7 text-xs"/>
+                </div>
+                <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} className="h-8 w-full text-xs sm:w-36"/>
               </div>
             </div>
 
@@ -675,12 +621,16 @@ export function AttendancePage() {
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{s.fullName}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          <span>{s.memberCode ?? "—"}</span>
-                          {enrolled ? (<span className="ml-1.5 inline-flex items-center gap-1.5 align-middle whitespace-nowrap">
+                        <p className="text-xs text-muted-foreground">
+                          <span className="block truncate sm:inline">{s.memberCode ?? "—"}</span>
+                          {enrolled ? (<span className="inline-flex items-center gap-1.5 align-middle whitespace-nowrap sm:ml-1.5">
                               <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", GROUP_DOT[enrolled.key] ?? "bg-muted-foreground/40")}/>
                               <span>{enrolled.text}</span>
                               {enrolled.count > 0 ? (<span className="cursor-help text-muted-foreground/70" title={enrolled.extras}>+{enrolled.count}</span>) : null}
+                            </span>) : null}
+                          {s.trainerName ? (<span className="inline-flex items-center gap-1 align-middle whitespace-nowrap text-[11px] sm:ml-1.5" title={`Assigned teacher: ${s.trainerName}`}>
+                              <UsersIcon className="size-3 shrink-0"/>
+                              {s.trainerName}
                             </span>) : null}
                         </p>
                       </div>
@@ -698,8 +648,9 @@ export function AttendancePage() {
                         {STATUS_ORDER.map((st) => {
                 const meta = STATUS_META[st];
                 const active = statuses[s.memberId] === st;
-                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-pressed={active} className={cn("h-8 px-3", active && meta.chip)} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
-                              {meta.label}
+                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("h-8 min-w-9 px-2 sm:px-3", active && meta.chip)} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
+                              <span aria-hidden="true" className="sm:hidden">{meta.short}</span>
+                              <span className="hidden sm:inline">{meta.label}</span>
                             </Button>);
             })}
                         {isEditing ? (<Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground" aria-label="Cancel edit" onClick={() => setEditingId(null)}>
@@ -726,95 +677,55 @@ export function AttendancePage() {
                       </div>
                     </div>
                     {walkInSavingId === m.id ? <Loader2Icon className="size-4 animate-spin text-muted-foreground"/> : (<div className="flex items-center gap-1.5">
-                        <Button size="sm" variant="outline" className="h-8 px-3 hover:border-emerald-500/40 hover:text-emerald-600" onClick={() => markWalkIn(m.id, "present")}>
-                          Present
+                        <Button size="sm" variant="outline" className="h-8 min-w-9 px-2 hover:border-emerald-500/40 hover:text-emerald-600 sm:px-3" onClick={() => markWalkIn(m.id, "present")}>
+                          <span aria-hidden="true" className="sm:hidden">P</span>
+                          <span className="hidden sm:inline">Present</span>
                         </Button>
-                        <Button size="sm" variant="outline" className="h-8 px-3 hover:border-red-500/40 hover:text-red-600" onClick={() => markWalkIn(m.id, "absent")}>
-                          Absent
+                        <Button size="sm" variant="outline" className="h-8 min-w-9 px-2 hover:border-red-500/40 hover:text-red-600 sm:px-3" onClick={() => markWalkIn(m.id, "absent")}>
+                          <span aria-hidden="true" className="sm:hidden">A</span>
+                          <span className="hidden sm:inline">Absent</span>
                         </Button>
                       </div>)}
                   </li>))}
               </ul>
             </div>) : null}
 
-          {/* Save bar — bulk commit at the bottom of the sheet. */}
-          {students.length > 0 ? (<div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
+          {/* Save bar — Load All + bulk commit at the bottom of the sheet. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
               <p className="text-xs text-muted-foreground">
-                {hasChanges
-                  ? `${pendingCount} ${pendingCount === 1 ? "change" : "changes"} unsaved`
-                  : "All changes saved"}
+                {students.length === 0
+                  ? "No students loaded — pick a slot or Load All."
+                  : hasChanges
+                    ? `${pendingCount} ${pendingCount === 1 ? "change" : "changes"} unsaved`
+                    : "All changes saved"}
               </p>
-              <Button size="sm" className="h-8 gap-1.5 px-4" disabled={!hasChanges || savingAll} onClick={saveAll}>
-                {savingAll ? <Loader2Icon className="size-3.5 animate-spin"/> : <SaveIcon className="size-3.5"/>}
-                Save{pendingCount > 0 ? ` (${pendingCount})` : ""}
-              </Button>
-            </div>) : null}
+              <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                <Button size="sm" variant="outline" className="h-8 flex-1 gap-1.5 px-3 sm:flex-none" disabled={slots.loading || activeSlots.length === 0 || loadAll} onClick={() => {
+                setLoadAll(true);
+                setSlotGroup("all");
+                setSlotPick("");
+              }}>
+                  <UsersIcon className="size-3.5"/> Load All
+                </Button>
+                <Button size="sm" className="h-8 flex-1 gap-1.5 px-4 sm:flex-none" disabled={students.length === 0 || !hasChanges || savingAll} onClick={saveAll}>
+                  {savingAll ? <Loader2Icon className="size-3.5 animate-spin"/> : <SaveIcon className="size-3.5"/>}
+                  Save{pendingCount > 0 ? ` (${pendingCount})` : ""}
+                </Button>
+              </div>
+            </div>
           </div>
-
-          {selectedSlots.length > 0 && loadedQuery ? (<p className="text-xs text-muted-foreground">
-              {[...new Set(selectedSlots.map((s) => s.instructorName).filter(Boolean))].map((name, i, arr) => (<span key={name}>
-                  {i === 0 ? "Instructor" : ""}: <span className="font-medium text-foreground">{name}</span>
-                  {i < arr.length - 1 ? ", " : ""}
-                </span>))}
-              {[...new Set(selectedSlots.map((s) => s.instructorName).filter(Boolean))].length === 0 ? "No instructor assigned" : null}
-            </p>) : null}
         </CardContent>
       </Card>
+      </TabsContent>
 
       {/* ------------------------------ View section ---------------------------- */}
+      <TabsContent value="view">
       <Card className="graphite-surface border-border/70">
         <CardContent className="space-y-5 p-5">
-          <SectionHeading icon={<HistoryIcon className="size-5"/>} title="View Attendance" description="Review a day's register — payment and class quota for every student."/>
-
-          {/* Filters */}
-          <div className="grid gap-3 lg:grid-cols-[200px_auto_1fr_auto] lg:items-end">
-            <div className="space-y-1.5">
-              <Label>Class Slot</Label>
-              <Select value={viewSlotId} onValueChange={setViewSlotId}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="All Classes"/></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Classes</SelectItem>
-                  {SLOT_GROUPS.map((group) => {
-                    const groupSlots = groupedSlots[group.key] ?? [];
-                    if (groupSlots.length === 0) return null;
-                    return (<SelectGroup key={group.key}>
-                      <SelectLabel>{group.label}</SelectLabel>
-                      {groupSlots.map((s) => (<SelectItem key={s.id} value={s.id}>
-                          {s.name ? `${s.name} · ` : ""}{fmtSlotTime(s.startTime)} - {fmtSlotTime(s.endTime)}
-                        </SelectItem>))}
-                    </SelectGroup>);
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Date</Label>
-              <div className="flex items-center gap-2">
-                <Input type="date" value={viewDate} onChange={(e) => setViewDate(e.target.value)} className="w-[160px]"/>
-                <Button size="icon-sm" variant="outline" aria-label="Previous day" onClick={() => shiftDay(-1)}>
-                  <ChevronLeftIcon/>
-                </Button>
-                <Button size="icon-sm" variant="outline" aria-label="Next day" onClick={() => shiftDay(1)}>
-                  <ChevronRightIcon/>
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="student-search">Student</Label>
-              <div className="relative">
-                <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-                <Input id="student-search" placeholder="Search by name or ID…" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)}/>
-              </div>
-            </div>
-            <Button variant="outline" onClick={handleExport} disabled={list.loading}>
-              {list.loading ? <Loader2Icon className="size-4 animate-spin"/> : <DownloadIcon className="size-4"/>}
-              Export CSV
-            </Button>
-          </div>
 
           {/* Register table */}
           <div className="rounded-xl border border-border/70">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-2.5">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <CalendarCheckIcon className="size-4 text-muted-foreground"/>
                 Register{" "}
@@ -824,8 +735,42 @@ export function AttendancePage() {
                     : `${filteredRows.length}/${classRows.length}`})
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                {viewDateLabel}
+              {/* Compact filters: Slot | Date | Search student | Export */}
+              <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
+                <select
+                  aria-label="Class Slot"
+                  className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30 sm:w-auto sm:max-w-56"
+                  value={viewSlotId}
+                  onChange={(e) => setViewSlotId(e.target.value)}
+                >
+                  <option value="all">Slot: All Classes</option>
+                  {SLOT_GROUPS.map((group) => {
+                    const groupSlots = groupedSlots[group.key] ?? [];
+                    if (groupSlots.length === 0) return null;
+                    return (<optgroup key={group.key} label={group.label}>
+                      {groupSlots.map((s) => {
+                        const timeText = `${fmtSlotTime(s.startTime)} - ${fmtSlotTime(s.endTime)}`;
+                        // Slot names are usually auto-generated from the same
+                        // times — as "8:00 AM – 9:00 AM" (12h) or "12:00 – 13:00"
+                        // (24h, from the gym-import batches). Skip the name
+                        // whenever it is just a time range, in any format.
+                        const isTimeName = /^\d{1,2}:\d{2}\s*(AM|PM)?\s*[–-]\s*\d{1,2}:\d{2}\s*(AM|PM)?$/i
+                          .test((s.name ?? "").trim());
+                        const label = s.name && !isTimeName ? `${s.name} · ${timeText}` : timeText;
+                        return (<option key={s.id} value={s.id}>{label}</option>);
+                      })}
+                    </optgroup>);
+                  })}
+                </select>
+                <Input aria-label="Date" type="date" value={viewDate} onChange={(e) => setViewDate(e.target.value)} className="h-8 w-full text-xs sm:w-36"/>
+                <div className="relative w-full sm:w-40">
+                  <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
+                  <Input aria-label="Search student" placeholder="Search student" className="h-8 w-full pl-7 text-xs" value={search} onChange={(e) => setSearch(e.target.value)}/>
+                </div>
+                <Button size="sm" variant="outline" className="ml-auto h-8 gap-1 px-2.5 text-xs" onClick={handleExport} disabled={list.loading}>
+                  {list.loading ? <Loader2Icon className="size-3.5 animate-spin"/> : <DownloadIcon className="size-3.5"/>}
+                  Export
+                </Button>
               </div>
             </div>
 
@@ -885,6 +830,8 @@ export function AttendancePage() {
           </div>
         </CardContent>
       </Card>
+      </TabsContent>
+      </Tabs>
 
       <AttendanceCorrectionDialog record={editing} open={editing !== null} onOpenChange={(open) => {
             if (!open)

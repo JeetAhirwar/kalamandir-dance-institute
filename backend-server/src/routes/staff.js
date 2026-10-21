@@ -2,10 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { Types } from "mongoose";
 import StaffProfile from "../models/StaffProfile.js";
+import ClassSlot from "../models/ClassSlot.js";
+import Member from "../models/Member.js";
 import { requireAuth, requireCap } from "../middleware/auth.js";
 import { asyncHandler, forbidden, notFound } from "../lib/errors.js";
 import { parseBody } from "../middleware/validate.js";
-import { toStaff } from "../lib/serialize.js";
+import { toStaff, toClassSlot, toMember } from "../lib/serialize.js";
 import { writeAudit, pick } from "../lib/audit.js";
 import { parseDateOnly } from "../lib/dates.js";
 import { ensureStaffLogin, setStaffLoginActive } from "../lib/staffLogins.js";
@@ -67,6 +69,29 @@ router.get(
     if (!includeInactive) filter.employmentStatus = "active";
     const rows = await StaffProfile.find(filter).sort({ fullName: 1 }).lean();
     res.json(rows.map(toStaff));
+  }),
+);
+
+/** GET /api/staff/:id → StaffProfile + assigned slots + assigned students */
+router.get(
+  "/staff/:id",
+  requireAuth,
+  requireCap("staff.view"),
+  asyncHandler(async (req, res) => {
+    const row = await findStaffOr404(req.user.gymId, req.params.id);
+    const [slots, students] = await Promise.all([
+      ClassSlot.find({ gymId: req.user.gymId, instructorId: row._id })
+        .sort({ startTime: 1 })
+        .lean(),
+      Member.find({ gymId: req.user.gymId, trainerId: row._id })
+        .sort({ fullName: 1 })
+        .lean(),
+    ]);
+    res.json({
+      ...toStaff(row),
+      slots: slots.map((slot) => toClassSlot(slot)),
+      students: students.map((member) => toMember(member)),
+    });
   }),
 );
 

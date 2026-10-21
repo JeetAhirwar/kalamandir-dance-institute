@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon, UserCheckIcon, UserRoundPlusIcon, UserXIcon, UsersIcon, } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon, UserCheckIcon, UserRoundPlusIcon, UserXIcon, UsersIcon, } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, SearchEmptyState, TableSkeleton, Stagger } from "@/components/shared/States";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -28,12 +28,6 @@ const STATUS_FILTERS = [
     "expired",
     "suspended",
     "inactive",
-];
-const SORT_OPTIONS = [
-    { value: "created", label: "Recently added" },
-    { value: "name", label: "Name" },
-    { value: "joined", label: "Join date" },
-    { value: "expiry", label: "Expiry date" },
 ];
 /** "kitni class hui / bachi" — attended vs paid quota, shown as a compact stack.
  *  Colour rule: 4+ left green · 2–3 yellow · 1 or 0 red. */
@@ -80,26 +74,28 @@ export function MembersPage() {
         return preset && STATUS_FILTERS.includes(preset) ? preset : "all";
     });
     const [planId, setPlanId] = useState("all");
-    const [sort, setSort] = useState("created");
-    const [dir, setDir] = useState("desc");
     const [page, setPage] = useState(1);
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [deleting, setDeleting] = useState(null);
     const plans = useAsync(() => data.listPlans(), [data]);
+    /** Staff directory — resolves each student's assigned trainer name. */
+    const staff = useAsync(() => data.listStaff(false), [data]);
+    const trainerNameById = useMemo(
+        () => new Map((staff.data ?? []).map((s) => [String(s.id), s.fullName])),
+        [staff.data],
+    );
     const members = useAsync(() => data.listMembers({
         search: debouncedSearch.trim() || undefined,
         status,
         planId: planId === "all" ? undefined : planId,
-        sort,
-        dir,
         page,
         pageSize: PAGE_SIZE,
-    }), [data, debouncedSearch, status, planId, sort, dir, page]);
+    }), [data, debouncedSearch, status, planId, page]);
     // Reset to the first page whenever the filters change.
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, status, planId, sort, dir]);
+    }, [debouncedSearch, status, planId]);
     // Deep link: /members?new=1 auto-opens the add dialog (dashboard quick action).
     // The param is kept while the dialog should be open so a page-transition remount
     // re-opens it; it is cleared only once the dialog is dismissed (or not permitted).
@@ -127,8 +123,6 @@ export function MembersPage() {
         setSearch("");
         setStatus("all");
         setPlanId("all");
-        setSort("created");
-        setDir("desc");
     };
     const openCreate = () => {
         setEditing(null);
@@ -187,13 +181,11 @@ export function MembersPage() {
     const pageSize = members.data?.pageSize ?? PAGE_SIZE;
     const rangeFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const rangeTo = Math.min(total, currentPage * pageSize);
-    const header = (<PageHeader title="Students" description="Your student directory — memberships, QR cards and payment history in one place." actions={canCreate ? (<Button onClick={openCreate}>
-            <PlusIcon className="size-4"/> Add student
-          </Button>) : null}/>);
+    const header = (<PageHeader title="Students" description="Your student directory — memberships, QR cards and payment history in one place."/>);
     return (<div className="space-y-6">
       {header}
 
-      {/* Toolbar — search, filters and sort in one card, matching the plans page. */}
+      {/* Toolbar — search and filters in one card, matching the plans page. */}
       <div className="flex flex-col gap-3 rounded-xl border border-km-gold/25 bg-card/70 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
         {/* Search */}
         <div className="relative min-w-0 flex-1">
@@ -204,7 +196,7 @@ export function MembersPage() {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
           <Select value={status} onValueChange={(value) => setStatus(value)}>
-            <SelectTrigger size="sm" className="border-km-gold/25 bg-background/60" aria-label="Filter by status">
+            <SelectTrigger size="sm" className="w-full border-km-gold/25 bg-background/60 sm:w-auto" aria-label="Filter by status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper" align="end" className="min-w-40">
@@ -215,7 +207,7 @@ export function MembersPage() {
           </Select>
 
           <Select value={planId} onValueChange={setPlanId}>
-            <SelectTrigger size="sm" className="border-km-gold/25 bg-background/60" aria-label="Filter by plan">
+            <SelectTrigger size="sm" className="w-full border-km-gold/25 bg-background/60 sm:w-auto" aria-label="Filter by plan">
               <SelectValue placeholder="All plans"/>
             </SelectTrigger>
             <SelectContent position="popper" align="end" className="min-w-44">
@@ -226,22 +218,9 @@ export function MembersPage() {
             </SelectContent>
           </Select>
 
-          {/* Sort — field + direction as one compact group. */}
-          <div className="flex items-center gap-1 rounded-lg border border-km-gold/25 bg-background/60 p-1">
-            <Select value={sort} onValueChange={(value) => setSort(value)}>
-              <SelectTrigger size="sm" className="border-0 bg-transparent px-2 shadow-none focus-visible:ring-0" aria-label="Sort students">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper" align="end" className="min-w-40">
-                {SORT_OPTIONS.map((option) => (<SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>))}
-              </SelectContent>
-            </Select>
-            <Button variant="ghost" size="icon-sm" className="size-7 text-muted-foreground" aria-label={dir === "asc" ? "Sort ascending (switch to descending)" : "Sort descending (switch to ascending)"} onClick={() => setDir((current) => (current === "asc" ? "desc" : "asc"))}>
-              {dir === "asc" ? <ArrowUpIcon className="size-4"/> : <ArrowDownIcon className="size-4"/>}
-            </Button>
-          </div>
+          {canCreate ? (<Button size="sm" className="ml-auto" onClick={openCreate}>
+              <PlusIcon className="size-4"/> Add student
+            </Button>) : null}
 
           {hasFilters ? (<Button variant="ghost" size="sm" className="text-muted-foreground" onClick={clearFilters}>
               Clear filters
@@ -260,29 +239,28 @@ export function MembersPage() {
                       </Button>) : undefined}/>)}
             </div>) : (<>
               <div className={cn("transition-opacity", members.loading && "pointer-events-none opacity-60")}>
-                <Table className="min-w-[900px] table-fixed">
+                <Table className="w-full md:min-w-[900px] table-fixed">
                   <TableHeader>
                     <TableRow className="h-11">
-                      <TableHead className="w-[6%] px-3 align-middle">Sr. no.</TableHead>
-                      <TableHead className="w-[24%] px-3 align-middle">Student</TableHead>
-                      <TableHead className="w-[10%] px-3 align-middle">Status</TableHead>
-                      <TableHead className="w-[11%] px-3 align-middle">Classes</TableHead>
-                      <TableHead className="w-[11%] px-3 align-middle">Class Left</TableHead>
-                      <TableHead className="w-[16%] px-3 align-middle">Plan</TableHead>
-                      <TableHead className="w-[13%] px-3 align-middle">Payment Mode</TableHead>
-                      <TableHead className="w-[9%] px-3 text-right align-middle">
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
+                      <TableHead className="hidden w-[7%] px-3 align-middle sm:table-cell">Sr. no.</TableHead>
+                      <TableHead className="w-auto px-2 align-middle sm:w-[22%] sm:px-3">Student</TableHead>
+                      <TableHead className="w-[30%] px-2 align-middle sm:w-[10%] sm:px-3">Status</TableHead>
+                      <TableHead className="hidden w-[10%] px-3 align-middle md:table-cell">Classes</TableHead>
+                      <TableHead className="hidden w-[11%] px-3 align-middle md:table-cell">Class Left</TableHead>
+                      <TableHead className="hidden w-[12%] px-3 align-middle sm:table-cell">Plan</TableHead>
+                      <TableHead className="hidden w-[10%] px-3 align-middle lg:table-cell">Trainer</TableHead>
+                      <TableHead className="hidden w-[8%] px-3 align-middle lg:table-cell">Payment</TableHead>
+                      <TableHead className="w-[18%] px-2 text-right align-middle text-xs sm:w-[10%] sm:px-3 sm:text-sm">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((member, index) => (<TableRow key={member.id} className="h-16 cursor-pointer" onClick={() => navigate(`/members/${member.id}`)}>
-                        <TableCell className="px-3 align-middle text-sm tabular text-muted-foreground">
+                    {rows.map((member, index) => (<TableRow key={member.id} className="h-14 cursor-pointer sm:h-16" onClick={() => navigate(`/members/${member.id}`)}>
+                        <TableCell className="hidden px-3 align-middle text-sm tabular text-muted-foreground sm:table-cell">
                           {(currentPage - 1) * pageSize + index + 1}
                         </TableCell>
-                        <TableCell className="px-3 align-middle">
+                        <TableCell className="px-2 align-middle sm:px-3">
                           <div className="flex items-center gap-3">
-                            <SmartImage src={member.photoUrl} name={member.fullName} className="size-11 shrink-0"/>
+                            <SmartImage src={member.photoUrl} name={member.fullName} className="size-10 shrink-0 sm:size-11"/>
                             <div className="min-w-0">
                               <Link to={`/members/${member.id}`} onClick={(event) => event.stopPropagation()} className="block truncate text-sm font-medium hover:underline">
                                 {member.fullName}
@@ -291,27 +269,32 @@ export function MembersPage() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="px-3 align-middle">
+                        <TableCell className="px-2 align-middle sm:px-3">
                           <StatusBadge status={member.effectiveStatus}/>
                         </TableCell>
-                        <TableCell className="px-3 text-sm align-middle">
+                        <TableCell className="hidden px-3 text-sm align-middle md:table-cell">
                           <ClassesCell member={member}/>
                         </TableCell>
-                        <TableCell className="px-3 text-sm align-middle">
+                        <TableCell className="hidden px-3 text-sm align-middle md:table-cell">
                           <ClassLeftCell member={member}/>
                         </TableCell>
-                        <TableCell className="px-3 align-middle">
+                        <TableCell className="hidden px-3 align-middle sm:table-cell">
                           {member.planName ? (<div className="min-w-0">
                               <p className="truncate text-sm leading-tight">{member.planName}</p>
                               <p className="truncate text-xs leading-tight text-muted-foreground">ends {formatDate(member.endDate)}</p>
                             </div>) : (<span className="text-muted-foreground">—</span>)}
                         </TableCell>
-                        <TableCell className="px-3 text-sm align-middle text-muted-foreground">
+                        <TableCell className="hidden px-3 text-sm align-middle text-muted-foreground lg:table-cell">
+                          {member.trainerId
+                            ? (trainerNameById.get(String(member.trainerId)) ?? "—")
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="hidden px-3 text-sm align-middle text-muted-foreground lg:table-cell">
                           {member.paymentMethod
                             ? (PAYMENT_METHOD_LABELS[member.paymentMethod] ?? member.paymentMethod)
                             : "—"}
                         </TableCell>
-                        <TableCell className="px-3 text-right align-middle">
+                        <TableCell className="px-2 text-right align-middle sm:px-3">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon-xs" aria-label={`Actions for ${member.fullName}`} className="ml-auto" onClick={(event) => event.stopPropagation()}>
@@ -346,16 +329,16 @@ export function MembersPage() {
               </div>
 
               {/* Pagination */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-3 py-2.5 sm:px-4 sm:py-3">
                 <p className="text-xs text-muted-foreground">
                   Showing {rangeFrom}–{rangeTo} of {total} {total === 1 ? "student" : "students"}
                 </p>
-                <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" disabled={currentPage <= 1 || members.loading} onClick={() => setPage(currentPage - 1)}>
-                    <ChevronLeftIcon className="size-4"/> Prev
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Button variant="outline" size="xs" disabled={currentPage <= 1 || members.loading} onClick={() => setPage(currentPage - 1)}>
+                    <ChevronLeftIcon className="size-3"/> Prev
                   </Button>
-                  <Button variant="outline" size="sm" disabled={rangeTo >= total || members.loading} onClick={() => setPage(currentPage + 1)}>
-                    Next <ChevronRightIcon className="size-4"/>
+                  <Button variant="outline" size="xs" disabled={rangeTo >= total || members.loading} onClick={() => setPage(currentPage + 1)}>
+                    Next <ChevronRightIcon className="size-3"/>
                   </Button>
                 </div>
               </div>

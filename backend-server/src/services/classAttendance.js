@@ -38,7 +38,7 @@ import { quotaForMembership, syncQuotaNotifications } from "./quota.js";
 export const CLASS_REJECTIONS = {
   invalid_qr: "This QR code is not recognised.",
   not_found: "No student matches this Student ID.",
-  forbidden: "This student belongs to a different gym.",
+  forbidden: "This student belongs to a different studio.",
   member_inactive: "This student is inactive.",
   slot_not_found: "That class slot no longer exists.",
   slot_inactive: "That class slot is not active.",

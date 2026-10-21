@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, useReducedMotion } from "motion/react";
-import { ArchiveIcon, CalendarDaysIcon, Grid2x2Icon, LayoutListIcon, PencilIcon, PlusIcon, Trash2Icon, UsersIcon } from "lucide-react";
+import { BanIcon, CalendarDaysIcon, EyeIcon, Grid2x2Icon, LayoutListIcon, PencilIcon, PlusIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState, ErrorState, Skeleton, Stagger } from "@/components/shared/States";
 import { SmartImage } from "@/components/shared/SmartImage";
@@ -12,7 +13,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync } from "@/hooks";
-import { formatDate } from "@/lib/format";
 import { can, ROLE_LABELS } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { ArchiveStaffDialog } from "./ArchiveStaffDialog";
@@ -20,16 +20,7 @@ import { AssignSlotDialog } from "./AssignSlotDialog";
 import { AssignStudentDialog } from "./AssignStudentDialog";
 import { DeleteStaffDialog } from "./DeleteStaffDialog";
 import { StaffFormDialog } from "./StaffFormDialog";
-const EMPLOYMENT_LABELS = {
-    active: "Active",
-    on_leave: "On leave",
-    resigned: "Resigned",
-};
-const EMPLOYMENT_STYLES = {
-    active: "border-primary/30 bg-primary/10 text-primary",
-    on_leave: "border-warning/30 bg-warning/10 text-warning",
-    resigned: "border-border bg-muted text-muted-foreground",
-};
+import { EMPLOYMENT_LABELS, EMPLOYMENT_STYLES } from "./staffMeta";
 /** Same list/grid switch as the plans page — icons only, labels in title/aria. */
 const VIEW_OPTIONS = [
     { value: "list", label: "List view", Icon: LayoutListIcon },
@@ -40,31 +31,34 @@ const VIEW_OPTIONS = [
  * (photo + identity, badges, joined + actions); "grid" is the original card.
  */
 function StaffCard({ member, layout = "grid", canManage, currentUserId, index = 0, onEdit, onArchive, onDelete, onAssignStudents, onAssignSlots }) {
+    const navigate = useNavigate();
     const isList = layout === "list";
-const actions = canManage ? (<div className="flex items-center gap-1">
-        <Button size="icon-xs" variant="ghost" aria-label={`Assign students to ${member.fullName}`} onClick={() => onAssignStudents(member)} title="Assign students">
-          <UsersIcon className="size-3.5" />
+    const openDetail = () => navigate(`/staff/${member.id}`);
+const actions = canManage ? (<div className="flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <Button size="xs" variant="outline" onClick={() => openDetail()} title={`View ${member.fullName}`}>
+          <EyeIcon /> View
         </Button>
-        <Button size="icon-xs" variant="ghost" aria-label={`Assign slots to ${member.fullName}`} onClick={() => onAssignSlots(member)} title="Assign slots">
-          <CalendarDaysIcon className="size-3.5" />
+        <Button size="xs" variant="outline" onClick={() => onAssignStudents(member)} title={`Assign students to ${member.fullName}`}>
+          <UsersIcon /> Students
         </Button>
-        <Button size="icon-xs" variant="ghost" aria-label={`Edit ${member.fullName}`} onClick={() => onEdit(member)}>
-          <PencilIcon />
+        <Button size="xs" variant="outline" onClick={() => onAssignSlots(member)} title={`Assign slots to ${member.fullName}`}>
+          <CalendarDaysIcon /> Slots
         </Button>
-        {member.employmentStatus !== "resigned" && member.profileId !== currentUserId ? (<Button size="icon-xs" variant="ghost" aria-label={`Archive ${member.fullName}`} onClick={() => onArchive(member)}>
-            <ArchiveIcon />
+        <Button size="xs" variant="outline" onClick={() => onEdit(member)} title={`Edit ${member.fullName}`}>
+          <PencilIcon /> Edit
+        </Button>
+        {member.employmentStatus !== "resigned" && member.profileId !== currentUserId ? (<Button size="xs" variant="outline" onClick={() => onArchive(member)} title={`Disable ${member.fullName}`}>
+            <BanIcon /> Disable
           </Button>) : null}
-        {member.profileId !== currentUserId ? (<Button size="icon-xs" variant="ghost" aria-label={`Delete ${member.fullName}`} onClick={() => onDelete(member)} className="text-destructive hover:bg-destructive/10">
-          <Trash2Icon />
+        {member.profileId !== currentUserId ? (<Button size="xs" variant="outline" onClick={() => onDelete(member)} title={`Delete ${member.fullName}`} className="text-destructive hover:bg-destructive/10">
+          <Trash2Icon /> Delete
         </Button>) : null}
       </div>) : null;
-    const badges = (<div className="flex flex-wrap items-center gap-1.5">
-      <Badge variant="outline" className={EMPLOYMENT_STYLES[member.employmentStatus]}>
-        {EMPLOYMENT_LABELS[member.employmentStatus]}
-      </Badge>
-    </div>);
+    const statusBadge = (<Badge variant="outline" className={cn("shrink-0", EMPLOYMENT_STYLES[member.employmentStatus])}>
+      {EMPLOYMENT_LABELS[member.employmentStatus]}
+    </Badge>);
     return (<Stagger delayIndex={index} className="h-full">
-      <Card className={cn("graphite-surface h-full border-border/70 transition-all duration-300 hover:-translate-y-0.5 hover:border-km-gold/60", isList && "rounded-xl")}>
+      <Card onClick={openDetail} className={cn("graphite-surface h-full cursor-pointer border-border/70 transition-all duration-300 hover:-translate-y-0.5 hover:border-km-gold/60", isList && "rounded-xl")}>
         {isList ? (<CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
             {/* Identity */}
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -76,19 +70,19 @@ const actions = canManage ? (<div className="flex items-center gap-1">
                     {ROLE_LABELS[member.role]}
                   </Badge>
                 </div>
-                <p className="truncate text-xs text-muted-foreground">
-                  {[member.email ?? "No email", member.phone ?? "—"].join(" · ")}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-xs text-muted-foreground">
+                    {member.email ?? "No email"}
+                  </p>
+                  {statusBadge}
+                </div>
                 {member.specialization ? (<p className="truncate text-xs text-muted-foreground">
                     {member.specialization}
                   </p>) : null}
               </div>
             </div>
-            {/* Status + specialization */}
-            <div className="shrink-0">{badges}</div>
-            {/* Joined + actions */}
+            {/* Actions */}
             <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3 sm:justify-end sm:border-0 sm:pt-0">
-              <p className="text-xs text-muted-foreground">Joined {formatDate(member.joiningDate)}</p>
               {actions}
             </div>
           </CardContent>) : (<CardContent className="flex h-full flex-col p-5">
@@ -101,18 +95,17 @@ const actions = canManage ? (<div className="flex items-center gap-1">
                     {ROLE_LABELS[member.role]}
                   </Badge>
                 </div>
-                <p className="truncate text-xs text-muted-foreground">
-                  {member.email ?? "No email"}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">{member.phone ?? "—"}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-xs text-muted-foreground">
+                    {member.email ?? "No email"}
+                  </p>
+                  {statusBadge}
+                </div>
                 {member.specialization ? (<p className="truncate text-xs text-muted-foreground">{member.specialization}</p>) : null}
               </div>
             </div>
 
-            <div className="mt-4">{badges}</div>
-
-            <div className="mt-4 flex items-center justify-between gap-2 border-t border-border/60 pt-3">
-              <p className="text-xs text-muted-foreground">Joined {formatDate(member.joiningDate)}</p>
+            <div className="mt-4 flex items-center justify-end gap-2 border-t border-border/60 pt-3">
               {actions}
             </div>
           </CardContent>)}
@@ -167,12 +160,12 @@ export function StaffPage() {
             return false;
         try {
             await data.archiveStaff(archiving.id);
-            toast.success(`${archiving.fullName} archived`);
+            toast.success(`${archiving.fullName} disabled`);
             staff.reload();
             return true;
         }
         catch (error) {
-            toast.error(error instanceof Error ? error.message : "Unable to archive this staff member.");
+            toast.error(error instanceof Error ? error.message : "Unable to disable this staff member.");
             return false;
         }
     };
@@ -190,32 +183,38 @@ export function StaffPage() {
             return false;
         }
     };
-    const header = (<PageHeader title="Trainers & staff" description="Everyone who runs the floor — admins, front desk and trainers." actions={<>
-          {/* Layout switch — same data, same handlers, different arrangement. */}
-          <div role="radiogroup" aria-label="Choose staff view" className="flex items-center gap-1 rounded-lg border border-km-gold/25 bg-background/60 p-1">
-            {VIEW_OPTIONS.map(({ value, label, Icon }) => {
-            const active = view === value;
-            return (<button key={value} type="button" role="radio" aria-checked={active} aria-label={label} title={label} onClick={() => setView(value)} className={cn("inline-flex h-7 items-center justify-center rounded-md px-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60", active
-                ? "bg-km-burgundy text-km-ivory shadow-xs"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
-              <Icon className="size-4"/>
-            </button>);
-        })}
-          </div>
+    const header = (<PageHeader title="Trainers & staff" description="Everyone who runs the floor — admins, front desk and trainers."/>);
+    /* Toolbar card — view switch + include-inactive on the left, Add staff on
+       the right; controls stack full-width on mobile (students page pattern). */
+    const toolbar = (<div className="flex flex-col gap-2.5 rounded-xl border border-km-gold/25 bg-card/70 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Layout switch — same data, same handlers, different arrangement. */}
+            <div role="radiogroup" aria-label="Choose staff view" className="flex items-center gap-1 rounded-lg border border-km-gold/25 bg-background/60 p-1">
+              {VIEW_OPTIONS.map(({ value, label, Icon }) => {
+                const active = view === value;
+                return (<button key={value} type="button" role="radio" aria-checked={active} aria-label={label} title={label} onClick={() => setView(value)} className={cn("inline-flex h-7 items-center justify-center rounded-md px-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60", active
+                    ? "bg-km-burgundy text-km-ivory shadow-xs"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
+                  <Icon className="size-4"/>
+                </button>);
+            })}
+            </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/60 px-3 py-1.5">
-            <Label htmlFor="staff-inactive" className="text-xs text-muted-foreground">
-              Include inactive
-            </Label>
-            <Switch id="staff-inactive" size="sm" checked={includeInactive} onCheckedChange={setIncludeInactive}/>
+            <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/60 px-3 py-1.5">
+              <Label htmlFor="staff-inactive" className="text-xs text-muted-foreground">
+                Include inactive
+              </Label>
+              <Switch id="staff-inactive" size="sm" checked={includeInactive} onCheckedChange={setIncludeInactive}/>
+            </div>
           </div>
-          {canManage ? (<Button onClick={openCreate}>
+          {canManage ? (<Button className="w-full sm:w-auto" onClick={openCreate}>
               <PlusIcon className="size-4"/> Add staff
             </Button>) : null}
-        </>}/>);
+        </div>);
     if (staff.loading) {
         return (<div className="space-y-6">
         {header}
+        {toolbar}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (<Skeleton key={index} className="h-48"/>))}
         </div>
@@ -224,12 +223,14 @@ export function StaffPage() {
     if (staff.error) {
         return (<div className="space-y-6">
         {header}
+        {toolbar}
         <ErrorState title="Unable to load staff" message={staff.error} onRetry={staff.reload}/>
       </div>);
     }
     const rows = staff.data ?? [];
     return (<div className="space-y-6">
       {header}
+      {toolbar}
 
       {rows.length === 0 ? (<EmptyState icon={<UsersIcon className="size-5"/>} title={includeInactive ? "No staff yet" : "No active staff"} description={includeInactive
                 ? "Add your first team member to assign classes and share the front desk."

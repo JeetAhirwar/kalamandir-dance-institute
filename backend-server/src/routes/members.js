@@ -10,6 +10,7 @@ import PaymentRecord from "../models/PaymentRecord.js";
 import ClassEnrollment from "../models/ClassEnrollment.js";
 import ClassSlot from "../models/ClassSlot.js";
 import SlotEnrollment from "../models/SlotEnrollment.js";
+import StaffProfile from "../models/StaffProfile.js";
 import { withTransaction } from "../db.js";
 import { requireAuth, requireCap } from "../middleware/auth.js";
 import { asyncHandler, badRequest, notFound, conflict } from "../lib/errors.js";
@@ -76,6 +77,11 @@ const createMemberSchema = z.object({
     .nullish(),
   /** Selected tag ids (student labels — dance styles, batches, events…). */
   tagIds: z.array(z.string().trim()).max(20, "Pick at most 20 tags").nullish(),
+  /** Assigned trainer (StaffProfile._id) — null/"" clears the assignment. */
+  trainerId: z
+    .union([z.string().trim().min(1), z.literal(""), z.literal(null)])
+    .nullish()
+    .transform((v) => v || null),
   /** Class stream the student belongs to — required on create. */
   classTag: z.enum(CLASS_TAGS, {
     errorMap: () => ({ message: "Choose a class tag (Art or Dance)" }),
@@ -133,6 +139,15 @@ async function resolveTagIds(gymId, tagIds) {
     throw badRequest("One of the selected tags no longer exists.");
   }
   return found.map((t) => t._id);
+}
+
+/** Validates an assigned trainer id belongs to the gym (null = unassigned). */
+async function resolveTrainerId(gymId, trainerId) {
+  if (trainerId == null) return null;
+  if (!Types.ObjectId.isValid(String(trainerId))) throw badRequest("The selected trainer is not valid.");
+  const found = await StaffProfile.findOne({ gymId, _id: trainerId }).select("_id").lean();
+  if (!found) throw badRequest("The selected trainer no longer exists.");
+  return found._id;
 }
 
 const MEMBER_AUDIT_KEYS = [
@@ -318,6 +333,7 @@ router.post(
               preferredSlot: input.preferredSlot ?? null,
               classTag: input.classTag,
               tagIds: await resolveTagIds(gymId, input.tagIds ?? []),
+              trainerId: await resolveTrainerId(gymId, input.trainerId ?? null),
               createdBy: req.user.id,
             },
           ],
@@ -471,6 +487,9 @@ router.patch(
     const updates = {};
     if (input.tagIds !== undefined) {
       updates.tagIds = await resolveTagIds(member.gymId, input.tagIds ?? []);
+    }
+    if (input.trainerId !== undefined) {
+      updates.trainerId = await resolveTrainerId(member.gymId, input.trainerId ?? null);
     }
     const dateFields = new Set(["dateOfBirth", "joinDate"]);
     for (const key of MEMBER_AUDIT_KEYS) {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, } from "recharts";
 import { ActivityIcon, CalendarCheckIcon, ClockIcon, DownloadIcon, IndianRupeeIcon, RefreshCwIcon, UsersIcon, } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -6,9 +7,10 @@ import { EmptyState, ErrorState, Skeleton, Stagger } from "@/components/shared/S
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
+import { CARD_BASE, CardArrow, CountUp, GoldCorner } from "../dashboard/DashboardCards";
 import { useData } from "@/auth/AuthProvider";
 import { useAsync } from "@/hooks";
-import { addDays, endOfDayInTz, startOfDayInTz } from "@/lib/datetime";
+import { addDays, endOfDayInTz, startOfDayInTz, ymdInTz } from "@/lib/datetime";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { formatINR, formatNumberIN } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -37,28 +39,46 @@ function ChartTooltipCard({ active, payload, label, isCurrency, }) {
         </p>))}
     </div>);
 }
-function StatCard({ label, value, display, icon, hint, tone = "default", }) {
-    const toneClass = tone === "success"
-        ? "text-primary"
+/**
+ * Reports stat card — same compact look as the dashboard Metric/Financial
+ * cards (circular accent icon, eyebrow label, animated value, gold corner).
+ * `to` makes the whole card a router link (like the dashboard cards).
+ */
+const TONE_ACCENTS = {
+    success: { bg: "var(--km-gold)", fg: "var(--km-burgundy)" },
+    warning: { bg: "var(--warning)", fg: "#FFF7EA" },
+    danger: { bg: "var(--destructive)", fg: "#FFF3F1" },
+    default: { bg: "var(--km-burgundy)", fg: "var(--km-ivory)" },
+};
+function StatCard({ label, value, icon, hint, tone = "default", format, to, }) {
+    const accent = TONE_ACCENTS[tone] ?? TONE_ACCENTS.default;
+    const amountColor = tone === "success"
+        ? "var(--primary)"
         : tone === "warning"
-            ? "text-warning"
+            ? "var(--warning)"
             : tone === "danger"
-                ? "text-destructive"
-                : "text-foreground";
-    return (<Card className="graphite-surface border-border/70">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
-          <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-            {icon}
-          </span>
+                ? "var(--destructive)"
+                : "var(--primary)";
+    const base = CARD_BASE + " min-h-[96px] p-3 sm:min-h-[112px] sm:p-4";
+    const body = (<>
+      <GoldCorner/>
+      {to ? <CardArrow/> : null}
+      <div className="relative flex items-center gap-2 sm:gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full sm:size-10" style={{ backgroundColor: accent.bg, color: accent.fg }} aria-hidden="true">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">{label}</p>
+          <p className="mt-1 truncate text-[20px] leading-none font-semibold sm:text-[26px]" style={{ color: amountColor }}>
+            <CountUp value={value} format={format}/>
+          </p>
         </div>
-        <p className={cn("mt-4 text-3xl font-semibold tracking-tight tabular", toneClass)}>
-          {display ?? formatNumberIN(value)}
-        </p>
-        {hint ? <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p> : null}
-      </CardContent>
-    </Card>);
+      </div>
+      {hint ? <p className="relative mt-2 hidden text-[11.5px] leading-snug text-muted-foreground sm:mt-2.5 sm:block">{hint}</p> : null}
+    </>);
+    if (!to)
+        return <div className={base}>{body}</div>;
+    return <Link to={to} className={base + " cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/60"}>{body}</Link>;
 }
 function SectionError({ message, onRetry }) {
     return (<div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-10 text-center">
@@ -116,34 +136,36 @@ export function ReportsPage() {
               </button>))}
           </div>}/>
 
-      {/* Headline numbers */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {summary.loading ? (Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-32"/>)) : summary.error ? (<div className="sm:col-span-2 xl:col-span-4">
+      {/* Headline numbers — 2-up on mobile, 4-up on desktop; each card links out */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        {summary.loading ? (Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-28"/>)) : summary.error ? (<div className="col-span-2 xl:col-span-4">
             <ErrorState title="Unable to load the attendance summary" message={summary.error} onRetry={summary.reload}/>
-          </div>) : (<>
+          </div>) : (() => {
+            const rangeYmd = `?from=${ymdInTz(range.from)}&to=${ymdInTz(range.to)}`;
+            const historyLink = `/attendance/history${rangeYmd}`;
+            return (<>
             <Stagger delayIndex={0}>
-              <StatCard label="Total visits" value={summary.data?.totalVisits ?? 0} icon={<CalendarCheckIcon className="size-4"/>} hint={`Last ${days} days`}/>
+              <StatCard label="Total visits" value={summary.data?.totalVisits ?? 0} icon={<CalendarCheckIcon className="size-4"/>} hint={`Last ${days} days`} to={historyLink}/>
             </Stagger>
             <Stagger delayIndex={1}>
-              <StatCard label="Unique students" value={summary.data?.uniqueMembers ?? 0} icon={<UsersIcon className="size-4"/>} hint="Distinct students who checked in" tone="success"/>
+              <StatCard label="Unique students" value={summary.data?.uniqueMembers ?? 0} icon={<UsersIcon className="size-4"/>} hint="Distinct students who checked in" tone="success" to="/members?status=active"/>
             </Stagger>
             <Stagger delayIndex={2}>
-              <StatCard label="Average per day" value={summary.data?.averagePerDay ?? 0} display={(summary.data?.averagePerDay ?? 0).toLocaleString("en-IN", {
-                maximumFractionDigits: 1,
-            })} icon={<ActivityIcon className="size-4"/>} hint="Check-ins per calendar day"/>
+              <StatCard label="Average per day" value={summary.data?.averagePerDay ?? 0} format={(n) => n.toLocaleString("en-IN", { maximumFractionDigits: 1 })} icon={<ActivityIcon className="size-4"/>} hint="Check-ins per calendar day" to={historyLink}/>
             </Stagger>
             <Stagger delayIndex={3}>
-              <StatCard label="Busiest hour" value={busiestHour ?? 0} display={busiestHour === null || busiestHour === undefined ? "—" : hourLabel(busiestHour)} icon={<ClockIcon className="size-4"/>} hint={busiestHour === null || busiestHour === undefined
+              <StatCard label="Busiest hour" value={busiestHour ?? 0} format={busiestHour === null || busiestHour === undefined ? () => "—" : hourLabel} icon={<ClockIcon className="size-4"/>} hint={busiestHour === null || busiestHour === undefined
                 ? "No check-ins recorded yet"
-                : "Busiest check-in hour"} tone="warning"/>
+                : "Busiest check-in hour"} tone="warning" to={historyLink}/>
             </Stagger>
-          </>)}
+          </>);
+        })()}
       </div>
 
       {/* Peak hours + Top students */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="graphite-surface border-border/70 lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
             <div>
               <CardTitle className="text-base">Peak hours</CardTitle>
               <p className="text-xs text-muted-foreground">
@@ -168,7 +190,7 @@ export function ReportsPage() {
         </Card>
 
         <Card className="graphite-surface border-border/70">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
             <div>
               <CardTitle className="text-base">Top students</CardTitle>
               <p className="text-xs text-muted-foreground">Most frequent visitors</p>
@@ -259,7 +281,7 @@ export function ReportsPage() {
 
       {/* Revenue */}
       <Card className="graphite-surface border-border/70">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
           <div>
             <CardTitle className="text-base">Revenue</CardTitle>
             <p className="text-xs text-muted-foreground">Collected vs outstanding, last 6 months</p>

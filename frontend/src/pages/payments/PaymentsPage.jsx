@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, IndianRupeeIcon, PlusIcon, ReceiptIcon, RefreshCwIcon, SearchIcon, Undo2Icon, UsersIcon, WalletIcon, } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -10,11 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync, useDebounced } from "@/hooks";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { formatDate, formatINR, formatNumberIN, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS, } from "@/lib/format";
 import { can } from "@/lib/permissions";
+import { CARD_BASE, CardArrow, CountUp, GoldCorner } from "../dashboard/DashboardCards";
 import { cn } from "@/lib/utils";
 import { PaymentRecordDialog } from "./PaymentRecordDialog";
 import { ReceiptDialog } from "./ReceiptDialog";
@@ -28,28 +30,55 @@ const METHOD_OPTIONS = [
     "all",
     ...Object.keys(PAYMENT_METHOD_LABELS),
 ];
-function StatCard({ label, value, display, icon, hint, tone = "default", }) {
-    const toneClass = tone === "success"
-        ? "text-primary"
+/**
+ * Payments stat card — same compact look as the dashboard Metric/Financial
+ * cards (circular accent icon, eyebrow label, animated value, gold corner).
+ * Optional in-place filter behaviour via onClick (dashboard cards navigate
+ * instead; here clicking pre-fills the payments table below).
+ */
+const TONE_ACCENTS = {
+    success: { bg: "var(--km-gold)", fg: "var(--km-burgundy)" },
+    warning: { bg: "var(--warning)", fg: "#FFF7EA" },
+    danger: { bg: "var(--destructive)", fg: "#FFF3F1" },
+    default: { bg: "var(--km-burgundy)", fg: "var(--km-ivory)" },
+};
+function StatCard({ label, value, icon, hint, tone = "default", format, onClick, active, }) {
+    const accent = TONE_ACCENTS[tone] ?? TONE_ACCENTS.default;
+    const amountColor = tone === "success"
+        ? "var(--primary)"
         : tone === "warning"
-            ? "text-warning"
+            ? "var(--warning)"
             : tone === "danger"
-                ? "text-destructive"
-                : "text-foreground";
-    return (<Card className="graphite-surface border-border/70">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
-          <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-            {icon}
-          </span>
+                ? "var(--destructive)"
+                : "var(--primary)";
+    const clickable = typeof onClick === "function";
+    return (<div
+      tabIndex={clickable ? 0 : undefined}
+      role={clickable ? "button" : undefined}
+      aria-pressed={clickable ? Boolean(active) : undefined}
+      onClick={clickable ? onClick : undefined}
+      onKeyDown={clickable ? (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+            }
+        } : undefined}
+      className={cn(CARD_BASE + " min-h-[96px] p-3 sm:min-h-[112px] sm:p-4", clickable && "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/60", active && "border-km-gold/70 ring-1 ring-km-gold/40")}>
+      <GoldCorner/>
+      {clickable ? <CardArrow/> : null}
+      <div className="relative flex items-center gap-2 sm:gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full sm:size-10" style={{ backgroundColor: accent.bg, color: accent.fg }} aria-hidden="true">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">{label}</p>
+          <p className="mt-1 truncate text-[20px] leading-none font-semibold sm:text-[26px]" style={{ color: amountColor }}>
+            <CountUp value={value} format={format}/>
+          </p>
         </div>
-        <p className={cn("mt-4 text-3xl font-semibold tracking-tight tabular", toneClass)}>
-          {display ?? formatNumberIN(value)}
-        </p>
-        {hint ? <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p> : null}
-      </CardContent>
-    </Card>);
+      </div>
+      {hint ? <p className="relative mt-2 hidden text-[11.5px] leading-snug text-muted-foreground sm:mt-2.5 sm:block">{hint}</p> : null}
+    </div>);
 }
 function SectionError({ message, onRetry }) {
     return (<div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-10 text-center">
@@ -81,6 +110,8 @@ export function PaymentsPage() {
     const [preset, setPreset] = useState(null);
     const [receiptFor, setReceiptFor] = useState(null);
     const [refunding, setRefunding] = useState(null);
+    // Below the stat cards: "Pending Payments" (dues table) | "Payment History".
+    const [tab, setTab] = useState("pending");
     useEffect(() => {
         setPage(1);
     }, [debouncedSearch, from, to, status, method]);
@@ -152,7 +183,7 @@ export function PaymentsPage() {
         if (dues.error)
             dues.reload();
     };
-    const items = payments.data?.items ?? [];
+    const items = useMemo(() => payments.data?.items ?? [], [payments.data]);
     const total = payments.data?.total ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -172,6 +203,28 @@ export function PaymentsPage() {
         setPreset({ memberId: row.memberId, membershipId: row.membershipId, amount: row.balance });
         setRecordOpen(true);
     };
+    // Stat cards: clicking one pre-fills the payments table filters below and
+    // scrolls to the matching section (same presets the dashboard links use).
+    const monthStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
+    const duesCardRef = useRef(null);
+    const paymentsCardRef = useRef(null);
+    const applyStatFilter = (nextStatus, scrollTo) => {
+        setSearch("");
+        setStatus(nextStatus);
+        setFrom(monthStart);
+        setTo("");
+        setMethod("all");
+        setTab("history");
+        // Wait a tick so the history tab can mount before scrolling to it.
+        window.setTimeout(() => scrollTo?.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    };
+    const scrollToDues = () => {
+        setTab("pending");
+        window.setTimeout(() => duesCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    };
+    const collectedActive = status === "paid" && from === monthStart;
+    const outstandingActive = status === "pending" && from === monthStart;
+    const monthPaymentsActive = status === "all" && from === monthStart;
     const clearFilters = () => {
         setSearch("");
         setFrom("");
@@ -200,29 +253,43 @@ export function PaymentsPage() {
     return (<div className="space-y-6">
       {header}
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statsLoading ? (Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-32"/>)) : statsError ? (<div className="sm:col-span-2 xl:col-span-4">
+      {/* Stat cards — 2-up on mobile, 4-up on desktop */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        {statsLoading ? (Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-28"/>)) : statsError ? (<div className="sm:col-span-2 xl:col-span-4">
             <ErrorState title="Unable to load the revenue numbers" message={statsError} onRetry={retryStats}/>
           </div>) : (<>
             <Stagger delayIndex={0}>
-              <StatCard label="Collected this month" value={latest?.collected ?? 0} display={formatINR(latest?.collected ?? 0)} icon={<IndianRupeeIcon className="size-4"/>} hint={latest ? `In ${latest.label}` : "No months on record yet"} tone="success"/>
+              <StatCard label="Collected this month" value={latest?.collected ?? 0} format={formatINR} icon={<IndianRupeeIcon className="size-4"/>} hint={latest ? `In ${latest.label}` : "No months on record yet"} tone="success" active={collectedActive} onClick={() => applyStatFilter("paid", paymentsCardRef)}/>
             </Stagger>
             <Stagger delayIndex={1}>
-              <StatCard label="Outstanding this month" value={latest?.outstanding ?? 0} display={formatINR(latest?.outstanding ?? 0)} icon={<WalletIcon className="size-4"/>} hint={latest ? `Expected ${formatINR(latest.expected)} in ${latest.label}` : "No months on record yet"} tone={(latest?.outstanding ?? 0) > 0 ? "warning" : "default"}/>
+              <StatCard label="Outstanding this month" value={latest?.outstanding ?? 0} format={formatINR} icon={<WalletIcon className="size-4"/>} hint={latest ? `Expected ${formatINR(latest.expected)} in ${latest.label}` : "No months on record yet"} tone={(latest?.outstanding ?? 0) > 0 ? "warning" : "default"} active={outstandingActive} onClick={() => applyStatFilter("pending", paymentsCardRef)}/>
             </Stagger>
             <Stagger delayIndex={2}>
-              <StatCard label="Payments this month" value={latest?.count ?? 0} icon={<ReceiptIcon className="size-4"/>} hint={latest ? `Transactions in ${latest.label}` : "No months on record yet"}/>
+              <StatCard label="Payments this month" value={latest?.count ?? 0} icon={<ReceiptIcon className="size-4"/>} hint={latest ? `Transactions in ${latest.label}` : "No months on record yet"} active={monthPaymentsActive} onClick={() => applyStatFilter("all", paymentsCardRef)}/>
             </Stagger>
             <Stagger delayIndex={3}>
-              <StatCard label="Outstanding dues" value={totalOutstanding} display={formatINR(totalOutstanding)} icon={<UsersIcon className="size-4"/>} hint={`${duesCount} ${duesCount === 1 ? "member owes" : "members owe"} an open balance`} tone={totalOutstanding > 0 ? "danger" : "default"}/>
+              <StatCard label="Outstanding dues" value={totalOutstanding} format={formatINR} icon={<UsersIcon className="size-4"/>} hint={`${duesCount} ${duesCount === 1 ? "member owes" : "members owe"} an open balance`} tone={totalOutstanding > 0 ? "danger" : "default"} onClick={scrollToDues}/>
             </Stagger>
           </>)}
       </div>
 
-      {/* Dues */}
-      <Card className="graphite-surface border-border/70">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+      {/* Pending Payments | Payment History tabs */}
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="pending" className="gap-1.5">
+            <WalletIcon className="size-4"/> Pending Payments
+            {duesCount > 0 ? (<span className="ml-1 rounded-full bg-warning/15 px-1.5 text-[11px] font-semibold text-warning tabular">
+                {duesCount}
+              </span>) : null}
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5">
+            <ReceiptIcon className="size-4"/> Payment History
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending">
+      <Card ref={duesCardRef} className="scroll-mt-20 graphite-surface border-border/70">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
           <div>
             <CardTitle className="text-base">Outstanding dues</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -239,10 +306,10 @@ export function PaymentsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Student</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Ends</TableHead>
-                    <TableHead className="text-right">Billed</TableHead>
-                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead className="hidden md:table-cell">Plan</TableHead>
+                    <TableHead className="hidden md:table-cell">Ends</TableHead>
+                    <TableHead className="hidden text-right lg:table-cell">Billed</TableHead>
+                    <TableHead className="hidden text-right lg:table-cell">Paid</TableHead>
                     <TableHead className="text-right">Balance</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
@@ -258,10 +325,10 @@ export function PaymentsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-40 truncate">{row.planName}</TableCell>
-                      <TableCell>{formatDate(row.endDate)}</TableCell>
-                      <TableCell className="text-right tabular">{formatINR(row.billed)}</TableCell>
-                      <TableCell className="text-right tabular">{formatINR(row.paid)}</TableCell>
+                      <TableCell className="hidden max-w-40 truncate md:table-cell">{row.planName}</TableCell>
+                      <TableCell className="hidden md:table-cell">{formatDate(row.endDate)}</TableCell>
+                      <TableCell className="hidden text-right tabular lg:table-cell">{formatINR(row.billed)}</TableCell>
+                      <TableCell className="hidden text-right tabular lg:table-cell">{formatINR(row.paid)}</TableCell>
                       <TableCell className={cn("text-right font-medium tabular", row.balance > 0 && "text-warning")}>
                         {formatINR(row.balance)}
                       </TableCell>
@@ -276,10 +343,11 @@ export function PaymentsPage() {
             </div>)}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Payments list */}
-      <Card className="graphite-surface border-border/70">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <TabsContent value="history">
+      <Card ref={paymentsCardRef} className="scroll-mt-20 graphite-surface border-border/70">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
           <div>
             <CardTitle className="text-base">Payments</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -331,12 +399,12 @@ export function PaymentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Receipt</TableHead>
+                    <TableHead className="hidden sm:table-cell">Receipt</TableHead>
                     <TableHead>Student</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Method</TableHead>
+                    <TableHead className="hidden md:table-cell">Method</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead className="hidden sm:table-cell">Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -348,7 +416,7 @@ export function PaymentsPage() {
                     (payment.status === "paid" || payment.status === "partial") &&
                     remaining > 0;
                 return (<TableRow key={payment.id}>
-                        <TableCell className="font-mono text-xs">{payment.receiptNo}</TableCell>
+                        <TableCell className="hidden font-mono text-xs sm:table-cell">{payment.receiptNo}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2.5">
                             <SmartImage src={null} name={payment.memberName ?? "Student"} className="size-8 shrink-0"/>
@@ -365,11 +433,11 @@ export function PaymentsPage() {
                           {formatINR(payment.amount)}
                           {payment.refundOf ? (<span className="ml-1 text-xs font-normal text-muted-foreground">refund</span>) : null}
                         </TableCell>
-                        <TableCell>{PAYMENT_METHOD_LABELS[payment.method]}</TableCell>
+                        <TableCell className="hidden md:table-cell">{PAYMENT_METHOD_LABELS[payment.method]}</TableCell>
                         <TableCell>
                           <PaymentBadge status={payment.status}/>
                         </TableCell>
-                        <TableCell>{formatDate(payment.paymentDate)}</TableCell>
+                        <TableCell className="hidden sm:table-cell">{formatDate(payment.paymentDate)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="icon-xs" aria-label={`View receipt ${payment.receiptNo}`} title="View receipt" onClick={() => setReceiptFor(payment)}>
@@ -405,6 +473,8 @@ export function PaymentsPage() {
             </div>) : null}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Dialogs */}
       <PaymentRecordDialog open={recordOpen} onOpenChange={handleRecordOpenChange} members={members.data ?? []} preset={preset} onSaved={reloadAll}/>

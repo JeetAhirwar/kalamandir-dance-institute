@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2Icon, ClockIcon, CrosshairIcon, Loader2Icon, PaletteIcon, PlusIcon, PrinterIcon, RefreshCwIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
+import { Building2Icon, ClockIcon, CrosshairIcon, Loader2Icon, PaletteIcon, PlusIcon, PrinterIcon, QrCodeIcon, RefreshCwIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,8 @@ import { gymCheckinUrl, renderQrImage } from "@/lib/qr";
 import { format12h } from "@/lib/format";
 import { HOURLY_SLOTS, SLOT_GROUPS, slotGroupOf } from "@/lib/slots";
 import { TimeSelect } from "@/components/shared/TimeSelect";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AddSlotDialog } from "./AddSlotDialog";
 
 /** Ready-made hourly slots (8:00 AM – 9:00 PM), grouped Morning/Afternoon/Evening. */
 function defaultSlots() {
@@ -39,6 +41,9 @@ export function ManageGymPage() {
     const [qrDataUrl, setQrDataUrl] = useState(null);
     const [rotateArmed, setRotateArmed] = useState(false);
     const [rotating, setRotating] = useState(false);
+    /* One section at a time: Studio QR | Time Slots | Security | Theme. */
+    const [tab, setTab] = useState("qr");
+    const [addOpen, setAddOpen] = useState(false);
 
     useEffect(() => {
         if (gym.data) {
@@ -85,7 +90,14 @@ export function ManageGymPage() {
     const updateSlot = (index, patch) => {
         setSlots((prev) => (prev ?? []).map((slot, i) => (i === index ? { ...slot, ...patch } : slot)));
     };
-    const addSlot = () => setSlots((prev) => [...(prev ?? []), { start: "", end: "" }]);
+    /** The "Add slot" row builder is replaced by the AddSlotDialog flow. */
+    const handleAddSlot = async (slot) => {
+        const next = [...(slots ?? []), slot].sort((a, b) => (a.start < b.start ? -1 : 1));
+        await data.updateTimeSlots(next);
+        setSlots(next);
+        toast.success(`Slot ${format12h(slot.start)} – ${format12h(slot.end)} added`);
+        return true;
+    };
     const removeSlot = (index) => setSlots((prev) => (prev ?? []).filter((_, i) => i !== index));
     const handleSave = () => {
         void run(async () => {
@@ -199,9 +211,29 @@ export function ManageGymPage() {
     return (<div className="space-y-6">
       <PageHeader title="Manage Institute" description="The front-desk studio QR and the daily slot schedule — set once, used every day."/>
 
-      <div className="grid items-start gap-4 lg:grid-cols-5">
-        {/* ---------------- Studio QR ---------------- */}
-        <Card className="lg:col-span-2">
+      {/* ---------------- Tabs: QR | Slots | Security | Theme ---------------- */}
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList className="w-full sm:w-fit">
+          <TabsTrigger value="qr" className="gap-1 px-1.5 sm:gap-1.5 sm:px-2">
+            <QrCodeIcon className="hidden size-4 sm:block"/>
+            <span className="sm:hidden">QR</span><span className="hidden sm:inline">Studio QR</span>
+          </TabsTrigger>
+          <TabsTrigger value="slots" className="gap-1 px-1.5 sm:gap-1.5 sm:px-2">
+            <ClockIcon className="hidden size-4 sm:block"/>
+            <span className="sm:hidden">Slots</span><span className="hidden sm:inline">Time Slots</span>
+          </TabsTrigger>
+          <TabsTrigger value="security" className="gap-1 px-1.5 sm:gap-1.5 sm:px-2">
+            <ShieldCheckIcon className="hidden size-4 sm:block"/>
+            <span>Security</span>
+          </TabsTrigger>
+          <TabsTrigger value="theme" className="gap-1 px-1.5 sm:gap-1.5 sm:px-2">
+            <PaletteIcon className="hidden size-4 sm:block"/>
+            <span>Theme</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="qr">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Building2Icon className="size-4 text-primary"/> Front-desk studio QR
@@ -227,9 +259,10 @@ export function ManageGymPage() {
             </div>
           </CardContent>
         </Card>
+        </TabsContent>
 
-        {/* ---------------- Slots ---------------- */}
-        <Card className="lg:col-span-3">
+        <TabsContent value="slots">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <ClockIcon className="size-4 text-primary"/> Daily time slots
@@ -244,17 +277,21 @@ export function ManageGymPage() {
               {(() => {
                 // Keep the original index of each row (update/remove are index-based).
                 const rows = (slots ?? []).map((slot, index) => ({ slot, index }));
-                const slotRow = ({ slot, index }) => (<li key={index} className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-3 py-2">
-                    <span className="w-6 font-mono text-xs text-muted-foreground">{index + 1}.</span>
-                    <TimeSelect value={slot.start} ariaLabel={`Slot ${index + 1} start`} className="h-8 w-32 text-xs" onValueChange={(v) => updateSlot(index, { start: v })}/>
-                    <span className="text-xs text-muted-foreground">to</span>
-                    <TimeSelect value={slot.end} ariaLabel={`Slot ${index + 1} end`} className="h-8 w-32 text-xs" onValueChange={(v) => updateSlot(index, { end: v })}/>
-                    <span className="ml-auto font-mono text-xs text-muted-foreground">
+                const slotRow = ({ slot, index }) => (<li key={index} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-lg border border-border/60 px-3 py-2 sm:flex-nowrap">
+                    <span className="w-5 shrink-0 font-mono text-xs text-muted-foreground">{index + 1}.</span>
+                    <TimeSelect value={slot.start} ariaLabel={`Slot ${index + 1} start`} className="h-8 min-w-24 flex-1 text-xs sm:w-32 sm:flex-none" onValueChange={(v) => updateSlot(index, { start: v })}/>
+                    <span className="shrink-0 text-xs text-muted-foreground">to</span>
+                    <TimeSelect value={slot.end} ariaLabel={`Slot ${index + 1} end`} className="h-8 min-w-24 flex-1 text-xs sm:w-32 sm:flex-none" onValueChange={(v) => updateSlot(index, { end: v })}/>
+                    <span className="ml-auto hidden shrink-0 font-mono text-xs text-muted-foreground sm:block">
                       {slot.start && slot.end ? `${format12h(slot.start)} – ${format12h(slot.end)}` : "—"}
                     </span>
-                    <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" aria-label={`Remove slot ${index + 1}`} onClick={() => removeSlot(index)}>
+                    <Button variant="ghost" size="icon" className="ml-auto size-7 text-muted-foreground hover:text-destructive sm:order-last sm:ml-0" aria-label={`Remove slot ${index + 1}`} onClick={() => removeSlot(index)}>
                       <Trash2Icon className="size-4"/>
                     </Button>
+                    {/* Mobile-only read-out — the desktop one sits inline above. */}
+                    <p className="w-full text-right font-mono text-[11px] text-muted-foreground sm:hidden">
+                      {slot.start && slot.end ? `${format12h(slot.start)} – ${format12h(slot.end)}` : "—"}
+                    </p>
                   </li>);
                 const bucketOf = (key) => rows.filter((r) => slotGroupOf(r.slot.start) === key);
                 const unassigned = rows.filter((r) => !slotGroupOf(r.slot.start));
@@ -281,7 +318,7 @@ export function ManageGymPage() {
             </div>)}
 
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={addSlot}>
+              <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
                 <PlusIcon className="size-4"/> Add slot
               </Button>
               <Button variant="outline" size="sm" onClick={() => setSlots(defaultSlots())}>
@@ -293,18 +330,18 @@ export function ManageGymPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </TabsContent>
 
-      {/* ---------------- Check-in security ---------------- */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheckIcon className="size-4 text-primary"/> Check-in security (student scans)
-          </CardTitle>
-        </CardHeader>
+        <TabsContent value="security">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldCheckIcon className="size-4 text-primary"/> Check-in security (student scans)
+            </CardTitle>
+          </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Guard rails for the portal gym-QR scan — so A student can't check in from bed at 2 AM or from another city.
+            Guard rails for the portal studio QR scan — so a student can't check in from bed at 2 AM or from another city.
             Front-desk check-ins and check-outs are never blocked.
           </p>
 
@@ -365,10 +402,11 @@ export function ManageGymPage() {
             </div>
           </div>)}
         </CardContent>
-      </Card>
+        </Card>
+        </TabsContent>
 
-      {/* ---------------- Theme ---------------- */}
-      <Card>
+        <TabsContent value="theme">
+        <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <PaletteIcon className="size-4 text-primary"/> Institute theme
@@ -457,6 +495,10 @@ export function ManageGymPage() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+        </TabsContent>
+      </Tabs>
+
+      <AddSlotDialog open={addOpen} onOpenChange={setAddOpen} onSave={handleAddSlot}/>
     </div>);
 }

@@ -98,6 +98,11 @@ export const memberFormSchema = z
     ])
         .optional()
         .transform((v) => (v === "" ? "" : v)),
+    // Assigned trainer (StaffProfile id) — "" = none; "" → null before the API.
+    trainerId: z
+        .union([z.string().trim().min(1), z.literal("")])
+        .optional()
+        .transform((v) => (v && v.trim() ? v.trim() : null)),
 })
     .refine((data) => !data.emergencyContactPhone || data.emergencyContactPhone.length > 0, {
     message: "Enter a valid emergency contact phone or leave it empty",

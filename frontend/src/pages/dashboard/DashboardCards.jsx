@@ -4,7 +4,7 @@ import { ArrowUpRightIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 /** Animated number that respects prefers-reduced-motion. */
-function CountUp({ value, format }) {
+export function CountUp({ value, format }) {
     const [display, setDisplay] = useState(0);
     const previous = useRef(0);
     useEffect(() => {
@@ -33,8 +33,7 @@ function CountUp({ value, format }) {
     return <span className="tabular">{format ? format(display) : display.toLocaleString("en-IN")}</span>;
 }
 
-/** Faint gold line-art ornament in the card's bottom-right corner. */
-function GoldCorner() {
+export function GoldCorner() {
     return (<svg aria-hidden="true" viewBox="0 0 80 80" fill="none" className="pointer-events-none absolute -right-2 -bottom-2 size-16 text-km-gold opacity-[0.16]">
       <path d="M76 8C50 10 28 30 22 66" stroke="currentColor" strokeWidth="1.4"/>
       <path d="M76 22C56 24 38 40 32 74" stroke="currentColor" strokeWidth="1"/>
@@ -43,10 +42,10 @@ function GoldCorner() {
     </svg>);
 }
 
-const CARD_BASE = "group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_2px_5px_color-mix(in_srgb,var(--km-burgundy)_6%,transparent)] transition-all duration-200 hover:-translate-y-[2px] hover:border-km-gold/45 hover:shadow-[0_6px_16px_color-mix(in_srgb,var(--km-burgundy)_10%,transparent)]";
+export const CARD_BASE = "group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_2px_5px_color-mix(in_srgb,var(--km-burgundy)_6%,transparent)] transition-all duration-200 hover:-translate-y-[2px] hover:border-km-gold/45 hover:shadow-[0_6px_16px_color-mix(in_srgb,var(--km-burgundy)_10%,transparent)]";
 
 /** Corner arrow shown only on cards that navigate somewhere. */
-function CardArrow() {
+export function CardArrow() {
     return <ArrowUpRightIcon aria-hidden="true" className="absolute top-3 right-3 size-4 text-km-gold opacity-0 transition-opacity duration-200 group-hover:opacity-80"/>;
 }
 

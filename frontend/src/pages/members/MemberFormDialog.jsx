@@ -52,6 +52,8 @@ function emptyValues() {
         plannedHoursPerDay: Number.NaN,
         // "" = no preferred slot (zod → null before hitting the API).
         preferredSlot: "",
+        // "" = no trainer assigned (zod → null before hitting the API).
+        trainerId: "",
     };
 }
 function trimOrNull(value) {
@@ -100,6 +102,8 @@ function toIdentityInput(values) {
         emergencyContactPhone: values.emergencyContactPhone ? values.emergencyContactPhone : null,
         joinDate: values.joinDate,
         notes: trimOrNull(values.notes),
+        // Assigned trainer — "" / blank → null (unassigned).
+        trainerId: trimOrNull(values.trainerId),
     };
 }
 function toUpdateInput(values) {
@@ -152,6 +156,12 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
     /** Gym slot schedule — drives the preferred-slot picker (hidden when empty). */
     const gym = useAsync(() => data.getGymFresh(), [data]);
     const slots = useMemo(() => (gym.data?.timeSlots ?? []).filter((slot) => slot.start && slot.end), [gym.data]);
+    /** Active staff — drives the "Assigned trainer" picker. */
+    const staffList = useAsync(() => data.listStaff(false), [data]);
+    const trainerChoices = useMemo(
+        () => [...(staffList.data ?? [])].sort((a, b) => a.fullName.localeCompare(b.fullName)),
+        [staffList.data],
+    );
     useEffect(() => {
         if (!open)
             return;
@@ -177,6 +187,7 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
             notes: member.notes ?? "",
             plannedHoursPerDay: member.plannedHoursPerDay ?? Number.NaN,
             preferredSlot: member.preferredSlot ?? "",
+            trainerId: member.trainerId ?? "",
             classTag: member.classTag ?? "",
             age: typeof member.age === "number" && member.age > 0 ? member.age : Number.NaN,
             // Hidden in edit mode; the schema only requires it on create.
@@ -336,6 +347,24 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                     </div>) : null}
                 </div>)} />) : (<p className="text-[11px] text-muted-foreground">No time slots configured yet — add them from Manage Institute.</p>)}
               {errors.preferredSlot ? (<p className="text-xs text-destructive">{errors.preferredSlot.message}</p>) : null}
+            </div>
+
+            {/* Assigned trainer — the staff member responsible for this student. */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Assigned trainer</Label>
+              {trainerChoices.length > 0 ? (<Controller control={control} name="trainerId" render={({ field }) => (<Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose a trainer (optional)"/>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No trainer assigned</SelectItem>
+                      {trainerChoices.map((staff) => (<SelectItem key={staff.id} value={staff.id}>
+                          {staff.fullName}
+                          {staff.role === "trainer" ? "" : ` · ${staff.role}`}
+                        </SelectItem>))}
+                    </SelectContent>
+                  </Select>)}/>) : null}
+              <p className="text-[11px] text-muted-foreground">Shows next to this student on the attendance sheet.</p>
             </div>
 
             <div className="space-y-2">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { addDays, addMonths, addWeeks, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns";
 import { CalendarDaysIcon, CalendarRangeIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, PlusIcon, Settings2Icon, XCircleIcon, } from "lucide-react";
@@ -136,31 +136,8 @@ export function ClassesPage() {
     const [managing, setManaging] = useState(null);
     const [cancelling, setCancelling] = useState(null);
 
-    /* Schedule / Class Slots tabs (both sections live on this one page) */
+    /* Schedule / Class Slots tabs — only one section is mounted at a time. */
     const [activeTab, setActiveTab] = useState("schedule");
-    const scheduleRef = useRef(null);
-    const slotsRef = useRef(null);
-    const scrollTo = (key) => {
-        const target = key === "schedule" ? scheduleRef.current : slotsRef.current;
-        target?.scrollIntoView({ behavior: "smooth", block: "start" });
-        setActiveTab(key);
-    };
-    useEffect(() => {
-        const sections = [
-            { key: "schedule", el: scheduleRef.current },
-            { key: "slots", el: slotsRef.current },
-        ].filter((entry) => entry.el);
-        if (sections.length === 0)
-            return;
-        const observer = new IntersectionObserver((entries) => {
-            const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-            if (!visible)
-                return;
-            setActiveTab(visible.target === slotsRef.current ? "slots" : "schedule");
-        }, { rootMargin: "-25% 0px -55% 0px", threshold: [0, 0.15, 0.5] });
-        sections.forEach((entry) => observer.observe(entry.el));
-        return () => observer.disconnect();
-    }, []);
 
     /* ------------------------------ range ------------------------------- */
     const range = useMemo(() => {
@@ -274,7 +251,7 @@ export function ClassesPage() {
     };
 
     const total = filtered.length;
-    const tabButton = (key, label, Icon) => (<button key={key} type="button" onClick={() => scrollTo(key)} aria-pressed={activeTab === key} className={cn("inline-flex h-9 items-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors", activeTab === key
+    const tabButton = (key, label, Icon) => (<button key={key} type="button" onClick={() => setActiveTab(key)} aria-pressed={activeTab === key} className={cn("inline-flex h-9 items-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors", activeTab === key
         ? "border-primary bg-primary text-primary-foreground"
         : "border-transparent text-muted-foreground hover:bg-secondary hover:text-foreground")}>
       <Icon className="size-4"/> {label}
@@ -346,7 +323,7 @@ export function ClassesPage() {
       </div>
 
       {/* ------------------------------ Schedule ------------------------------ */}
-      <section ref={scheduleRef} id="schedule" aria-label="Class schedule" className="scroll-mt-24 rounded-xl border border-border/70 bg-card/60 p-4">
+      {activeTab === "schedule" ? (<section id="schedule" aria-label="Class schedule" className="rounded-xl border border-border/70 bg-card/60 p-4">
         <div className="grid gap-4 lg:grid-cols-[224px_minmax(0,1fr)]">
           {/* Filters rail */}
           <aside className="space-y-4 lg:border-r lg:border-border/60 lg:pr-4">
@@ -411,10 +388,10 @@ export function ClassesPage() {
                 }}/>) : (<DayAgenda day={anchor} items={filtered} canManage={canManage} onEdit={openEdit} onEnrolments={setManaging} onCancel={setCancelling}/>)}
           </div>
         </div>
-      </section>
+      </section>) : null}
 
       {/* ------------------------------ Class Slots ------------------------------ */}
-      <ClassSlotsSection sectionRef={slotsRef}/>
+      {activeTab === "slots" ? (<ClassSlotsSection/>) : null}
 
       {/* ------------------------------ Dialogs ------------------------------ */}
       <ClassFormDialog open={formOpen} onOpenChange={setFormOpen} gymClass={editing} onSave={handleSave}/>

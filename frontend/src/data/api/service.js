@@ -529,6 +529,9 @@ export class ApiDataService {
         const rows = await apiGet("/staff", { includeInactive: includeInactive ? 1 : undefined });
         return rows ?? [];
     }
+    async getStaff(id) {
+        return apiGet(`/staff/${encodeURIComponent(id)}`);
+    }
     async createStaff(input) {
         return apiPost("/staff", input);
     }
@@ -649,8 +652,15 @@ export class ApiDataService {
         return typeof payload?.created === "number" ? payload.created : 0;
     }
     /* -------------------------------- audit ---------------------------- */
-    async listAuditLogs(limit = 50) {
-        const rows = await apiGet("/audit", { limit });
-        return rows ?? [];
+    async listAuditLogs({ page, pageSize = 50 } = {}) {
+        // page given → paginated { items, total, page, pageSize }; otherwise a bare list.
+        const payload = await apiGet("/audit", { limit: pageSize, page: page ?? undefined });
+        if (page === undefined)
+            return payload ?? [];
+        if (payload?.items)
+            return payload;
+        // Defensive: an older backend may still return a bare array.
+        const rows = payload ?? [];
+        return { items: rows, total: rows.length, page: 1, pageSize };
     }
 }

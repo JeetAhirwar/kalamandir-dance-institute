@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ShieldAlertIcon, SaveIcon, HistoryIcon, Building2Icon, UserIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, ShieldAlertIcon, SaveIcon, HistoryIcon, Building2Icon, UserIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PhotoPicker } from "@/components/shared/PhotoPicker";
 import { EmptyState, ErrorState, Skeleton, Stagger, TableSkeleton, } from "@/components/shared/States";
@@ -23,6 +23,20 @@ import { formatDateTime, titleCase } from "@/lib/format";
 import { can, ROLE_LABELS } from "@/lib/permissions";
 import { settingsFormSchema } from "@/lib/validation";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+/** Audit-trail entity labels — the platform is a "studio", never a "gym". */
+const AUDIT_ENTITY_LABELS = {
+    gyms: "Studio",
+    gym_settings: "Studio Settings",
+    gym_classes: "Classes",
+};
+/** Label an audit entity; unknown codes get a "gym"-free studio fallback too. */
+function auditEntityLabel(entity) {
+    const mapped = AUDIT_ENTITY_LABELS[entity];
+    if (mapped)
+        return mapped;
+    return titleCase(String(entity ?? "").replace(/gym/gi, "studio"));
+}
 const COMMON_TIMEZONES = [
     "Asia/Kolkata",
     "Asia/Dubai",
@@ -139,9 +153,18 @@ export function SettingsPage() {
     const data = useData();
     const { session } = useAuth();
     const canManage = can(session?.profile.role, "settings.manage");
+    /* One section at a time: General | Profile | Audit. */
+    const [tab, setTab] = useState("general");
+    const AUDIT_PAGE_SIZE = 10;
+    const [auditPage, setAuditPage] = useState(1);
     const settings = useAsync(() => data.getSettings(), [data]);
     const gym = useAsync(() => data.getGym(), [data]);
-    const audit = useAsync(() => data.listAuditLogs(50), [data]);
+    const audit = useAsync(() => data.listAuditLogs({ page: auditPage, pageSize: AUDIT_PAGE_SIZE }), [data, auditPage]);
+    const auditRows = audit.data?.items ?? [];
+    const auditTotal = audit.data?.total ?? 0;
+    const auditPages = Math.max(1, Math.ceil(auditTotal / AUDIT_PAGE_SIZE));
+    const auditRangeFrom = auditTotal === 0 ? 0 : (auditPage - 1) * AUDIT_PAGE_SIZE + 1;
+    const auditRangeTo = Math.min(auditPage * AUDIT_PAGE_SIZE, auditTotal);
     const [saving, runSave] = useSubmitGuard();
     const { register, handleSubmit, control, reset, watch, formState: { errors }, } = useForm({
         resolver: zodResolver(settingsFormSchema),
@@ -227,9 +250,26 @@ export function SettingsPage() {
           </AlertDescription>
         </Alert>) : null}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* ---------------- Tabs: General | Profile | Audit ---------------- */}
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList className="w-full sm:w-fit">
+          <TabsTrigger value="general" className="gap-1 px-1.5 sm:gap-1.5 sm:px-2">
+            <Building2Icon className="hidden size-4 sm:block"/>
+            <span>General</span>
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-1 px-1.5 sm:gap-1.5 sm:px-2">
+            <UserIcon className="hidden size-4 sm:block"/>
+            <span>Profile</span>
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="gap-1 px-1.5 sm:gap-1.5 sm:px-2">
+            <HistoryIcon className="hidden size-4 sm:block"/>
+            <span className="sm:hidden">Audit</span><span className="hidden sm:inline">Audit trail</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general">
         {/* Card 1 — settings form */}
-        <Stagger className="h-full lg:col-span-2">
+        <Stagger className="h-full">
           <Card className="graphite-surface border-border/70">
             <CardHeader className="space-y-1">
               <CardTitle className="text-base">Institute profile &amp; check-in policy</CardTitle>
@@ -316,14 +356,15 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </Stagger>
+        </TabsContent>
 
-        {/* Card 2 — signed-in user's own profile (name + avatar) */}
-        <Stagger className="h-full">
-          <ProfileCard/>
-        </Stagger>
-
-        {/* Card 3 — gym details */}
-        <Stagger className="h-full" delayIndex={1}>
+        <TabsContent value="profile">
+          {/* Signed-in user's own profile (name + avatar) alongside the read-only studio details. */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Stagger className="h-full">
+              <ProfileCard/>
+            </Stagger>
+            <Stagger className="h-full" delayIndex={1}>
           <Card className="graphite-surface h-full border-border/70">
             <CardHeader className="space-y-1">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -352,10 +393,12 @@ export function SettingsPage() {
                 </dl>) : (<Skeleton className="h-56"/>)}
             </CardContent>
           </Card>
-        </Stagger>
-      </div>
+            </Stagger>
+          </div>
+        </TabsContent>
 
-      {/* Card 3 — audit trail */}
+        <TabsContent value="audit">
+      {/* Audit trail */}
       <Stagger delayIndex={2}>
         <Card className="graphite-surface border-border/70">
           <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -364,11 +407,11 @@ export function SettingsPage() {
                 <HistoryIcon className="size-4 text-muted-foreground"/>
                 Audit trail
               </CardTitle>
-              <p className="text-xs text-muted-foreground">Last 50 changes recorded by the app.</p>
+              <p className="text-xs text-muted-foreground">Recent changes recorded by the app.</p>
             </div>
           </CardHeader>
-          <CardContent>
-            {audit.loading ? (<TableSkeleton rows={6} cols={4}/>) : audit.error ? (<ErrorState title="Unable to load the audit trail" message={audit.error} onRetry={audit.reload}/>) : (audit.data ?? []).length === 0 ? (<EmptyState title="No activity yet" description="Changes to students, payments and settings will appear here." className="py-10"/>) : (<div className="overflow-x-auto rounded-lg border border-border/70">
+          <CardContent className="space-y-3">
+            {audit.loading ? (<TableSkeleton rows={6} cols={4}/>) : audit.error ? (<ErrorState title="Unable to load the audit trail" message={audit.error} onRetry={audit.reload}/>) : auditRows.length === 0 ? (<EmptyState title="No activity yet" description="Changes to students, payments and settings will appear here." className="py-10"/>) : (<div className="overflow-x-auto rounded-lg border border-border/70">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -379,21 +422,41 @@ export function SettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(audit.data ?? []).map((log) => (<TableRow key={log.id}>
+                    {auditRows.map((log) => (<TableRow key={log.id}>
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {formatDateTime(log.createdAt)}
                         </TableCell>
                         <TableCell className="text-sm">{log.actorName ?? "System"}</TableCell>
                         <TableCell className="text-sm">{titleCase(log.action)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {titleCase(log.entity)}
+                          {auditEntityLabel(log.entity)}
                         </TableCell>
                       </TableRow>))}
                   </TableBody>
                 </Table>
               </div>)}
+
+            {/* Pager */}
+            {auditTotal > 0 && !audit.error ? (<div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3">
+                <p className="text-xs text-muted-foreground">
+                  Showing {auditRangeFrom}–{auditRangeTo} of {auditTotal} changes
+                </p>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Button variant="outline" size="xs" disabled={auditPage <= 1 || audit.loading} onClick={() => setAuditPage((current) => Math.max(1, current - 1))}>
+                    <ChevronLeftIcon className="size-3"/> Prev
+                  </Button>
+                  <span className="text-xs text-muted-foreground tabular">
+                    Page {auditPage} of {auditPages}
+                  </span>
+                  <Button variant="outline" size="xs" disabled={auditPage >= auditPages || audit.loading} onClick={() => setAuditPage((current) => current + 1)}>
+                    Next <ChevronRightIcon className="size-3"/>
+                  </Button>
+                </div>
+              </div>) : null}
           </CardContent>
         </Card>
       </Stagger>
+        </TabsContent>
+      </Tabs>
     </div>);
 }
