@@ -11,6 +11,7 @@ import { parseBody } from "../middleware/validate.js";
 import { toClassSlot, toSlotEnrollment } from "../lib/serialize.js";
 import { writeAudit, pick } from "../lib/audit.js";
 import { findInstructorConflict, toMinutes } from "../lib/schedule.js";
+import { loadGymContext } from "../services/context.js";
 
 const router = Router();
 
@@ -39,6 +40,48 @@ async function findSlotOr404(gymId, id) {
   const row = await ClassSlot.findOne({ _id: id, gymId }).lean();
   if (!row) throw notFound("Class slot not found");
   return row;
+}
+
+/**
+ * A batch (ClassSlot) must run entirely inside the studio's Daily time slots
+ * (Manage Institute) — e.g. no 7:00 AM batch when the studio opens at 8:00 AM.
+ * Skipped when no hours are configured or slot-hours enforcement is off.
+ */
+async function assertWithinOperatingHours(gymId, startTime, endTime) {
+  const { gym } = await loadGymContext(gymId);
+  if (gym.enforceSlotHours === false) return;
+  const timeSlots = gym.timeSlots ?? [];
+  if (timeSlots.length === 0) return;
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+
+  // Merge the open ranges (wrapping slots like 22:00–02:59 split at midnight),
+  // then require [start, end] to be fully covered by them.
+  const ranges = [];
+  for (const s of timeSlots) {
+    const a = toMinutes(s.start);
+    const b = toMinutes(s.end);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    if (a <= b) ranges.push([a, b]);
+    else {
+      ranges.push([a, 24 * 60]);
+      ranges.push([0, b]);
+    }
+  }
+  ranges.sort((x, y) => x[0] - y[0]);
+  let cursor = start;
+  for (const [a, b] of ranges) {
+    if (b <= cursor) continue;
+    if (a > cursor) break;
+    cursor = Math.max(cursor, b);
+    if (cursor >= end) return;
+  }
+  const hours = timeSlots.map((s) => `${s.start} – ${s.end}`).join(", ");
+  throw badRequest(
+    `${startTime} – ${endTime} falls outside the studio's daily time slots (${hours}). Change the batch time, or update the daily slots in Manage Institute.`,
+    "outside_operating_hours",
+  );
 }
 
 /** Resolve the instructor's StaffProfile for a trainer-scoped request. */
@@ -113,6 +156,7 @@ router.post(
     const start = toMinutes(input.startTime);
     const end = toMinutes(input.endTime);
     if (end <= start) throw badRequest("endTime must be after startTime", "invalid_time_range");
+    await assertWithinOperatingHours(req.user.gymId, input.startTime, input.endTime);
 
     // Tenancy: the instructor must belong to this gym when provided.
     let instructorId = null;
@@ -193,6 +237,9 @@ router.patch(
     const start = toMinutes(next.startTime);
     const end = toMinutes(next.endTime);
     if (end <= start) throw badRequest("endTime must be after startTime", "invalid_time_range");
+    if (next.startTime !== existing.startTime || next.endTime !== existing.endTime) {
+      await assertWithinOperatingHours(req.user.gymId, next.startTime, next.endTime);
+    }
 
     let instructorId = existing.instructorId ?? null;
     if (input.instructorId !== undefined) {

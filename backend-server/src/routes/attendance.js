@@ -147,17 +147,27 @@ router.get(
     const dayKey = ymdInTz(sessionDate, ctx.tz);
     const weekday = new Date(`${dayKey}T00:00:00Z`).getUTCDay();
 
+    // The roster sheet lists EVERY student in the studio (not just the ones
+    // enrolled in this slot) so the front desk can mark a walk-in without
+    // leaving the page. `enrolled` flags who belongs to this batch.
     const enrollments = await SlotEnrollment.find({ slotId: slot._id, status: "enrolled" })
       .sort({ enrolledAt: 1 })
       .lean();
-    const memberIds = enrollments.map((e) => e.memberId);
-    const [members, marked] = await Promise.all([
-      memberIds.length ? Member.find({ _id: { $in: memberIds } }).lean() : [],
+    const enrolledIds = new Set(enrollments.map((e) => String(e.memberId)));
+    const [allMembers, marked] = await Promise.all([
+      Member.find({ gymId: req.user.gymId, status: "active" })
+        .sort({ fullName: 1 })
+        .lean(),
       AttendanceRecord.find({ gymId: req.user.gymId, classSlotId: slot._id, sessionDate })
         .select("memberId attendanceStatus")
         .lean(),
     ]);
-    const memberById = new Map(members.map((m) => [String(m._id), m]));
+    // Enrolled first (roster order), then everyone else alphabetically.
+    const members = [
+      ...allMembers.filter((m) => enrolledIds.has(String(m._id))),
+      ...allMembers.filter((m) => !enrolledIds.has(String(m._id))),
+    ];
+    const memberIds = members.map((m) => m._id);
     // statusByMember: current attendanceStatus for this slot+date (if already marked).
     const statusByMember = new Map(
       marked.map((a) => [String(a.memberId), a.attendanceStatus ?? "present"]),
@@ -214,20 +224,18 @@ router.get(
       slot: toClassSlot(slot, null, enrollments.length),
       date: dayKey,
       isSlotDay,
-      students: enrollments.map((e) => {
-        const m = memberById.get(String(e.memberId));
-        return {
-          memberId: String(e.memberId),
-          memberCode: m?.memberCode ?? null,
-          fullName: m?.fullName ?? "Student",
-          photoUrl: m?.photoUrl ?? null,
-          status: m?.status ?? "inactive",
-          marked: statusByMember.has(String(e.memberId)),
-          attendanceStatus: statusByMember.get(String(e.memberId)) ?? null,
-          quota: quotaForMember(e.memberId),
-          paymentMethod: methodByMember.get(String(e.memberId)) ?? null,
-        };
-      }),
+      students: members.map((m) => ({
+        memberId: String(m._id),
+        memberCode: m.memberCode ?? null,
+        fullName: m.fullName ?? "Student",
+        photoUrl: m.photoUrl ?? null,
+        status: m.status,
+        enrolled: enrolledIds.has(String(m._id)),
+        marked: statusByMember.has(String(m._id)),
+        attendanceStatus: statusByMember.get(String(m._id)) ?? null,
+        quota: quotaForMember(m._id),
+        paymentMethod: methodByMember.get(String(m._id)) ?? null,
+      })),
     });
   }),
 );

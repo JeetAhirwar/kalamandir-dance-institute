@@ -167,7 +167,6 @@ export class DemoDataService {
             .sort((a, b) => (a.paymentDate < b.paymentDate ? 1 : -1))[0];
         return {
             ...member,
-            tags: this.tagsOf(member),
             membership: membership ?? null,
             effectiveStatus: effectiveStatus(membership, member.status, this.now(), this.db.settings.expiringSoonDays, this.tz),
             planName: membership?.planName ?? null,
@@ -193,55 +192,6 @@ export class DemoDataService {
     nextMembershipId() {
         const n = this.db.memberships.length + 1;
         return `demo-membership-${String(n).padStart(4, "0")}-${Math.random().toString(36).slice(2, 6)}`;
-    }
-    /* -------------------------------- tags ------------------------------ */
-    tagRows() {
-        return Array.isArray(this.db.tags) ? this.db.tags : [];
-    }
-    /** Display tags ({ name, color }) of A student — matches the API join. */
-    tagsOf(member) {
-        const rows = this.tagRows();
-        return (member.tagIds ?? [])
-            .map((id) => rows.find((t) => t.id === id))
-            .filter(Boolean)
-            .map(({ name, color }) => ({ name, color }));
-    }
-    async listTags() {
-        return [...this.tagRows()].sort((a, b) => a.name.localeCompare(b.name));
-    }
-    async createTag(input) {
-        const name = String(input.name ?? "").trim();
-        if (!name)
-            throw new DataError("invalid", "Tag name is required.");
-        const rows = this.tagRows();
-        if (rows.some((t) => t.name.toLowerCase() === name.toLowerCase()))
-            throw new DataError("duplicate", `A tag named "${name}" already exists.`);
-        const tag = { id: uid("demo-tag"), gymId: this.db.gym.id, name, color: input.color ?? "#6366f1", createdAt: iso(this.now()) };
-        this.db.tags = [...rows, tag];
-        this.audit(this.db.profile.id, "members", tag.id, "create_tag", { name });
-        this.persist();
-        return tag;
-    }
-    async updateTag(id, input) {
-        const rows = this.tagRows();
-        const tag = rows.find((t) => t.id === id);
-        if (!tag)
-            throw new DataError("not_found", "Tag not found.");
-        const next = { ...tag, ...(input.name ? { name: String(input.name).trim() } : {}), ...(input.color ? { color: input.color } : {}) };
-        this.db.tags = rows.map((t) => (t.id === id ? next : t));
-        this.audit(this.db.profile.id, "members", id, "update_tag", { name: next.name });
-        this.persist();
-        return next;
-    }
-    async deleteTag(id) {
-        this.db.tags = this.tagRows().filter((t) => t.id !== id);
-        this.db.members = this.db.members.map((m) => ({
-            ...m,
-            tagIds: (m.tagIds ?? []).filter((t) => t !== id),
-            updatedAt: iso(this.now()),
-        }));
-        this.audit(this.db.profile.id, "members", id, "delete_tag");
-        this.persist();
     }
     /* ---------------------------- dashboard ---------------------------- */
     async getDashboardStats() {
@@ -369,8 +319,6 @@ export class DemoDataService {
         }
         if (query.planId)
             rows = rows.filter((m) => m.membership?.planId === query.planId);
-        if (query.tagId)
-            rows = rows.filter((m) => (m.tagIds ?? []).some((id) => id === query.tagId));
         const dir = query.dir === "asc" ? 1 : -1;
         const sort = query.sort ?? "created";
         rows.sort((a, b) => {
@@ -431,7 +379,6 @@ export class DemoDataService {
             notes: input.notes ?? null,
             plannedHoursPerDay: input.plannedHoursPerDay ?? null,
             preferredSlot: input.preferredSlot ?? null,
-            tagIds: [...(input.tagIds ?? [])],
             createdBy: this.db.profile.id,
             createdAt: iso(this.now()),
             updatedAt: iso(this.now()),
@@ -487,7 +434,6 @@ export class DemoDataService {
                 ? input.plannedHoursPerDay
                 : member.plannedHoursPerDay,
             preferredSlot: input.preferredSlot !== undefined ? input.preferredSlot : member.preferredSlot,
-            tagIds: input.tagIds !== undefined ? [...(input.tagIds ?? [])] : (member.tagIds ?? []),
             status: input.status ?? member.status,
             updatedAt: iso(this.now()),
         };

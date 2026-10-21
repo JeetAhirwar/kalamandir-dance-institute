@@ -11,7 +11,6 @@ import meRoutes from "./routes/me.js";
 import gymRoutes from "./routes/gym.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import memberRoutes from "./routes/members.js";
-import tagRoutes from "./routes/tags.js";
 import planRoutes from "./routes/plans.js";
 import attendanceRoutes from "./routes/attendance.js";
 import paymentRoutes from "./routes/payments.js";
@@ -105,7 +104,6 @@ export function buildApp() {
   app.use("/api", gymRoutes);
   app.use("/api", dashboardRoutes);
   app.use("/api", memberRoutes);
-  app.use("/api", tagRoutes);
   app.use("/api", planRoutes);
   app.use("/api", attendanceRoutes);
   app.use("/api", paymentRoutes);

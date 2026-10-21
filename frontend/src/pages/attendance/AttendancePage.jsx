@@ -64,7 +64,7 @@ function PaymentChip({ method }) {
 }
 
 /** Paid-class quota chip for the register — "4 left".
- *  Colour rule: 4+ left green · 3–2 yellow · 1 or 0 red. Square corners. */
+ *  Colour rule: 4+ left green · 3–2 yellow · 1 or 0 red. Rounded pill corners. */
 function ClassLeftChip({ quota }) {
     if (!quota) return <span className="text-xs text-muted-foreground">—</span>;
     const tone = quota.remaining >= 4
@@ -72,42 +72,10 @@ function ClassLeftChip({ quota }) {
         : quota.remaining >= 2
             ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400"
             : "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400";
-    return (<Badge variant="outline" className={cn("rounded-none font-semibold tabular-nums", tone)}>
+    return (<Badge variant="outline" className={cn("rounded-full font-semibold tabular-nums", tone)}>
       {quota.remaining} left
       {quota.exceeded > 0 ? ` · ${quota.exceeded} over` : ""}
     </Badge>);
-}
-
-/** Membership days-left chip for the register — "18 days". */
-function DaysLeftChip({ daysLeft }) {
-    if (daysLeft == null) return <span className="text-xs text-muted-foreground">—</span>;
-    if (daysLeft <= 0)
-        return (<Badge variant="outline" className="rounded-none border-red-500/40 bg-red-500/15 font-semibold text-red-600 dark:text-red-400">
-          Expired
-        </Badge>);
-    const tone = daysLeft <= 7
-        ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400"
-        : "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400";
-    return (<Badge variant="outline" className={cn("rounded-none font-semibold tabular-nums", tone)}>
-      {daysLeft} {daysLeft === 1 ? "day" : "days"}
-    </Badge>);
-}
-/** Paid-class quota for the marking sheet — "11/12 · 1 left".
- *  Colour rule: 4+ left green · 2–3 yellow · 1 or 0 red. */
-function RosterQuota({ quota }) {
-    if (!quota || quota.status === "none") return <span className="text-xs text-muted-foreground">—</span>;
-    const tone = quota.remaining >= 4
-        ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-600"
-        : quota.remaining >= 2
-            ? "border-amber-500/30 bg-amber-500/15 text-amber-600"
-            : "border-red-500/30 bg-red-500/15 text-red-600";
-    return (<span className="flex items-center gap-2">
-      <span className="text-sm text-foreground tabular">{quota.attended}/{quota.quota}</span>
-      <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium tabular", tone)}>
-        {quota.remaining} left
-        {quota.exceeded > 0 ? ` · ${quota.exceeded} over` : ""}
-      </span>
-    </span>);
 }
 
 /** A stat card for the header strip (Total Students / Present / Absent / Rate). */
@@ -262,16 +230,20 @@ export function AttendancePage() {
             };
         }
         const results = await Promise.all(loadedQuery.slotIds.map((id) => data.getClassRoster(id, loadedQuery.date)));
-        const seen = new Set();
-        const students = [];
+        // Every slot now returns the full studio roster — keep one row per
+        // student, preferring the slot they are actually enrolled in so Save
+        // attributes the mark to the right batch.
+        const byId = new Map();
         results.forEach((result, index) => {
+            const slotId = loadedQuery.slotIds[index];
             for (const s of result.students ?? []) {
-                if (seen.has(s.memberId)) continue;
-                seen.add(s.memberId);
-                students.push({ ...s, slotId: loadedQuery.slotIds[index] });
+                const prev = byId.get(s.memberId);
+                if (!prev || (s.enrolled && !prev.enrolled)) {
+                    byId.set(s.memberId, { ...s, slotId });
+                }
             }
         });
-        return { students, date: loadedQuery.date };
+        return { students: [...byId.values()], date: loadedQuery.date };
     }, [data, loadedQuery], { enabled: !!loadedQuery && loadedQuery.slotIds.length > 0 });
 
     // Seed the status map from the roster whenever it loads.
@@ -433,7 +405,16 @@ export function AttendancePage() {
         setViewDate(ymdOf(new Date(y, m - 1 + dir, d)));
     };
 
-    const slotNameOf = (row) => row.meta?.slotName ?? (row.classSlotId ? "Class" : "Walk-in");
+    /** slotId → slot lookup, so a row can show its class time ("7:00 AM – 8:15 AM").
+     *  Uses the FULL slot list (not just active) so archived slots still resolve. */
+    const slotById = useMemo(() => new Map((slots.data ?? []).map((s) => [String(s.id), s])), [slots.data]);
+
+    /** "7:00 AM – 8:15 AM" for a row's class slot; walk-ins have no time. */
+    const slotTimeOf = (row) => {
+        const slot = slotById.get(String(row.classSlotId ?? ""));
+        if (!slot?.startTime || !slot?.endTime) return null;
+        return `${fmtSlotTime(slot.startTime)} – ${fmtSlotTime(slot.endTime)}`;
+    };
 
     /** Human day label shown in the register header ("Wed, 21 Oct 2026"). */
     const viewDateLabel = (() => {
@@ -454,8 +435,7 @@ export function AttendancePage() {
             { header: "Payment Mode", accessor: (r) => (r.row.paymentMethod ? PAYMENT_METHOD_LABELS[r.row.paymentMethod] ?? titleCase(r.row.paymentMethod) : "") },
             { header: "Classes", accessor: (r) => (r.row.quota ? `${r.row.quota.attended}/${r.row.quota.quota}` : "") },
             { header: "Class Left", accessor: (r) => (r.row.quota ? r.row.quota.remaining : "") },
-            { header: "Days Left", accessor: (r) => (r.row.daysLeft ?? "") },
-            { header: "Class Slot", accessor: (r) => slotNameOf(r.row) },
+            { header: "Slot Time", accessor: (r) => slotTimeOf(r.row) ?? "" },
             { header: "Date", accessor: (r) => r.row.sessionDate ?? "" },
             { header: "Status", accessor: (r) => STATUS_META[r.row.attendanceStatus]?.label ?? "" },
             { header: "Marked By", accessor: (r) => r.row.scannerName ?? "" },
@@ -602,7 +582,7 @@ export function AttendancePage() {
                 <p className="text-sm font-medium">Select a slot from Morning / Afternoon / Evening to load students</p>
                 <p className="text-xs text-muted-foreground">Students will appear here to mark their attendance.</p>
               </div>) : roster.loading ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading students…</div>) : students.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No students are enrolled in this slot yet. Add them from Class Slots → Roster.
+                No students yet — add one from the Students page.
               </div>) : filteredStudents.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No students match “{studentQuery.trim()}”.
               </div>) : (<ul className="divide-y divide-border/60">
@@ -620,10 +600,6 @@ export function AttendancePage() {
                         <p className="truncate text-xs text-muted-foreground">{s.memberCode ?? "—"}</p>
                       </div>
                       {savingId === s.memberId ? <Loader2Icon className="size-3.5 animate-spin text-muted-foreground"/> : null}
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="w-20 text-xs text-muted-foreground"><PaymentChip method={s.paymentMethod}/></span>
-                      <span className="w-28"><RosterQuota quota={s.quota}/></span>
                     </div>
                     {isSaved ? (<div className="flex items-center gap-2">
                         <StatusChip status={saved}/>
@@ -703,7 +679,7 @@ export function AttendancePage() {
       {/* ------------------------------ View section ---------------------------- */}
       <Card className="graphite-surface border-border/70">
         <CardContent className="space-y-5 p-5">
-          <SectionHeading icon={<HistoryIcon className="size-5"/>} title="View Attendance" description="Review a day's register — payment, class quota and days left for every student."/>
+          <SectionHeading icon={<HistoryIcon className="size-5"/>} title="View Attendance" description="Review a day's register — payment and class quota for every student."/>
 
           {/* Filters */}
           <div className="grid gap-3 lg:grid-cols-[200px_auto_1fr_auto] lg:items-end">
@@ -779,8 +755,7 @@ export function AttendancePage() {
                       <TableHead>Payment Mode</TableHead>
                       <TableHead>Classes</TableHead>
                       <TableHead>Class Left</TableHead>
-                      <TableHead>Days Left</TableHead>
-                      <TableHead>Class Slot</TableHead>
+                      <TableHead>Slot Time</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -802,8 +777,9 @@ export function AttendancePage() {
                           {row.quota ? `${row.quota.attended}/${row.quota.quota}` : "—"}
                         </TableCell>
                         <TableCell><ClassLeftChip quota={row.quota}/></TableCell>
-                        <TableCell><DaysLeftChip daysLeft={row.daysLeft}/></TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{slotNameOf(row)}</TableCell>
+                        <TableCell className="text-sm tabular-nums text-muted-foreground">
+                          {slotTimeOf(row) ?? "—"}
+                        </TableCell>
                         <TableCell><StatusChip status={row.attendanceStatus}/></TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1.5">

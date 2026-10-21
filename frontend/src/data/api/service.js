@@ -196,7 +196,6 @@ export class ApiDataService {
             search: query.search,
             status: query.status && query.status !== "all" ? query.status : undefined,
             planId: query.planId,
-            tagId: query.tagId,
             sort: query.sort,
             dir: query.dir,
             page: query.page,
@@ -260,19 +259,6 @@ export class ApiDataService {
     }
     async rotateQrToken(memberId) {
         return apiPost(`/members/${encodeURIComponent(memberId)}/rotate-qr`);
-    }
-    /* -------------------------------- tags ------------------------------ */
-    async listTags() {
-        return apiGet("/tags");
-    }
-    async createTag(input) {
-        return apiPost("/tags", input);
-    }
-    async updateTag(id, input) {
-        return apiPatch(`/tags/${encodeURIComponent(id)}`, input);
-    }
-    async deleteTag(id) {
-        await apiDelete(`/tags/${encodeURIComponent(id)}`);
     }
     /* ------------------------------- plans ----------------------------- */
     async listPlans(includeInactive = true) {
@@ -455,7 +441,6 @@ export class ApiDataService {
             status: raw.status,
             plannedHoursPerDay: raw.plannedHoursPerDay ?? null,
             preferredSlot: raw.preferredSlot ?? null,
-            tags: raw.tags ?? [],
             qrStatus: raw.qrStatus ?? "active",
             membership,
             effectiveStatus: status,

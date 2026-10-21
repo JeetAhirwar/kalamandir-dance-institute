@@ -135,7 +135,7 @@ const TAGS = [
 
 /** Recurring batches. `instructor` = index into the trainer staff list. */
 const SLOTS = [
-    { name: "Morning Kathak", description: "Beginner • All Levels", weekdays: [1, 3, 5], startTime: "07:00", endTime: "08:15", capacity: 20, instructor: 0 },
+    { name: "Morning Kathak", description: "Beginner • All Levels", weekdays: [1, 3, 5], startTime: "08:00", endTime: "09:15", capacity: 20, instructor: 0 },
     { name: "Bollywood Groove", description: "Intermediate • Choreography", weekdays: [2, 4], startTime: "18:00", endTime: "19:15", capacity: 25, instructor: 1 },
     { name: "Sunset Yoga Flow", description: "All Levels • Mobility", weekdays: [0, 5], startTime: "18:30", endTime: "19:30", capacity: 18, instructor: 2 },
     { name: "Hip-Hop Foundations", description: "Beginner • All Levels", weekdays: [6], startTime: "10:00", endTime: "11:30", capacity: 22, instructor: 1 },

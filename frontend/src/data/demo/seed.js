@@ -236,30 +236,7 @@ export function buildDemoDatabase(now = new Date()) {
         createdAt: iso(addDays(now, -500)),
         updatedAt: iso(now),
     }));
-    /** Demo student tags (dance styles + labels) + per-member assignment by seed index. */
-    const tags = [
-        { id: "demo-tag-0001", gymId: gym.id, name: "Bollywood", color: "#ec4899", createdAt: iso(now) },
-        { id: "demo-tag-0002", gymId: gym.id, name: "Kathak", color: "#8b5cf6", createdAt: iso(now) },
-        { id: "demo-tag-0003", gymId: gym.id, name: "Hip-Hop", color: "#f59e0b", createdAt: iso(now) },
-        { id: "demo-tag-0004", gymId: gym.id, name: "Classical", color: "#3b82f6", createdAt: iso(now) },
-        { id: "demo-tag-0005", gymId: gym.id, name: "Beginner", color: "#10b981", createdAt: iso(now) },
-        { id: "demo-tag-0006", gymId: gym.id, name: "Annual Day", color: "#ef4444", createdAt: iso(now) },
-    ];
-    const tagIdsByName = Object.fromEntries(tags.map((t) => [t.name, t.id]));
-    const MEMBER_TAGS = [
-        ["Bollywood"],
-        ["Hip-Hop"],
-        ["Beginner"],
-        ["Kathak", "Beginner"],
-        ["Hip-Hop", "Annual Day"],
-        ["Kathak", "Annual Day"],
-        ["Bollywood"],
-        ["Classical"],
-        ["Beginner"],
-        ["Bollywood", "Annual Day"],
-        ["Hip-Hop"],
-        ["Kathak", "Annual Day"],
-    ];
+    /** Demo student tags removed — the Tags feature is retired. */
     const members = [];
     const memberships = [];
     const attendance = [];
@@ -289,7 +266,6 @@ export function buildDemoDatabase(now = new Date()) {
             qrRotatedAt: null,
             status: seed.state === "inactive" ? "inactive" : "active",
             notes: "[DEMO SEED] Seeded sample member.",
-            tagIds: (MEMBER_TAGS[index] ?? []).map((name) => tagIdsByName[name]).filter(Boolean),
             createdBy: profile.id,
             createdAt: iso(addDays(now, -seed.joinedDaysAgo)),
             updatedAt: iso(now),
@@ -521,7 +497,6 @@ export function buildDemoDatabase(now = new Date()) {
         settings,
         profile,
         plans,
-        tags,
         members,
         memberships,
         attendance: attendance.sort((a, b) => (a.checkIn < b.checkIn ? 1 : -1)),

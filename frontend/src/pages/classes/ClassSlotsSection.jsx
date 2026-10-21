@@ -4,6 +4,7 @@ import { ArchiveIcon, ArchiveRestoreIcon, CalendarRangeIcon, ChevronLeftIcon, Ch
 import { EmptyState, ErrorState, Skeleton, TableSkeleton, Stagger } from "@/components/shared/States";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -20,34 +21,36 @@ import { cn } from "@/lib/utils";
 /** Weekday → short chip label (indexed by JS weekday: 0 = Sunday). */
 const DAY_CHIPS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const PAGE_SIZE = 5;
+/** Daily time slot key ("HH:mm-HH:mm") — ties a batch to a Manage Institute slot. */
+const slotKey = (start, end) => `${start}-${end}`;
 const EMPTY_SLOT = {
-    name: "",
-    description: "",
-    weekdays: [1, 3, 5],
-    startTime: "17:00",
-    endTime: "18:00",
+    slotKey: "",
+    // Every day by default — untick the days this batch does NOT run on.
+    weekdays: [0, 1, 2, 3, 4, 5, 6],
     capacity: "",
     instructorId: "",
     isActive: true,
 };
 /* ------------------------------------------------------------------ */
 /*  Create / edit a recurring class slot                                */
+/*  Time comes from the studio's daily slots (Manage Institute) — the  */
+/*  form only picks WHICH slot, plus days / seats / instructor.        */
 /* ------------------------------------------------------------------ */
 export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
     const data = useData();
     const staff = useAsync(() => data.listStaff(true), [data], { enabled: open });
+    const gym = useAsync(() => data.getGymFresh(), [data], { enabled: open });
     const [submitting, run] = useSubmitGuard();
     const [values, setValues] = useState(EMPTY_SLOT);
+    /** The studio's daily time slots — the only times a batch may start. */
+    const dailySlots = useMemo(() => (gym.data?.timeSlots ?? []).filter((s) => s.start && s.end), [gym.data]);
     useEffect(() => {
         if (!open)
             return;
         if (slot) {
             setValues({
-                name: slot.name ?? "",
-                description: slot.description ?? "",
+                slotKey: slot.startTime && slot.endTime ? slotKey(slot.startTime, slot.endTime) : "",
                 weekdays: slot.weekdays ?? [],
-                startTime: slot.startTime ?? "17:00",
-                endTime: slot.endTime ?? "18:00",
                 capacity: slot.capacity ?? "",
                 instructorId: slot.instructorId ?? "",
                 isActive: slot.isActive !== false,
@@ -62,18 +65,19 @@ export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
     const toggleDay = (d) => set((v) => ({
         weekdays: v.weekdays.includes(d) ? v.weekdays.filter((x) => x !== d) : [...v.weekdays, d],
     }));
-    const valid = values.name.trim() && values.weekdays.length > 0;
+    const selected = useMemo(() => dailySlots.find((s) => slotKey(s.start, s.end) === values.slotKey) ?? null, [dailySlots, values.slotKey]);
+    const valid = Boolean(selected) && values.weekdays.length > 0;
     const submit = () => {
-        if (!valid)
+        if (!valid || !selected)
             return;
         run(async () => {
             try {
                 await onSave({
-                    name: values.name.trim(),
-                    description: values.description.trim() || null,
+                    name: `${format12h(selected.start)} – ${format12h(selected.end)}`,
+                    description: null,
                     weekdays: [...values.weekdays].sort(),
-                    startTime: values.startTime,
-                    endTime: values.endTime,
+                    startTime: selected.start,
+                    endTime: selected.end,
                     capacity: values.capacity === "" ? null : Number(values.capacity),
                     instructorId: values.instructorId || null,
                     isActive: values.isActive,
@@ -89,41 +93,41 @@ export function SlotFormDialog({ open, onOpenChange, slot, onSave }) {
         <DialogHeader>
           <DialogTitle>{slot ? "Edit class slot" : "New class slot"}</DialogTitle>
           <DialogDescription>
-            A recurring batch (e.g. "Morning Ballet · Mon/Wed/Fri 5–6 PM"). Assign an instructor so only they can mark it.
+            Pick one of the studio's daily slots, then choose the weekdays it runs on.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="slot-name">Slot name</Label>
-            <Input id="slot-name" placeholder="e.g. Morning Ballet" value={values.name} onChange={(e) => set({ name: e.target.value })}/>
+            <Label>Select slot</Label>
+            {gym.loading ? (<Skeleton className="h-9 w-full"/>) : dailySlots.length === 0 ? (<p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+                No daily slots configured yet — add them in Manage Institute first.
+              </p>) : (<Select value={values.slotKey || "__pick__"} onValueChange={(v) => set({ slotKey: v })}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Choose a daily slot"/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__pick__" disabled>Choose a daily slot</SelectItem>
+                  {dailySlots.map((s) => (<SelectItem key={slotKey(s.start, s.end)} value={slotKey(s.start, s.end)}>
+                      {format12h(s.start)} – {format12h(s.end)}
+                    </SelectItem>))}
+                </SelectContent>
+              </Select>)}
           </div>
 
           <div className="space-y-1.5">
             <Label>Weekdays</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {DAY_CHIPS.map((label, d) => (<button key={label} type="button" onClick={() => toggleDay(d)} className={cn("h-9 min-w-11 rounded-md border px-2 text-xs font-medium transition-colors", values.weekdays.includes(d)
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+              {DAY_CHIPS.map((label, d) => (<Label key={label} className={cn("flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border px-2 text-xs font-medium transition-colors", values.weekdays.includes(d)
                     ? "border-km-gold/60 bg-km-gold/15 text-foreground"
-                    : "border-input text-muted-foreground hover:bg-secondary")} aria-pressed={values.weekdays.includes(d)}>
+                    : "border-input text-muted-foreground hover:bg-secondary")}>
+                  <Checkbox checked={values.weekdays.includes(d)} onCheckedChange={() => toggleDay(d)}/>
                   {label}
-                </button>))}
+                </Label>))}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="slot-start">Start</Label>
-              <Input id="slot-start" type="time" value={values.startTime} onChange={(e) => set({ startTime: e.target.value })}/>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="slot-end">End</Label>
-              <Input id="slot-end" type="time" value={values.endTime} onChange={(e) => set({ endTime: e.target.value })}/>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="slot-cap">Capacity (blank = unlimited)</Label>
+              <Label htmlFor="slot-cap">Seat capacity (blank = unlimited)</Label>
               <Input id="slot-cap" type="number" min="1" placeholder="Unlimited" value={values.capacity} onChange={(e) => set({ capacity: e.target.value })}/>
             </div>
             <div className="space-y-1.5">
@@ -247,21 +251,10 @@ export function RosterDialog({ open, onOpenChange, slot, onChanged }) {
 /*  The "Class Slots" card — shown on the merged Classes & Schedule    */
 /*  page, right under the weekly timetable.                            */
 /* ------------------------------------------------------------------ */
-function SlotRow({ slot, canManage, onRoster, onEdit, onArchive, onRestore, }) {
+function SlotRow({ slot, index, canManage, onRoster, onEdit, onArchive, onRestore, }) {
     return (<TableRow className={cn(!slot.isActive && "opacity-70")}>
-      <TableCell>
-        <div className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-km-gold/25 bg-km-gold/10 text-km-gold">
-            <CalendarRangeIcon className="size-4"/>
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">
-              {slot.name}
-              {slot.capacity != null ? (<span className="ml-1 text-xs font-normal text-muted-foreground">· cap {slot.capacity}</span>) : null}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">{slot.description || slot.notes || "Recurring batch"}</p>
-          </div>
-        </div>
+      <TableCell className="w-16 text-sm font-medium text-muted-foreground tabular">
+        {index}
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
@@ -428,7 +421,7 @@ export function ClassSlotsSection({ sectionRef }) {
                 <Table className="min-w-[880px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Slot Name</TableHead>
+                      <TableHead className="w-16">Slot</TableHead>
                       <TableHead>Days</TableHead>
                       <TableHead>Time</TableHead>
                       <TableHead>Instructor</TableHead>
@@ -438,7 +431,7 @@ export function ClassSlotsSection({ sectionRef }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pageRows.map((slot) => (<SlotRow key={slot.id} slot={slot} canManage={canManage} onRoster={setRosterFor} onEdit={openEdit} onArchive={archive} onRestore={restore}/>))}
+                    {pageRows.map((slot, i) => (<SlotRow key={slot.id} slot={slot} index={fromIndex + i} canManage={canManage} onRoster={setRosterFor} onEdit={openEdit} onArchive={archive} onRestore={restore}/>))}
                   </TableBody>
                 </Table>
               </div>
