@@ -179,6 +179,13 @@ export const staffFormSchema = z.object({
     joiningDate: dateOnlySchema,
     photoUrl: z.string().trim().max(800_000).optional(),
     notes: z.string().trim().max(1000).optional(),
+    // Portal login password. Empty on edit → their existing credentials stay
+    // untouched; on create it immediately gives them a login.
+    loginPassword: z
+        .string()
+        .trim()
+        .optional()
+        .refine((v) => !v || v.length >= 6, "Login password must be at least 6 characters"),
 });
 export const classFormSchema = z
     .object({

@@ -140,12 +140,16 @@ export function StaffPage() {
     const handleSave = async (input) => {
         try {
             if (editing) {
-                await data.updateStaff(editing.id, input);
-                toast.success(`${input.fullName} updated`);
+                const saved = await data.updateStaff(editing.id, input);
+                toast.success(input.loginPassword && saved?.hasLogin
+                    ? `${input.fullName} updated — portal password saved`
+                    : `${input.fullName} updated`);
             }
             else {
-                await data.createStaff(input);
-                toast.success(`${input.fullName} added to the team`);
+                const saved = await data.createStaff(input);
+                toast.success(saved?.hasLogin
+                    ? `${input.fullName} added to the team — portal login ready with ${input.email}`
+                    : `${input.fullName} added to the team`);
             }
             staff.reload();
             return true;

@@ -263,6 +263,8 @@ export function toStaff(doc) {
     id: id(doc._id),
     gymId: id(doc.gymId),
     profileId: id(doc.profileId),
+    /** Whether a portal login (User row) is linked to this profile. */
+    hasLogin: Boolean(id(doc.profileId)),
     fullName: doc.fullName,
     email: doc.email ?? null,
     phone: doc.phone ?? null,

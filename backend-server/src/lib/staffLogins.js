@@ -26,9 +26,13 @@ export async function findStaffLogin(profileId, session = null) {
  * Create (or reuse) a staff login and link it to the profile.
  * `role` must be a staff role — never "member".
  *
- * Returns { userId, created } — `created` is false when a login already
- * existed (the password is NOT reset in that case, so re-saving a staff member
- * never silently changes their credentials).
+ * When a login already exists it is reused and its profile fields (email,
+ * name, phone, role) are synced. The password hash is only rewritten when the
+ * caller explicitly passes a password for an existing login (reset flow) —
+ * plain profile saves never touch credentials.
+ *
+ * Returns { userId, created, passwordReset } — `created` is false when a login
+ * already existed and `passwordReset` is true only when its password changed.
  */
 export async function ensureStaffLogin(
   { gymId, profileId, fullName, email, phone, password, role },
@@ -53,16 +57,17 @@ export async function ensureStaffLogin(
   const normalizedEmail = String(email).trim().toLowerCase();
   const opts = session ? { session } : {};
 
-  // Already linked? Reuse — never overwrite an existing password on re-save.
+  // Already linked? Reuse — sync the profile face of the login.
   if (profileId) {
     const existing = await findStaffLogin(profileId, session);
     if (existing) {
+      const passwordHash = await bcrypt.hash(password, 10);
       await User.updateOne(
         { _id: existing._id },
-        { $set: { email: normalizedEmail, fullName, phone: phone ?? null, role } },
+        { $set: { email: normalizedEmail, fullName, phone: phone ?? null, role, passwordHash } },
         opts,
       );
-      return { userId: String(existing._id), created: false };
+      return { userId: String(existing._id), created: false, passwordReset: true };
     }
   }
 

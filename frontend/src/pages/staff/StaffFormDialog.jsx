@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2Icon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, } from "@/components/ui/dialog";
@@ -35,6 +35,7 @@ const EMPTY_VALUES = {
     joiningDate: toDateOnly(new Date()),
     photoUrl: "",
     notes: "",
+    loginPassword: "",
 };
 function toInput(values) {
     const trimOrNull = (value) => {
@@ -51,10 +52,13 @@ function toInput(values) {
         joiningDate: values.joiningDate,
         photoUrl: trimOrNull(values.photoUrl),
         notes: trimOrNull(values.notes),
+        // Empty → omitted, so the backend never touches existing credentials.
+        loginPassword: trimOrNull(values.loginPassword) ?? undefined,
     };
 }
 export function StaffFormDialog({ open, onOpenChange, staff, onSave, }) {
     const [submitting, run] = useSubmitGuard();
+    const [showPassword, setShowPassword] = useState(false);
     const { register, handleSubmit, control, reset, watch, setValue, formState: { errors }, } = useForm({
         resolver: zodResolver(staffFormSchema),
         defaultValues: EMPTY_VALUES,
@@ -78,6 +82,8 @@ export function StaffFormDialog({ open, onOpenChange, staff, onSave, }) {
             joiningDate: staff.joiningDate,
             photoUrl: staff.photoUrl ?? "",
             notes: staff.notes ?? "",
+            // Passwords are never prefilled — empty means "keep theirs".
+            loginPassword: "",
         });
     }, [open, staff, reset]);
     const submit = handleSubmit((values) => {
@@ -176,6 +182,27 @@ export function StaffFormDialog({ open, onOpenChange, staff, onSave, }) {
               <Label htmlFor="staff-notes">Notes</Label>
               <Textarea id="staff-notes" rows={3} placeholder="Certifications, shift preferences…" {...register("notes")}/>
               {errors.notes ? <p className="text-xs text-destructive">{errors.notes.message}</p> : null}
+            </div>
+
+            {/* Portal login — they sign in on /login with this email + password.
+                Empty password keeps an existing login's credentials untouched. */}
+            <div className="space-y-3 rounded-lg border border-border/70 bg-muted/30 p-3 sm:col-span-2">
+              <p className="text-sm font-medium">Portal login</p>
+              <div className="space-y-2">
+                <Label htmlFor="staff-login-password">{staff?.hasLogin ? "New password (reset)" : "Set a password"}</Label>
+                <div className="relative">
+                  <Input id="staff-login-password" type={showPassword ? "text" : "password"} placeholder="Set a password (min. 6 characters)" autoComplete="new-password" {...register("loginPassword")}/>
+                  <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground transition-colors hover:text-primary">
+                    {showPassword ? <EyeOffIcon className="size-4"/> : <EyeIcon className="size-4"/>}
+                  </button>
+                </div>
+                {errors.loginPassword ? (<p className="text-xs text-destructive">{errors.loginPassword.message}</p>) : null}
+                <p className="text-xs text-muted-foreground">
+                  {staff?.hasLogin
+                  ? "Leave empty to keep their current password — typing a new one resets it. Role-based access applies automatically."
+                  : "They sign in with their email + this password and get access based on their role. Leave empty to add a login later."}
+                </p>
+              </div>
             </div>
           </div>
 
