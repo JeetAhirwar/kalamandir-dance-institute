@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -12,6 +12,7 @@ import {
     GaugeIcon,
     HistoryIcon,
     Loader2Icon,
+    ListIcon,
     PencilIcon,
     SaveIcon,
     SearchIcon,
@@ -39,8 +40,8 @@ import { AttendanceHistoryContent } from "./AttendanceHistoryPage";
 
 /** Status → label, dot colour, chip classes (Present / Late / Absent). */
 const STATUS_META = {
-    present: { label: "Present", short: "P", dot: "bg-emerald-500", chip: "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-    absent: { label: "Absent", short: "A", dot: "bg-red-500", chip: "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400" },
+    present: { label: "Present", short: "P", dot: "bg-success", chip: "border-success/40 bg-success/15 text-success dark:text-success" },
+    absent: { label: "Absent", short: "A", dot: "bg-destructive", chip: "border-destructive/40 bg-destructive/15 text-destructive dark:text-destructive-foreground" },
 };
 const STATUS_ORDER = ["present", "absent"];
 
@@ -58,8 +59,8 @@ function StatusChip({ status }) {
  *  the click handler (usually "start editing"). */
 function StatusTick({ status }) {
     const present = status === "present";
-    return (<span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs tabular-nums sm:gap-1.5 sm:px-2.5 sm:py-1 sm:font-bold sm:text-[13px] ${present ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" : "border-red-500/40 bg-red-500/10 text-red-600"}`}>
-      <span className={`inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-white sm:size-4 ${present ? "bg-emerald-500" : "bg-red-500"}`}>
+    return (<span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs tabular-nums sm:gap-1.5 sm:px-2.5 sm:py-1 sm:font-bold sm:text-[13px] ${present ? "border-success/40 bg-success/10 text-success" : "border-destructive/40 bg-destructive/10 text-destructive"}`}>
+      <span className={`inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-white sm:size-4 ${present ? "bg-success" : "bg-destructive"}`}>
         <CheckIcon className="size-2 sm:size-2.5" strokeWidth={3}/>
       </span>
       {present ? "P" : "A"}
@@ -79,7 +80,7 @@ function PaymentChip({ method }) {
 function ClassLeftChip({ quota }) {
     if (!quota) return <span className="text-xs text-muted-foreground">—</span>;
     const tone = quota.remaining >= 4
-        ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+        ? "border-success/40 bg-success/15 text-success dark:text-success"
         : quota.remaining >= 2
             ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400"
             : "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400";
@@ -92,10 +93,10 @@ function ClassLeftChip({ quota }) {
 /** A stat card for the header strip (Total Students / Present / Absent / Rate). */
 function StatCard({ label, value, icon, tone }) {
     const tones = {
-        neutral: "bg-violet-500/15 text-violet-500",
-        present: "bg-emerald-500 text-white",
-        absent: "bg-red-500 text-white",
-        rate: "bg-sky-500/15 text-sky-500",
+        neutral: "bg-primary/15 text-primary",
+        present: "bg-success text-white",
+        absent: "bg-destructive text-white",
+        rate: "bg-info text-white",
     };
     return (<Card className="graphite-surface border-border/70 py-0">
       <CardContent className="flex items-center justify-between gap-1.5 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2.5">
@@ -163,6 +164,7 @@ export function AttendancePage() {
 
     /* --------------------- tab state (mark | view | history) ------------------ */
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
     const tabParam = searchParams.get("tab");
     const activeTab = tabParam === "view" || tabParam === "history" ? tabParam : "mark";
     const setTab = (value) => {
@@ -530,40 +532,15 @@ export function AttendancePage() {
 
     return (<div className="space-y-8">
       {/* ------------------------------- Header ------------------------------- */}
-      <div className="relative flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-        {/* Decorative artwork — stylized dancer + leaves, echoes the studio
-            branding. Pure presentation, hidden from screen readers. */}
-        <svg aria-hidden="true" viewBox="0 0 120 140" className="pointer-events-none absolute -top-2 right-0 h-24 w-20 opacity-90 sm:h-36 sm:w-32">
-          <defs>
-            <radialGradient id="kmArtBlob" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#f8d8b8"/>
-              <stop offset="100%" stopColor="#f3bf8f"/>
-            </radialGradient>
-          </defs>
-          {/* soft peach blob + teal leaves */}
-          <circle cx="30" cy="52" r="26" fill="url(#kmArtBlob)" opacity="0.55"/>
-          <path d="M96 96 C 86 110, 90 126, 104 134 C 108 120, 106 106, 96 96 Z" fill="#7fb3a3" opacity="0.85"/>
-          <path d="M112 110 C 104 118, 106 130, 118 136 C 120 126, 118 116, 112 110 Z" fill="#9fc9b0" opacity="0.8"/>
-          <path d="M22 104 C 30 96, 44 96, 50 106 C 40 112, 28 112, 22 104 Z" fill="#9fc9b0" opacity="0.7"/>
-          {/* dancer — stylised silhouette (thick round strokes) */}
-          <g stroke="#3b4a6b" strokeLinecap="round" fill="none">
-            <path d="M64 34 C 74 24, 88 14, 100 6" strokeWidth="5"/>
-            <path d="M60 38 C 50 42, 42 48, 34 46" strokeWidth="4"/>
-            <path d="M62 30 C 60 48, 62 60, 58 74" strokeWidth="6"/>
-            <path d="M50 100 C 48 112, 44 120, 36 128" strokeWidth="4"/>
-            <path d="M64 102 C 66 114, 72 122, 82 128" strokeWidth="4"/>
-          </g>
-          <circle cx="64" cy="22" r="7" fill="#3b4a6b"/>
-          <path d="M42 96 Q 60 68 76 96 Q 59 106 42 96 Z" fill="#3b4a6b"/>
-        </svg>
-        <div className="space-y-1 pr-24 sm:space-y-2 sm:pr-40">
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+        <div className="space-y-1 sm:space-y-2">
           <div className="flex items-center gap-1.5 text-km-gold sm:gap-2">
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-km-gold/30 bg-km-gold/10 sm:size-6">
               <ChevronLeftIcon className="size-3 sm:size-3.5"/>
             </span>
             <span className="text-xs font-medium sm:text-sm">Attendance</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl sm:font-semibold">Manage Attendance</h1>
+          <h1 className="font-sans text-2xl font-bold tracking-tight sm:text-3xl sm:font-semibold">Manage Attendance</h1>
           <p className="max-w-xl text-xs text-muted-foreground sm:text-sm">
             Mark attendance for students and view past records — all in one place.
           </p>
@@ -578,22 +555,29 @@ export function AttendancePage() {
 
       {/* ------------- Tabs: Mark | View | Attendance history ------------- */}
       <Tabs defaultValue="mark" value={activeTab} onValueChange={setTab} className="space-y-6">
-      <TabsList className="h-auto w-full rounded-full bg-muted p-1 justify-start gap-0 sm:gap-1">
-          <TabsTrigger value="mark" className="rounded-full px-2.5 py-1.5 text-xs sm:px-3.5 sm:text-sm">
-            <ClipboardCheckIcon className="size-3.5 sm:size-4"/>
+      <TabsList className="h-auto w-full rounded-full justify-start gap-1 bg-muted p-1.5" style={{ height: "auto" }}>
+          <TabsTrigger value="mark" className="h-11 flex-1 rounded-full px-2 py-0 text-[11px] font-medium [&>svg]:text-foreground/80 data-[state=active]:font-semibold data-[state=active]:[&>svg]:text-primary sm:h-auto sm:flex-none sm:px-4 sm:py-1 sm:text-sm">
+            <ClipboardCheckIcon className="size-4"/>
             <span className="sm:hidden">Mark</span>
             <span className="hidden sm:inline">Mark Attendance</span>
           </TabsTrigger>
-          <TabsTrigger value="view" className="rounded-full px-2.5 py-1.5 text-xs sm:px-3.5 sm:text-sm">
-            <EyeIcon className="size-3.5 sm:size-4"/>
+          <span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-foreground/15"/>
+          <TabsTrigger value="view" className="h-11 flex-1 rounded-full px-2 py-0 text-[11px] font-medium [&>svg]:text-foreground/80 data-[state=active]:font-semibold data-[state=active]:[&>svg]:text-primary sm:h-auto sm:flex-none sm:px-4 sm:py-1 sm:text-sm">
+            <EyeIcon className="size-4"/>
             <span className="sm:hidden">View</span>
             <span className="hidden sm:inline">View Attendance</span>
           </TabsTrigger>
-          <TabsTrigger value="history" className="rounded-full px-2.5 py-1.5 text-xs sm:px-3.5 sm:text-sm">
-            <HistoryIcon className="size-3.5 sm:size-4"/>
+          <span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-foreground/15"/>
+          <TabsTrigger value="history" className="h-11 flex-1 rounded-full px-2 py-0 text-[11px] font-medium [&>svg]:text-foreground/80 data-[state=active]:font-semibold data-[state=active]:[&>svg]:text-primary sm:h-auto sm:flex-none sm:px-4 sm:py-1 sm:text-sm">
+            <HistoryIcon className="size-4"/>
             <span className="sm:hidden">History</span>
             <span className="hidden sm:inline">Attendance History</span>
           </TabsTrigger>
+          <span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-foreground/15"/>
+          <button type="button" className="flex h-11 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-2 text-[11px] font-medium text-foreground/60 transition-colors hover:text-foreground sm:h-auto sm:flex-none sm:px-4 sm:py-1 sm:text-sm" aria-label="View all attendance records" onClick={() => navigate("/attendance/history")}>
+            <ListIcon className="size-4 text-foreground/80"/>
+            <span>View All</span>
+          </button>
         </TabsList>
 
         <TabsContent value="mark">
@@ -624,32 +608,10 @@ export function AttendancePage() {
             </div>);
           })() : null}
 
-          {/* Mobile stat strip — quick-glance numbers for the loaded roster
-              (mockup cards; sm+ hides it, the View tab carries the summary). */}
-          {students.length > 0 ? (() => {
-            const present = students.filter((s) => savedStatuses[s.memberId] === "present").length;
-            const absent = students.filter((s) => savedStatuses[s.memberId] === "absent").length;
-            const marked = present + absent;
-            const rate = marked > 0 ? `${Math.round((present / marked) * 100)}%` : "—";
-            const cells = [
-              { label: "Students", value: students.length, cls: "border-primary/20 bg-primary/5 text-primary" },
-              { label: "Present", value: present, cls: "border-emerald-500/20 bg-emerald-500/5 text-emerald-600" },
-              { label: "Absent", value: absent, cls: "border-red-500/20 bg-red-500/5 text-red-600" },
-              { label: "Rate", value: rate, cls: "border-sky-500/20 bg-sky-500/5 text-sky-600" },
-            ];
-            return (<div className="grid grid-cols-4 gap-2 sm:hidden">
-              {cells.map((c) => (
-                <div key={c.label} className={cn("rounded-lg border px-1.5 py-1.5 text-center", c.cls)}>
-                  <p className="truncate text-[10px] font-medium leading-tight">{c.label}</p>
-                  <p className="text-sm font-bold leading-tight tabular">{c.value}</p>
-                </div>
-              ))}
-            </div>);
-          })() : null}
-
-          {/* Students panel */}
-          <div className="rounded-xl border border-border/70">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-2.5">
+          {/* Students panel — mobile: borderless section (no card-in-card);
+              sm+ keeps the boxed roster. */}
+          <div className="rounded-none border-0 sm:rounded-xl sm:border sm:border-border/70">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b-0 px-1 py-2 sm:border-b sm:border-border/70 sm:px-4 sm:py-2.5">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <UsersIcon className="size-4 text-muted-foreground"/>
                 Students{" "}
@@ -668,7 +630,7 @@ export function AttendancePage() {
                   <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Slot</span>
                   <select
                     aria-label="Slot"
-                    className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-auto"
+                    className="h-10 w-full rounded-lg border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:h-8 sm:w-auto sm:rounded-md sm:px-2"
                   disabled={slots.loading || activeSlots.length === 0 || loadAll}
                   value={slotGroup}
                   onChange={(e) => {
@@ -693,7 +655,7 @@ export function AttendancePage() {
                   <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Time</span>
                 <select
                   aria-label="Slot Timings"
-                  className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-auto sm:max-w-52"
+                  className="h-10 w-full rounded-lg border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:h-8 sm:w-auto sm:rounded-md sm:max-w-52 sm:px-2"
                   disabled={slots.loading || activeSlots.length === 0 || loadAll}
                   value={slotPick}
                   onChange={(e) => {
@@ -724,11 +686,11 @@ export function AttendancePage() {
                 </label>
                 <label className="flex min-w-0 flex-col gap-0.5 sm:contents">
                   <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Date</span>
-                <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} className="mt-auto h-8 w-full text-xs sm:mt-0 sm:w-36"/>
+                <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} className="mt-2 h-10 w-full rounded-lg bg-background text-xs sm:mt-0 sm:h-8 sm:w-36 sm:rounded-md"/>
                 </label>
-                <div className="relative mt-auto w-full sm:mt-0 sm:w-40">
+                <div className="relative mt-2 w-full sm:mt-0 sm:w-40">
                   <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
-                  <Input aria-label="Search student" placeholder="Search student" value={studentQuery} onChange={(e) => setStudentQuery(e.target.value)} className="h-8 w-full pl-7 text-xs"/>
+                  <Input aria-label="Search student" placeholder="Search student" value={studentQuery} onChange={(e) => setStudentQuery(e.target.value)} className="h-10 w-full rounded-lg border-input bg-background pl-7 text-xs sm:h-8 sm:rounded-md"/>
                 </div>
               </div>
             </div>
@@ -810,9 +772,9 @@ export function AttendancePage() {
                         {STATUS_ORDER.map((st) => {
                 const meta = STATUS_META[st];
                 const active = statuses[s.memberId] === st;
-                const colored = st === "present" ? "text-emerald-600" : "text-red-600";
-                const ring = st === "present" ? "border-emerald-500 bg-emerald-500 text-white" : "border-red-500 bg-red-500 text-white";
-                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("h-8 gap-1 rounded-full px-2 text-xs whitespace-nowrap transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]", active ? colored : "text-muted-foreground hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600")} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
+                const colored = st === "present" ? "text-success" : "text-destructive";
+                const ring = st === "present" ? "border-success bg-success text-white" : "border-destructive bg-destructive text-white";
+                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("h-8 gap-1 rounded-full px-2 text-xs whitespace-nowrap transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]", active ? colored : "text-muted-foreground hover:border-success/40 hover:bg-success/5 hover:text-success")} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
                               <span className={cn("inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 text-white transition-colors sm:size-4", active ? ring : "border-border/60")}>
                                 {active ? (<CheckIcon className="size-2 sm:size-2.5" strokeWidth={3}/>) : null}
                               </span>
@@ -843,12 +805,12 @@ export function AttendancePage() {
                       </div>
                     </div>
                     {walkInSavingId === m.id ? <Loader2Icon className="size-4 animate-spin text-muted-foreground"/> : (<div className="flex items-center gap-1.5">
-                        <Button size="sm" variant="outline" className="h-8 gap-1 rounded-full px-2 text-xs text-emerald-600 hover:border-emerald-500 hover:bg-emerald-500/10 transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]" onClick={() => markWalkIn(m.id, "present")}>
-                          <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 border-emerald-500/40 transition-colors group-hover:border-emerald-500 sm:size-4"/>
+                        <Button size="sm" variant="outline" className="h-8 gap-1 rounded-full px-2 text-xs text-success hover:border-success hover:bg-success/10 transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]" onClick={() => markWalkIn(m.id, "present")}>
+                          <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 border-success/40 transition-colors group-hover:border-success sm:size-4"/>
                           P
                         </Button>
-                        <Button size="sm" variant="outline" className="h-8 gap-1 rounded-full px-2 text-xs text-red-600 hover:border-red-500 hover:bg-red-500/10 transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]" onClick={() => markWalkIn(m.id, "absent")}>
-                          <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 border-red-500/40 transition-colors sm:size-4"/>
+                        <Button size="sm" variant="outline" className="h-8 gap-1 rounded-full px-2 text-xs text-destructive hover:border-destructive hover:bg-destructive/10 transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]" onClick={() => markWalkIn(m.id, "absent")}>
+                          <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 border-destructive/40 transition-colors sm:size-4"/>
                           A
                         </Button>
                       </div>)}
