@@ -31,7 +31,7 @@ import StaffProfile from "../models/StaffProfile.js";
 import { writeAudit } from "../lib/audit.js";
 import { currentMembership, checkEligibility } from "../lib/membership.js";
 import { toAttendance, ymd } from "../lib/serialize.js";
-import { minutesInTz, parseDateOnly, ymdInTz } from "../lib/dates.js";
+import { minutesInTz, parseDateOnly, ymdInTz, instantInTz } from "../lib/dates.js";
 import { quotaForMembership, syncQuotaNotifications } from "./quota.js";
 
 /** Reasons a mark can be rejected. Messages are written for the front desk. */
@@ -242,7 +242,9 @@ export async function markSlotAttendance({
           gymId,
           memberId: member._id,
           membershipId: membership._id,
-          checkIn: now,
+          // checkIn: now,
+          checkIn: instantInTz(dayKey, slotDoc.startTime, tz),
+          sessionDate: parseDateOnly(dayKey),
           status: "checked_in",
           method,
           scannerId: actorId || null,
@@ -517,7 +519,8 @@ export async function markRosterAttendance({
                 gymId,
                 memberId: member._id,
                 membershipId: membership?._id ?? null,
-                checkIn: now,
+                // checkIn: now,
+                sessionDate: parseDateOnly(dayKey),
                 status: "checked_in",
                 method: "class",
                 scannerId: actorId || null,
