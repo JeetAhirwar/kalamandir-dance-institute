@@ -48,7 +48,8 @@ const STAFF_KEYS = [
   "employmentStatus", "joiningDate", "photoUrl", "notes",
 ];
 
-async function findStaffOr404(gymId, id) {
+async function findStaffOr404(gymId, id)
+{
   if (!Types.ObjectId.isValid(String(id))) throw notFound("Staff Student not found");
   const row = await StaffProfile.findOne({ _id: id, gymId }).lean();
   if (!row) throw notFound("Staff Student not found");
@@ -60,7 +61,8 @@ router.get(
   "/staff",
   requireAuth,
   requireCap("staff.view"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const includeInactive =
       req.query.includeInactive === "1" ||
       req.query.includeInactive === "true" ||
@@ -77,7 +79,8 @@ router.get(
   "/staff/:id",
   requireAuth,
   requireCap("staff.view"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const row = await findStaffOr404(req.user.gymId, req.params.id);
     const [slots, students] = await Promise.all([
       ClassSlot.find({ gymId: req.user.gymId, instructorId: row._id })
@@ -100,7 +103,8 @@ router.post(
   "/staff",
   requireAuth,
   requireCap("staff.manage"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const input = parseBody(createStaffSchema, req.body);
     const [row] = await StaffProfile.create([
       {
@@ -120,7 +124,8 @@ router.post(
 
     // Optionally create a portal login so this staff member can sign in.
     let loginCreated = false;
-    if (input.loginPassword && input.email) {
+    if (input.loginPassword && input.email)
+    {
       const { userId, created } = await ensureStaffLogin({
         gymId: req.user.gymId,
         profileId: row._id,
@@ -153,19 +158,22 @@ router.patch(
   "/staff/:id",
   requireAuth,
   requireCap("staff.manage"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const input = parseBody(updateStaffSchema, req.body);
     const row = await findStaffOr404(req.user.gymId, req.params.id);
 
     const updates = {};
-    for (const key of STAFF_KEYS) {
-      if (input[key] !== undefined) {
+    for (const key of STAFF_KEYS)
+    {
+      if (input[key] !== undefined)
+      {
         updates[key] = key === "joiningDate" ? parseDateOnly(input[key]) : input[key];
       }
     }
     if (input.email !== undefined) updates.email = input.email || null;
 
-    const updated = await StaffProfile.findOneAndUpdate(
+    let updated = await StaffProfile.findOneAndUpdate(
       { _id: row._id },
       { $set: updates },
       { new: true },
@@ -173,17 +181,30 @@ router.patch(
 
     // Optionally create/refresh a portal login (password only changes when a
     // NEW login is created; existing logins keep their credentials).
+    // Optionally create / reset portal login.
+    // profileId must be the linked User._id (row.profileId), NOT StaffProfile._id.
     let loginUpdated = false;
-    if (input.loginPassword && (updates.email ?? row.email)) {
-      await ensureStaffLogin({
+    if (input.loginPassword && (updates.email ?? row.email))
+    {
+      const { userId, created } = await ensureStaffLogin({
         gymId: req.user.gymId,
-        profileId: row._id,
+        profileId: row.profileId || null,   // ✅ sahi — User._id
         fullName: updates.fullName ?? row.fullName,
         email: updates.email ?? row.email,
         phone: updates.phone ?? row.phone,
         password: input.loginPassword,
         role: updates.role ?? row.role,
       });
+
+      // Naya login bana ho to StaffProfile pe link karo
+      if (created || !row.profileId)
+      {
+        updated = await StaffProfile.findOneAndUpdate(
+          { _id: row._id },
+          { $set: { profileId: userId } },
+          { new: true },
+        ).lean();
+      }
       loginUpdated = true;
     }
 
@@ -206,10 +227,12 @@ router.patch(
   "/staff/:id/archive",
   requireAuth,
   requireCap("staff.manage"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const row = await findStaffOr404(req.user.gymId, req.params.id);
     // Prevent an admin from archiving/disabling their own account.
-    if (row.profileId && String(row.profileId) === String(req.user.id)) {
+    if (row.profileId && String(row.profileId) === String(req.user.id))
+    {
       throw forbidden("You cannot archive your own account.");
     }
     const updated = await StaffProfile.findOneAndUpdate(
@@ -241,10 +264,12 @@ router.delete(
   "/staff/:id",
   requireAuth,
   requireCap("staff.manage"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const row = await findStaffOr404(req.user.gymId, req.params.id);
     // Prevent an admin from deleting/disabling their own account.
-    if (row.profileId && String(row.profileId) === String(req.user.id)) {
+    if (row.profileId && String(row.profileId) === String(req.user.id))
+    {
       throw forbidden("You cannot delete your own account.");
     }
     await StaffProfile.deleteOne({ _id: row._id });
@@ -268,7 +293,8 @@ router.post(
   "/staff/:id/assign-slots",
   requireAuth,
   requireCap("slots.manage"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const row = await findStaffOr404(req.user.gymId, req.params.id);
     const slotIds = Array.isArray(req.body?.slotIds) ? req.body.slotIds : [];
     // Remove this trainer from all previously assigned slots.
@@ -277,7 +303,8 @@ router.post(
       { $set: { instructorId: null } },
     );
     // Assign selected slots to this trainer.
-    if (slotIds.length > 0) {
+    if (slotIds.length > 0)
+    {
       await ClassSlot.updateMany(
         { gymId: req.user.gymId, _id: { $in: slotIds.map((id) => new Types.ObjectId(id)) } },
         { $set: { instructorId: row._id } },
@@ -300,7 +327,8 @@ router.post(
   "/staff/:id/assign-students",
   requireAuth,
   requireCap("staff.manage"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const row = await findStaffOr404(req.user.gymId, req.params.id);
     const memberIds = Array.isArray(req.body?.memberIds) ? req.body.memberIds : [];
     // Remove this trainer from all previously assigned students.
@@ -309,7 +337,8 @@ router.post(
       { $set: { trainerId: null } },
     );
     // Assign selected students to this trainer.
-    if (memberIds.length > 0) {
+    if (memberIds.length > 0)
+    {
       await Member.updateMany(
         { gymId: req.user.gymId, _id: { $in: memberIds.map((id) => new Types.ObjectId(id)) } },
         { $set: { trainerId: row._id } },
