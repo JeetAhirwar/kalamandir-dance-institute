@@ -58,9 +58,9 @@ function StatusChip({ status }) {
  *  the click handler (usually "start editing"). */
 function StatusTick({ status }) {
     const present = status === "present";
-    return (<span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-bold text-[13px] tabular-nums ${present ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" : "border-red-500/40 bg-red-500/10 text-red-600"}`}>
-      <span className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full text-white ${present ? "bg-emerald-500" : "bg-red-500"}`}>
-        <CheckIcon className="size-2.5" strokeWidth={3}/>
+    return (<span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs tabular-nums sm:gap-1.5 sm:px-2.5 sm:py-1 sm:font-bold sm:text-[13px] ${present ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" : "border-red-500/40 bg-red-500/10 text-red-600"}`}>
+      <span className={`inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-white sm:size-4 ${present ? "bg-emerald-500" : "bg-red-500"}`}>
+        <CheckIcon className="size-2 sm:size-2.5" strokeWidth={3}/>
       </span>
       {present ? "P" : "A"}
     </span>);
@@ -728,9 +728,9 @@ export function AttendancePage() {
                 const active = statuses[s.memberId] === st;
                 const colored = st === "present" ? "text-emerald-600" : "text-red-600";
                 const ring = st === "present" ? "border-emerald-500 bg-emerald-500 text-white" : "border-red-500 bg-red-500 text-white";
-                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("h-9 gap-1.5 rounded-full px-2.5 font-bold text-[13px] whitespace-nowrap transition-colors", active ? colored : "text-muted-foreground hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600")} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
-                              <span className={cn("inline-flex size-4 shrink-0 items-center justify-center rounded-full border-2 text-white transition-colors", active ? ring : "border-border/60")}>
-                                {active ? (<CheckIcon className="size-2.5" strokeWidth={3}/>) : null}
+                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("h-8 gap-1 rounded-full px-2 text-xs whitespace-nowrap transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]", active ? colored : "text-muted-foreground hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600")} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
+                              <span className={cn("inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 text-white transition-colors sm:size-4", active ? ring : "border-border/60")}>
+                                {active ? (<CheckIcon className="size-2 sm:size-2.5" strokeWidth={3}/>) : null}
                               </span>
                               {meta.short}
                             </Button>);
@@ -759,12 +759,12 @@ export function AttendancePage() {
                       </div>
                     </div>
                     {walkInSavingId === m.id ? <Loader2Icon className="size-4 animate-spin text-muted-foreground"/> : (<div className="flex items-center gap-1.5">
-                        <Button size="sm" variant="outline" className="h-9 gap-1.5 rounded-full px-2.5 font-bold text-[13px] text-emerald-600 hover:border-emerald-500 hover:bg-emerald-500/10 transition-colors" onClick={() => markWalkIn(m.id, "present")}>
-                          <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border-2 border-emerald-500/40 transition-colors group-hover:border-emerald-500"/>
+                        <Button size="sm" variant="outline" className="h-8 gap-1 rounded-full px-2 text-xs text-emerald-600 hover:border-emerald-500 hover:bg-emerald-500/10 transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]" onClick={() => markWalkIn(m.id, "present")}>
+                          <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 border-emerald-500/40 transition-colors group-hover:border-emerald-500 sm:size-4"/>
                           P
                         </Button>
-                        <Button size="sm" variant="outline" className="h-9 gap-1.5 rounded-full px-2.5 font-bold text-[13px] text-red-600 hover:border-red-500 hover:bg-red-500/10 transition-colors" onClick={() => markWalkIn(m.id, "absent")}>
-                          <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border-2 border-red-500/40 transition-colors"/>
+                        <Button size="sm" variant="outline" className="h-8 gap-1 rounded-full px-2 text-xs text-red-600 hover:border-red-500 hover:bg-red-500/10 transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:font-bold sm:text-[13px]" onClick={() => markWalkIn(m.id, "absent")}>
+                          <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 border-red-500/40 transition-colors sm:size-4"/>
                           A
                         </Button>
                       </div>)}
