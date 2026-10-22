@@ -196,6 +196,14 @@ export default function DanceShowcase() {
                         >
                             Watch class videos on Instagram
                         </a>
+                        <a
+                            href={contactLinks.googleMapsPlace}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rule-link text-[15px] text-white/70 hover:text-white"
+                        >
+                            More videos on Google Maps
+                        </a>
                     </Reveal>
                 </div>
             </div>

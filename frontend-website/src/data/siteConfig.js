@@ -52,6 +52,15 @@ export const siteConfig = {
         "https://www.google.com/maps/search/?api=1&query=" +
         encodeURIComponent("Kala Mandir Art and Dance Institute, C-39, Block C, Sector 52, Noida, Uttar Pradesh 201307"),
 
+    /**
+     * Google Business Profile (Maps place). Coordinates and place id come from
+     * the institute's own listing (verified from the supplied deep link).
+     * The listing hosts several institute videos; they are only playable
+     * inside Google Maps, so the site links here instead of embedding.
+     */
+    googleMapsPlace:
+        "https://www.google.com/maps/place/Kala+Mandir+Art+and+Dance+Institute/@28.5866938,77.3703023,17z",
+
     /** Where the enquiry form posts when a backend is configured. */
     enquiry: {
         // Leave null to use the WhatsApp fallback (documented in README.md).
@@ -83,6 +92,7 @@ export const contactLinks = {
     whatsapp: `https://wa.me/${siteConfig.whatsapp.number}`,
     instagram: siteConfig.instagram.url,
     map: siteConfig.mapUrl,
+    googleMapsPlace: siteConfig.googleMapsPlace,
 };
 
 /** Build a pre-filled WhatsApp enquiry message. */

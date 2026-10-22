@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kala Mandir — responsive QA harness</title>
+<style>
+  body { margin: 0; padding: 24px; background: #101113; font-family: system-ui; }
+  h2 { color: #999; font-size: 13px; font-weight: 600; margin: 0 0 8px; letter-spacing: .08em; }
+  iframe { display: block; border: 2px solid #444; background: #202124; }
+</style>
+</head>
+<body>
+  <h2 id="label">loading…</h2>
+  <iframe id="site" src="/" title="Site under test"></iframe>
+<script>
+  const w = parseInt(new URLSearchParams(location.search).get("w") || "1440", 10);
+  const heights = { 360: 740, 390: 844, 430: 932, 768: 1024, 1024: 768, 1440: 900, 1920: 1080 };
+  const h = heights[w] || 800;
+  document.getElementById("site").style.width = w + "px";
+  document.getElementById("site").style.height = h + "px";
+  document.getElementById("label").textContent = w + " × " + h;
+</script>
+</body>
+</html>
