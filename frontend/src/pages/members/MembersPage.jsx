@@ -244,7 +244,7 @@ export function MembersPage() {
                     <TableRow className="h-11">
                       <TableHead className="hidden w-[7%] px-3 align-middle sm:table-cell">Sr. no.</TableHead>
                       <TableHead className="w-auto px-2 align-middle sm:w-[22%] sm:px-3">Student</TableHead>
-                      <TableHead className="w-[30%] px-2 align-middle sm:w-[10%] sm:px-3">Status</TableHead>
+                      <TableHead className="hidden w-[30%] px-2 align-middle sm:table-cell sm:w-[10%] sm:px-3">Status</TableHead>
                       <TableHead className="hidden w-[10%] px-3 align-middle md:table-cell">Classes</TableHead>
                       <TableHead className="hidden w-[11%] px-3 align-middle md:table-cell">Class Left</TableHead>
                       <TableHead className="hidden w-[12%] px-3 align-middle sm:table-cell">Plan</TableHead>
@@ -265,11 +265,18 @@ export function MembersPage() {
                               <Link to={`/members/${member.id}`} onClick={(event) => event.stopPropagation()} className="block truncate text-sm font-medium hover:underline">
                                 {member.fullName}
                               </Link>
-                              <p className="truncate text-xs text-muted-foreground">{member.memberCode}</p>
+                              <span className="flex items-center gap-1.5">
+                                <p className="truncate text-xs text-muted-foreground">{member.memberCode}</p>
+                                {/* Mobile-only: the Status column is hidden below sm,
+                                    so the status rides along beside the ID. */}
+                                <span className="sm:hidden">
+                                  <StatusBadge status={member.effectiveStatus} className="scale-90 px-1.5 py-0 text-[10px] leading-none"/>
+                                </span>
+                              </span>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="px-2 align-middle sm:px-3">
+                        <TableCell className="hidden px-2 align-middle sm:table-cell sm:px-3">
                           <StatusBadge status={member.effectiveStatus}/>
                         </TableCell>
                         <TableCell className="hidden px-3 text-sm align-middle md:table-cell">
