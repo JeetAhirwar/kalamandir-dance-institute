@@ -39,7 +39,7 @@ export default function ClassesSection() {
                             title={
                                 <>
                                     Five ways to make{" "}
-                                    <span className="italic text-coral">something</span>.
+                                    <span className="italic text-pink">something</span>.
                                 </>
                             }
                             standfirst="Drawing, painting, craft, dance, Zumba and choreography — each taught as its own discipline, with its own rhythm."
@@ -69,7 +69,7 @@ export default function ClassesSection() {
             <div
                 id="art-detail"
                 aria-labelledby="art-detail-title"
-                className="mt-24 scroll-mt-28 border-t border-rule bg-paper py-24 lg:mt-32 lg:py-32"
+                className="mt-24 scroll-mt-28 border-t border-rule bg-blossom py-24 lg:mt-32 lg:py-32"
             >
                 <div className="shell">
                     <div className="grid grid-cols-1 gap-y-12 lg:grid-cols-12 lg:gap-x-12">
@@ -82,7 +82,7 @@ export default function ClassesSection() {
                                 title={
                                     <>
                                         Give the work{" "}
-                                        <span className="italic text-coral">
+                                        <span className="italic text-pink">
                                             room to breathe
                                         </span>
                                         .
@@ -105,11 +105,11 @@ export default function ClassesSection() {
                             </Reveal>
 
                             <Reveal delay={0.15} className="mt-8 flex flex-wrap gap-x-7 gap-y-3">
-                                <a href="#gallery" className="rule-link text-[15px] text-blue">
+                                <a href="#gallery" className="rule-link text-[15px] text-rose">
                                     See the gallery
                                     <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
                                 </a>
-                                <a href="#enquiry" className="rule-link text-[15px] text-text hover:text-blue">
+                                <a href="#enquiry" className="rule-link text-[15px] text-text hover:text-rose">
                                     Ask about classes
                                     <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
                                 </a>
@@ -126,7 +126,7 @@ export default function ClassesSection() {
                                         className="aspect-[4/5] w-full rounded-[14px]"
                                         position="50% 40%"
                                     />
-                                    <p className="eyebrow mt-3 text-[#8d867c]">
+                                    <p className="eyebrow mt-3 text-[#a08a97]">
                                         {editorialImages.artDetail[0].caption}
                                     </p>
                                 </Reveal>
@@ -137,7 +137,7 @@ export default function ClassesSection() {
                                         sizes="(max-width: 1023px) 36vw, 26vw"
                                         className="aspect-square w-full rounded-[14px]"
                                     />
-                                    <p className="eyebrow mt-3 text-[#8d867c]">
+                                    <p className="eyebrow mt-3 text-[#a08a97]">
                                         {editorialImages.artDetail[2].caption}
                                     </p>
                                 </Reveal>
@@ -148,7 +148,7 @@ export default function ClassesSection() {
                                         sizes="(max-width: 1023px) 36vw, 26vw"
                                         className="aspect-[4/3] w-full rounded-[14px]"
                                     />
-                                    <p className="eyebrow mt-3 text-[#8d867c]">
+                                    <p className="eyebrow mt-3 text-[#a08a97]">
                                         {editorialImages.artDetail[3].caption}
                                     </p>
                                 </Reveal>
@@ -160,7 +160,7 @@ export default function ClassesSection() {
                                         className="aspect-[4/3] w-full rounded-[14px]"
                                         position="50% 35%"
                                     />
-                                    <p className="eyebrow mt-3 text-[#8d867c]">
+                                    <p className="eyebrow mt-3 text-[#a08a97]">
                                         {editorialImages.artDetail[1].caption}
                                     </p>
                                 </Reveal>

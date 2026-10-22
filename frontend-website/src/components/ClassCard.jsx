@@ -15,16 +15,16 @@ import { cn } from "@/lib/utils";
 
 /* Kept literal so Tailwind's scanner sees every class string. */
 const ACCENTS = {
-    teal: { kicker: "text-teal", dot: "bg-teal" },
-    magenta: { kicker: "text-magenta", dot: "bg-magenta" },
-    coral: { kicker: "text-coral", dot: "bg-coral" },
-    orange: { kicker: "text-orange", dot: "bg-orange" },
-    blue: { kicker: "text-blue", dot: "bg-blue" },
+    pink: { kicker: "text-pink", dot: "bg-pink" },
+    rose: { kicker: "text-rose", dot: "bg-rose" },
+    violet: { kicker: "text-violet", dot: "bg-violet" },
+    flame: { kicker: "text-flame", dot: "bg-flame" },
+    gold: { kicker: "text-[#c98a12]", dot: "bg-gold" },
 };
 
 export default function ClassCard({ item }) {
     const { title, kicker, summary, points, index, image, anchor, interest } = item;
-    const accent = ACCENTS[item.accent] || ACCENTS.coral;
+    const accent = ACCENTS[item.accent] || ACCENTS.pink;
 
     const handleInterest = () => {
         // Pre-select the matching option when the visitor lands on the form.
@@ -72,13 +72,13 @@ export default function ClassCard({ item }) {
                     <div className="flex items-start justify-between gap-5">
                         <div className="min-w-0">
                             <p className={cn("eyebrow", accent.kicker)}>{kicker}</p>
-                            <h3 className="mt-2.5 font-display text-[clamp(1.5rem,3.2vw,2.15rem)] leading-[1.08] tracking-[-0.01em] text-text transition-colors duration-200 group-hover:text-blue">
+                            <h3 className="mt-2.5 font-display text-[clamp(1.5rem,3.2vw,2.15rem)] leading-[1.08] tracking-[-0.01em] text-text transition-colors duration-200 group-hover:text-pink">
                                 {title}
                             </h3>
                         </div>
                         <span
                             aria-hidden="true"
-                            className="mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-rule text-muted transition-all duration-200 group-hover:border-blue group-hover:bg-blue group-hover:text-white"
+                            className="mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-rule text-muted transition-all duration-200 group-hover:border-pink group-hover:bg-pink group-hover:text-white"
                         >
                             <ArrowUpRight className="h-4 w-4" />
                         </span>

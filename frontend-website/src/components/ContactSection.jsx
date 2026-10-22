@@ -69,7 +69,7 @@ export default function ContactSection() {
                             title={
                                 <>
                                     Find us in{" "}
-                                    <span className="italic text-coral">
+                                    <span className="italic text-pink">
                                         Sector 52
                                     </span>
                                     .
@@ -81,7 +81,7 @@ export default function ContactSection() {
                         <Reveal delay={0.1} className="mt-9">
                             {/* Address block set like a magazine colophon */}
                             <div className="rounded-[16px] border border-rule bg-white p-6 sm:p-7">
-                                <p className="eyebrow text-[#a9a49c]">Studio address</p>
+                                <p className="eyebrow text-[#b0a0aa]">Studio address</p>
                                 <address className="mt-3 font-display text-[clamp(1.35rem,2.5vw,1.7rem)] not-italic leading-[1.35] text-text">
                                     {siteConfig.address.line1}
                                     <br />
@@ -95,7 +95,7 @@ export default function ContactSection() {
                                         href={contactLinks.map}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="rule-link text-[15px] text-blue"
+                                        className="rule-link text-[15px] text-rose"
                                     >
                                         Get directions
                                         <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
@@ -120,17 +120,17 @@ export default function ContactSection() {
                                     {...(channel.external
                                         ? { target: "_blank", rel: "noopener noreferrer" }
                                         : {})}
-                                    className="group grid grid-cols-[2.75rem_1fr_auto] items-center gap-x-4 border-t border-rule py-5 transition-colors duration-200 hover:border-[#c9c2b5] sm:gap-x-6 sm:py-6"
+                                    className="group grid grid-cols-[2.75rem_1fr_auto] items-center gap-x-4 border-t border-rule py-5 transition-colors duration-200 hover:border-[#d9c4d0] sm:gap-x-6 sm:py-6"
                                 >
                                     <span
                                         aria-hidden="true"
-                                        className="grid h-11 w-11 place-items-center rounded-full border border-rule text-muted transition-all duration-200 group-hover:border-blue group-hover:bg-blue group-hover:text-white"
+                                        className="grid h-11 w-11 place-items-center rounded-full border border-rule text-muted transition-all duration-200 group-hover:border-pink group-hover:bg-pink group-hover:text-white"
                                     >
                                         <channel.icon className="h-4.5 w-4.5" />
                                     </span>
 
                                     <span className="min-w-0">
-                                        <span className="eyebrow block text-[#a9a49c]">
+                                        <span className="eyebrow block text-[#b0a0aa]">
                                             {channel.label}
                                         </span>
                                         <span className="mt-1 block break-words text-[1.05rem] leading-snug text-text">
@@ -138,7 +138,7 @@ export default function ContactSection() {
                                         </span>
                                     </span>
 
-                                    <span className="flex items-center gap-2 text-[13.5px] text-muted transition-colors duration-200 group-hover:text-blue">
+                                    <span className="flex items-center gap-2 text-[13.5px] text-muted transition-colors duration-200 group-hover:text-pink">
                                         <span className="hidden sm:inline">
                                             {channel.action}
                                         </span>
@@ -160,7 +160,7 @@ export default function ContactSection() {
                                 </p>
                                 <a
                                     href="#enquiry"
-                                    className="group inline-flex items-center gap-2 rounded-[11px] bg-text px-6 py-3.5 text-[15px] font-medium text-paper transition-colors duration-200 hover:bg-blue"
+                                    className="group inline-flex items-center gap-2 rounded-[11px] bg-rose px-6 py-3.5 text-[15px] font-medium text-white transition-colors duration-200 hover:bg-pink"
                                 >
                                     Send an enquiry
                                     <ArrowUpRight

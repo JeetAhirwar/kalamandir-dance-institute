@@ -89,9 +89,9 @@ export default function MobileMenu({ open, onClose, active }) {
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-0"
                     >
-                        <span className="absolute inset-0 bg-[radial-gradient(120%_60%_at_90%_0%,rgba(56,91,232,0.08),transparent_55%)]" />
-                        <span className="absolute bottom-0 left-0 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(231,124,102,0.12),transparent_65%)]" />
-                        <span className="absolute bottom-0 right-0 h-[22rem] w-[22rem] rounded-full bg-[radial-gradient(circle,rgba(245,185,55,0.14),transparent_65%)]" />
+                        <span className="absolute inset-0 bg-[radial-gradient(120%_60%_at_90%_0%,rgba(139,92,246,0.08),transparent_55%)]" />
+                        <span className="absolute bottom-0 left-0 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(236,72,153,0.12),transparent_65%)]" />
+                        <span className="absolute bottom-0 right-0 h-[22rem] w-[22rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.12),transparent_65%)]" />
                     </div>
 
                     <div className="relative flex h-full flex-col overflow-y-auto px-6 pb-10 pt-24 sm:px-8">
@@ -115,14 +115,14 @@ export default function MobileMenu({ open, onClose, active }) {
                                                 aria-current={isActive ? "true" : undefined}
                                                 className="group flex items-baseline gap-4 border-b border-rule py-4"
                                             >
-                                                <span className="eyebrow w-7 shrink-0 tabular-nums text-[#a9a49c]">
+                                                <span className="eyebrow w-7 shrink-0 tabular-nums text-[#b0a0aa]">
                                                     {String(index + 1).padStart(2, "0")}
                                                 </span>
                                                 <span
                                                     className={cn(
                                                         "font-display text-[2rem] leading-none tracking-[-0.01em] transition-colors duration-200 sm:text-[2.4rem]",
                                                         isActive
-                                                            ? "text-coral"
+                                                            ? "text-pink"
                                                             : "text-text group-hover:text-muted",
                                                     )}
                                                 >
@@ -138,7 +138,7 @@ export default function MobileMenu({ open, onClose, active }) {
                                 <a
                                     href="#enquiry"
                                     onClick={onClose}
-                                    className="flex items-center justify-between gap-3 rounded-[12px] bg-text px-5 py-4 text-[15px] font-medium text-paper transition-colors duration-200 hover:bg-blue"
+                                    className="flex items-center justify-between gap-3 rounded-[12px] bg-rose px-5 py-4 text-[15px] font-medium text-white transition-colors duration-200 hover:bg-pink"
                                 >
                                     Book a Trial Class
                                     <ArrowUpRight className="h-4 w-4" aria-hidden="true" />

@@ -88,8 +88,8 @@ export default function Navbar() {
                         "mx-auto flex w-full max-w-[85rem] items-center justify-between rounded-[14px] border transition-all duration-300 ease-out",
                         // glass surface
                         dark
-                            ? "border-white/12 bg-charcoal/55 shadow-[0_10px_40px_-24px_rgba(0,0,0,0.75)] backdrop-blur-xl"
-                            : "border-black/[0.07] bg-paper/75 shadow-[0_10px_36px_-28px_rgba(32,33,36,0.5)] backdrop-blur-xl",
+                            ? "border-white/12 bg-plum/60 shadow-[0_10px_40px_-24px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+                            : "border-black/[0.07] bg-paper/75 shadow-[0_10px_36px_-28px_rgba(41,33,43,0.5)] backdrop-blur-xl",
                         scrolled
                             ? "h-[58px] sm:h-[62px] px-4 sm:px-5"
                             : "h-[64px] sm:h-[74px] px-4 sm:px-6",
@@ -106,8 +106,8 @@ export default function Navbar() {
                             className={cn(
                                 "grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border font-display text-[17px] leading-none transition-colors duration-300",
                                 dark
-                                    ? "border-white/15 bg-white/[0.06] text-paper group-hover:border-coral/50"
-                                    : "border-black/10 bg-white text-ink group-hover:border-coral/60",
+                                    ? "border-white/15 bg-white/[0.06] text-paper group-hover:border-pink/50"
+                                    : "border-black/10 bg-white text-ink group-hover:border-pink/60",
                             )}
                         >
                             K
@@ -157,7 +157,7 @@ export default function Navbar() {
                                             <motion.span
                                                 layoutId="nav-indicator"
                                                 aria-hidden="true"
-                                                className="absolute inset-x-3.5 -bottom-px h-px bg-coral"
+                                                className="absolute inset-x-3.5 -bottom-px h-px bg-pink"
                                                 transition={
                                                     reduce
                                                         ? { duration: 0 }
@@ -179,7 +179,7 @@ export default function Navbar() {
                                 "group hidden items-center gap-1.5 rounded-[10px] border px-4 py-2.5 text-[13px] font-medium tracking-[0.01em] transition-all duration-200 sm:inline-flex",
                                 dark
                                     ? "border-white/15 bg-white/[0.07] text-white hover:border-white/30 hover:bg-white/[0.13]"
-                                    : "border-text bg-text text-paper hover:border-blue hover:bg-blue",
+                                    : "border-rose bg-rose text-white hover:border-pink hover:bg-pink",
                             )}
                         >
                             Book a Trial Class

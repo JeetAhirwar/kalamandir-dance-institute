@@ -17,37 +17,37 @@ import { ease } from "@/lib/motion";
  * colourful detailing drawn from the artwork's own palette.
  */
 
-/* Category → colour from the studio palette (kept literal for Tailwind). */
+/* Category → colour from the art palette (kept literal for Tailwind). */
 const ACCENTS = {
     all: {
-        solid: "bg-text text-paper",
+        solid: "bg-text text-white",
         dot: "bg-text",
         hover: "hover:text-text",
         text: "text-text",
     },
     drawing: {
-        solid: "bg-teal text-white",
-        dot: "bg-teal",
-        hover: "hover:text-teal",
-        text: "text-teal",
+        solid: "bg-rose text-white",
+        dot: "bg-rose",
+        hover: "hover:text-rose",
+        text: "text-rose",
     },
     painting: {
-        solid: "bg-magenta text-white",
-        dot: "bg-magenta",
-        hover: "hover:text-magenta",
-        text: "text-magenta",
+        solid: "bg-pink text-white",
+        dot: "bg-pink",
+        hover: "hover:text-pink",
+        text: "text-pink",
     },
     craft: {
-        solid: "bg-orange text-white",
-        dot: "bg-orange",
-        hover: "hover:text-orange",
-        text: "text-orange",
+        solid: "bg-violet text-white",
+        dot: "bg-violet",
+        hover: "hover:text-violet",
+        text: "text-violet",
     },
     dance: {
-        solid: "bg-coral text-white",
-        dot: "bg-coral",
-        hover: "hover:text-coral",
-        text: "text-coral",
+        solid: "bg-flame text-white",
+        dot: "bg-flame",
+        hover: "hover:text-flame",
+        text: "text-flame",
     },
 };
 
@@ -75,7 +75,7 @@ export default function ArtGallery() {
             id="gallery"
             data-tone="light"
             aria-labelledby="gallery-title"
-            className="relative bg-paper py-24 sm:py-28 lg:py-36"
+            className="relative bg-blossom py-24 sm:py-28 lg:py-36"
         >
             {/* Decorative corner paint-swatch — quiet, aria-hidden */}
             <div
@@ -83,10 +83,10 @@ export default function ArtGallery() {
                 className="pointer-events-none absolute right-0 top-0 hidden select-none lg:block"
             >
                 <div className="flex gap-2 pt-10">
-                    <span className="h-16 w-2.5 rounded-full bg-teal/70" />
-                    <span className="h-16 w-2.5 rounded-full bg-magenta/70" />
-                    <span className="h-16 w-2.5 rounded-full bg-yellow/80" />
-                    <span className="h-16 w-2.5 rounded-full bg-coral/70" />
+                    <span className="h-16 w-2.5 rounded-full bg-pink/70" />
+                    <span className="h-16 w-2.5 rounded-full bg-rose/70" />
+                    <span className="h-16 w-2.5 rounded-full bg-gold/80" />
+                    <span className="h-16 w-2.5 rounded-full bg-violet/60" />
                 </div>
             </div>
 
@@ -100,7 +100,7 @@ export default function ArtGallery() {
                         title={
                             <>
                                 Made in{" "}
-                                <span className="italic text-magenta">our classes</span>,
+                                <span className="italic text-pink">our classes</span>,
                                 kept with pride.
                             </>
                         }
@@ -153,7 +153,7 @@ export default function ArtGallery() {
                     <p className="mt-6 flex items-start gap-2.5 text-[14px] leading-relaxed text-muted">
                         <span
                             aria-hidden="true"
-                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-teal motion-safe:animate-pulse"
+                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-pink motion-safe:animate-pulse"
                         />
                         <span className="max-w-[54rem]">
                             Every piece on this wall is{" "}
@@ -191,7 +191,7 @@ export default function ArtGallery() {
                                     <button
                                         type="button"
                                         onClick={() => setOpenIndex(filtered.indexOf(item))}
-                                        className="relative block w-full overflow-hidden rounded-[14px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+                                        className="relative block w-full overflow-hidden rounded-[14px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink focus-visible:ring-offset-2 focus-visible:ring-offset-blossom"
                                         aria-label={`Open in gallery: ${item.caption}`}
                                     >
                                         <SmartImage
@@ -255,7 +255,7 @@ export default function ArtGallery() {
                     <div className="flex flex-wrap gap-x-7 gap-y-4">
                         <a
                             href="#enquiry"
-                            className="group inline-flex items-center gap-2 rounded-[11px] bg-text px-6 py-3.5 text-[15px] font-medium text-paper transition-colors duration-200 hover:bg-blue"
+                            className="group inline-flex items-center gap-2 rounded-[11px] bg-rose px-6 py-3.5 text-[15px] font-medium text-white transition-colors duration-200 hover:bg-pink"
                         >
                             Enquire about art classes
                             <ArrowUpRight
@@ -265,7 +265,7 @@ export default function ArtGallery() {
                         </a>
                         <a
                             href="#art-detail"
-                            className="rule-link text-[15px] text-text hover:text-blue"
+                            className="rule-link text-[15px] text-text hover:text-rose"
                         >
                             More about the syllabus
                         </a>
@@ -284,7 +284,7 @@ export default function ArtGallery() {
                         <button
                             type="button"
                             onClick={() => setActive("all")}
-                            className="rule-link mt-6 text-[15px] text-blue"
+                            className="rule-link mt-6 text-[15px] text-rose"
                         >
                             Show all work
                         </button>

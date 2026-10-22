@@ -33,15 +33,15 @@ export default function Hero() {
 
     const { hero } = editorialImages;
 
-    /* Palette pulled from the students' artwork — coral, orange, cobalt,
-       magenta, yellow, teal — used also as a recurring brand motif. */
+    /* Palette pulled from the students' artwork — the art pinks and the dance
+       plums/violets — used as a recurring brand motif. */
     const palette = [
-        { bg: "bg-coral", delay: 0.55 },
-        { bg: "bg-orange", delay: 0.62 },
-        { bg: "bg-blue", delay: 0.69 },
-        { bg: "bg-magenta", delay: 0.76 },
-        { bg: "bg-yellow", delay: 0.83 },
-        { bg: "bg-teal", delay: 0.9 },
+        { bg: "bg-pink", delay: 0.55 },
+        { bg: "bg-rose", delay: 0.62 },
+        { bg: "bg-flame", delay: 0.69 },
+        { bg: "bg-violet", delay: 0.76 },
+        { bg: "bg-gold", delay: 0.83 },
+        { bg: "bg-lavender", delay: 0.9 },
     ];
 
     return (
@@ -52,14 +52,15 @@ export default function Hero() {
             aria-labelledby="hero-title"
             className="relative isolate overflow-hidden bg-paper"
         >
-            {/* Soft paint washes — very restrained, keep type contrast high */}
+            {/* Soft paint washes — pink & lavender, with a violet nod to dance.
+                Very restrained so type contrast stays high. */}
             <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0"
             >
-                <span className="absolute -left-32 -top-32 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(231,124,102,0.16),transparent_65%)]" />
-                <span className="absolute -right-40 top-10 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,rgba(56,91,232,0.13),transparent_65%)]" />
-                <span className="absolute bottom-[-12rem] left-1/3 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(245,185,55,0.18),transparent_65%)]" />
+                <span className="absolute -left-32 -top-32 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(236,72,153,0.16),transparent_65%)]" />
+                <span className="absolute -right-40 top-10 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,rgba(139,92,246,0.13),transparent_65%)]" />
+                <span className="absolute bottom-[-12rem] left-1/3 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.16),transparent_65%)]" />
             </div>
 
             <div className="relative mx-auto grid min-h-[100svh] w-full max-w-[85rem] grid-cols-1 items-center gap-y-10 px-5 pb-16 pt-28 sm:px-8 sm:pt-32 lg:grid-cols-12 lg:gap-x-10 lg:px-10 lg:pb-20 lg:pt-32 xl:px-14">
@@ -91,7 +92,7 @@ export default function Hero() {
                         <LineReveal delay={0.35}>Where Art</LineReveal>
                         <LineReveal delay={0.47}>
                             Comes{" "}
-                            <span className="italic text-coral">Alive</span>
+                            <span className="italic text-pink">Alive</span>
                             <span className="text-text/35">.</span>
                         </LineReveal>
                     </h1>
@@ -135,7 +136,7 @@ export default function Hero() {
                     >
                         <a
                             href="#classes"
-                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] bg-text px-7 py-4 text-[15px] font-medium tracking-[0.01em] text-paper transition-colors duration-200 hover:bg-blue"
+                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] bg-rose px-7 py-4 text-[15px] font-medium tracking-[0.01em] text-white transition-colors duration-200 hover:bg-pink"
                         >
                             Explore Classes
                             <ArrowUpRight
@@ -146,7 +147,7 @@ export default function Hero() {
 
                         <a
                             href="#gallery"
-                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] border border-text/20 px-7 py-4 text-[15px] tracking-[0.01em] text-text transition-colors duration-200 hover:border-text hover:bg-white"
+                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] border border-rose/25 px-7 py-4 text-[15px] tracking-[0.01em] text-rose transition-colors duration-200 hover:border-rose hover:bg-blossom"
                         >
                             See Student Artwork
                         </a>
@@ -178,7 +179,7 @@ export default function Hero() {
                     <svg
                         aria-hidden="true"
                         viewBox="0 0 200 200"
-                        className="pointer-events-none absolute -right-6 -top-10 hidden h-40 w-40 text-blue/55 lg:block"
+                        className="pointer-events-none absolute -right-6 -top-10 hidden h-40 w-40 text-violet/55 lg:block"
                         fill="none"
                     >
                         <motion.path

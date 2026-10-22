@@ -38,7 +38,7 @@ export default function IntroSection() {
                             className="mt-4 flex items-start justify-between gap-4 border-t border-rule pt-3"
                         >
                             <span className="eyebrow text-muted">The studio at work</span>
-                            <span className="eyebrow text-[#a9a49c]">
+                            <span className="eyebrow text-[#b0a0aa]">
                                 Sector 52 · Noida
                             </span>
                         </Reveal>
@@ -61,7 +61,7 @@ export default function IntroSection() {
                             title={
                                 <>
                                     A studio built for{" "}
-                                    <span className="italic text-coral">
+                                    <span className="italic text-pink">
                                         creative expression
                                     </span>
                                     .
@@ -102,7 +102,7 @@ export default function IntroSection() {
                         </MaskReveal>
 
                         <Reveal delay={0.1} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
-                            <a href="#why" className="rule-link text-[15px] text-blue">
+                            <a href="#why" className="rule-link text-[15px] text-rose">
                                 Why learn here
                                 <ArrowUpRight
                                     aria-hidden="true"
@@ -111,7 +111,7 @@ export default function IntroSection() {
                             </a>
                             <a
                                 href="#enquiry"
-                                className="rule-link text-[15px] text-text hover:text-blue"
+                                className="rule-link text-[15px] text-text hover:text-rose"
                             >
                                 Book a trial class
                                 <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
@@ -130,7 +130,7 @@ export default function IntroSection() {
                                 { k: "Enquiries", v: "Open" },
                             ].map((item) => (
                                 <div key={item.k} className="border-t border-rule pt-3">
-                                    <dt className="eyebrow text-[#a9a49c]">{item.k}</dt>
+                                    <dt className="eyebrow text-[#b0a0aa]">{item.k}</dt>
                                     <dd className="mt-1.5 font-display text-[1.35rem] leading-none text-text">
                                         {item.v}
                                     </dd>

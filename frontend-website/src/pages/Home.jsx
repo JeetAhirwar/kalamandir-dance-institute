@@ -2,6 +2,7 @@ import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import IntroSection from "@/components/IntroSection";
 import ClassesSection from "@/components/ClassesSection";
+import Marquee from "@/components/Marquee";
 import ArtGallery from "@/components/ArtGallery";
 import DanceShowcase from "@/components/DanceShowcase";
 import WhyLearnHere from "@/components/WhyLearnHere";
@@ -9,8 +10,18 @@ import InstagramGallery from "@/components/InstagramGallery";
 import EnquiryForm from "@/components/EnquiryForm";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
+import ScrollProgress from "@/components/ScrollProgress";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { useSmoothAnchors } from "@/hooks";
+
+const DISCIPLINES = [
+    "Drawing",
+    "Painting",
+    "Art & Craft",
+    "Dance",
+    "Zumba",
+    "Choreography",
+];
 
 /**
  * Home — the single-page composition.
@@ -24,11 +35,13 @@ export default function Home() {
 
     return (
         <>
+            <ScrollProgress />
             <Navbar />
             <main id="main">
                 <Hero />
                 <IntroSection />
                 <ClassesSection />
+                <Marquee items={DISCIPLINES} tone="art" />
                 <ArtGallery />
                 <DanceShowcase />
                 <WhyLearnHere />

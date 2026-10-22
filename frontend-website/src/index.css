@@ -9,20 +9,36 @@
    ========================================================================== */
 
 @theme {
-  /* Colour tokens — bright, artwork-inspired palette */
-  --color-ink: #202124;          /* primary dark (type, footer, CTAs) */
-  --color-charcoal: #17181b;     /* deep surface — footer & lightbox only */
-  --color-paper: #faf6ee;        /* warm ivory ground */
+  /* Colour tokens — two brand worlds under one roof.
+     ART   → pink & white (blush surfaces, vibrant pink + deep rose accents).
+     DANCE → deep plum + cream (violet, flame-coral and gold energy).
+     A warm white ground and one readable ink carry both worlds so the page
+     stays bright, never dark-luxury. */
+
+  /* Neutrals / ground */
+  --color-ink: #29212b;          /* readable dark (type, ink CTAs) */
+  --color-charcoal: #1c0f1e;     /* deepest plum — used sparingly */
+  --color-paper: #fffcfa;        /* warm white ground */
   --color-white: #ffffff;
-  --color-text: #222222;         /* primary text on light */
-  --color-muted: #77736d;        /* secondary text */
-  --color-rule: #e6dfd3;         /* fine borders on light */
-  --color-blue: #385be8;         /* cobalt accent */
-  --color-coral: #e77c66;        /* coral accent */
-  --color-orange: #ee8a31;       /* tangerine accent */
-  --color-magenta: #d63c92;      /* magenta accent */
-  --color-yellow: #f5b937;       /* marigold accent */
-  --color-teal: #189b85;         /* jade accent */
+  --color-text: #29212b;         /* primary text on light */
+  --color-muted: #77656f;        /* secondary text (warm grey-mauve) */
+  --color-rule: #ecdfe6;         /* fine borders on light */
+
+  /* Art world — pink & white */
+  --color-blush: #fce7f3;        /* soft blush surface */
+  --color-blossom: #fdf2f8;      /* pale pink surface wash */
+  --color-pink: #ec4899;         /* vibrant pink */
+  --color-rose: #be185d;         /* deep rose (text / CTA on pink) */
+  --color-lavender: #f0e7ff;     /* soft lavender */
+  --color-butter: #fde68a;       /* artistic yellow accent */
+
+  /* Dance world — plum + rhythm */
+  --color-plum: #351536;         /* deep plum surface */
+  --color-plum-2: #4a1d4c;       /* lifted plum for gradients */
+  --color-cream: #fff8f0;        /* warm cream */
+  --color-flame: #ff6b6b;        /* coral energy */
+  --color-violet: #8b5cf6;       /* electric violet */
+  --color-gold: #fbbf24;         /* golden accent */
 
   /* Type */
   --font-display: "DM Serif Display", Georgia, "Times New Roman", serif;
@@ -80,12 +96,12 @@
   }
 
   ::selection {
-    background: var(--color-blue);
+    background: var(--color-pink);
     color: #fff;
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-blue);
+    outline: 2px solid var(--color-rose);
     outline-offset: 3px;
   }
 
@@ -185,21 +201,21 @@
     transition: border-color 200ms ease;
   }
   .field::placeholder {
-    color: #a9a49c;
+    color: #b0a0aa;
   }
   .field:hover {
-    border-color: #c9c2b5;
+    border-color: #d9c4d0;
   }
   .field:focus {
     outline: none;
-    border-color: var(--color-blue);
+    border-color: var(--color-pink);
   }
   .field[aria-invalid="true"] {
     border-color: #b4462f;
   }
   select.field {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%2377736d' stroke-width='1.4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%2377656f' stroke-width='1.4'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.15rem center;
     padding-right: 1.5rem;
@@ -207,6 +223,21 @@
   textarea.field {
     resize: vertical;
     min-height: 5.5rem;
+  }
+
+  /* Ink button — the primary CTA carried through both brand worlds. */
+  .btn-ink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    border-radius: 11px;
+    background: var(--color-rose);
+    color: #fff;
+    transition: background-color 200ms ease;
+  }
+  .btn-ink:hover {
+    background: var(--color-pink);
   }
 }
 
@@ -236,7 +267,7 @@
   }
 }
 .km-skeleton {
-  background: linear-gradient(100deg, #e7e1d5 30%, #f1ece2 50%, #e7e1d5 70%);
+  background: linear-gradient(100deg, #f0e2ea 30%, #f9eef4 50%, #f0e2ea 70%);
   background-size: 220% 100%;
   animation: km-pulse 1.6s ease-in-out infinite;
 }

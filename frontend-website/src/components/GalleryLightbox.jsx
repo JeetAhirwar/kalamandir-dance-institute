@@ -167,7 +167,7 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                                     aria-current={i === index ? "true" : undefined}
                                     className={`h-1.5 shrink-0 rounded-full transition-all duration-300 ${
                                         i === index
-                                            ? "w-8 bg-coral"
+                                            ? "w-8 bg-pink"
                                             : "w-3 bg-ink/15 hover:bg-ink/40"
                                     }`}
                                 />

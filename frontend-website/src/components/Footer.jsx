@@ -21,7 +21,7 @@ export default function Footer() {
     return (
         <footer
             data-tone="dark"
-            className="grain relative isolate overflow-hidden bg-charcoal text-white"
+            className="grain relative isolate overflow-hidden bg-plum text-white"
         >
             <div className="relative">
                 <div className="shell">
@@ -30,7 +30,7 @@ export default function Footer() {
                         <p className="eyebrow text-white/40">Where art comes alive</p>
                         <p className="mt-4 font-display text-[clamp(2.4rem,8vw,6rem)] leading-[0.95] tracking-[-0.02em] text-white">
                             Kala Mandir
-                            <span className="text-coral">.</span>
+                            <span className="text-pink">.</span>
                         </p>
                         <p className="mt-3 max-w-[34rem] text-[15.5px] leading-relaxed text-white/55">
                             {siteConfig.name} — art and dance classes in Sector 52,

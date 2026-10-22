@@ -49,7 +49,7 @@ export default function SmartImage({
     return (
         <div
             className={cn(
-                "relative overflow-hidden bg-[#e9e3d7]",
+                "relative overflow-hidden bg-[#f4e7ee]",
                 status === "loading" && "km-skeleton",
                 className,
             )}
@@ -61,12 +61,12 @@ export default function SmartImage({
                 <div
                     role="img"
                     aria-label={finalAlt || "Image unavailable"}
-                    className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#efe9de] px-4 text-center"
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#f6ecf1] px-4 text-center"
                 >
                     <svg
                         viewBox="0 0 24 24"
                         aria-hidden="true"
-                        className="h-6 w-6 text-[#a9a49c]"
+                        className="h-6 w-6 text-[#b0a0aa]"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.4"
@@ -75,7 +75,7 @@ export default function SmartImage({
                         <path d="m4 17 5-5 4 4 3-3 4 4" />
                         <circle cx="9" cy="9" r="1.4" />
                     </svg>
-                    <span className="eyebrow text-[#8d867c]">Image unavailable</span>
+                    <span className="eyebrow text-[#9c8a94]">Image unavailable</span>
                 </div>
             ) : (
                 <picture>

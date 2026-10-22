@@ -211,7 +211,7 @@ export default function EnquiryForm() {
                             title={
                                 <>
                                     Your creative journey{" "}
-                                    <span className="italic text-coral">
+                                    <span className="italic text-pink">
                                         starts here
                                     </span>
                                     .
@@ -281,7 +281,7 @@ export default function EnquiryForm() {
                                 onSubmit={handleSubmit(onSubmit)}
                                 noValidate
                                 aria-describedby="form-note"
-                                className="rounded-[16px] border border-rule bg-paper/60 p-5 sm:p-7 lg:p-9"
+                                className="rounded-[16px] border border-rule bg-blush/40 p-5 sm:p-7 lg:p-9"
                             >
                                 <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
                                     {/* Name */}
@@ -322,7 +322,7 @@ export default function EnquiryForm() {
                                             {...register("phone")}
                                         />
                                         {!errors.phone && (
-                                            <p id="phone-hint" className="mt-1.5 text-[12.5px] text-[#8d867c]">
+                                            <p id="phone-hint" className="mt-1.5 text-[12.5px] text-[#a08a97]">
                                                 10-digit mobile number
                                             </p>
                                         )}
@@ -514,7 +514,7 @@ export default function EnquiryForm() {
                                             "group inline-flex w-full items-center justify-center gap-2.5 rounded-[11px] px-7 py-4 text-[15.5px] font-medium tracking-[0.01em] transition-all duration-200 sm:w-auto",
                                             busy
                                                 ? "cursor-wait bg-muted/50 text-white"
-                                                : "bg-text text-paper hover:bg-blue",
+                                                : "bg-rose text-white hover:bg-pink",
                                         )}
                                     >
                                         {busy ? (
@@ -568,12 +568,12 @@ function Field({ id, label, required, optional, error, className, children }) {
             >
                 {label}
                 {required && (
-                    <span className="text-coral" aria-hidden="true">
+                    <span className="text-pink" aria-hidden="true">
                         *
                     </span>
                 )}
                 {optional && (
-                    <span className="normal-case tracking-[0.05em] text-[#a9a49c]">
+                    <span className="normal-case tracking-[0.05em] text-[#b0a0aa]">
                         optional
                     </span>
                 )}
@@ -610,7 +610,7 @@ function StatusPanel({ tone, title, body, children, reduce }) {
                 "rounded-[12px] border p-4 sm:p-5",
                 success
                     ? "border-[#25D366]/40 bg-[#25D366]/[0.07]"
-                    : "border-coral/45 bg-coral/[0.07]",
+                    : "border-flame/45 bg-flame/[0.07]",
             )}
         >
             <div className="flex items-start gap-3">
@@ -621,7 +621,7 @@ function StatusPanel({ tone, title, body, children, reduce }) {
                     />
                 ) : (
                     <TriangleAlert
-                        className="mt-0.5 h-5 w-5 shrink-0 text-coral"
+                        className="mt-0.5 h-5 w-5 shrink-0 text-flame"
                         aria-hidden="true"
                     />
                 )}

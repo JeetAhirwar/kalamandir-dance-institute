@@ -51,7 +51,7 @@ export default function WhyLearnHere() {
                                 title={
                                     <>
                                         Serious about the craft,{" "}
-                                        <span className="italic text-coral">
+                                        <span className="italic text-pink">
                                             gentle
                                         </span>{" "}
                                         with the beginner.
@@ -63,7 +63,7 @@ export default function WhyLearnHere() {
                             <Reveal delay={0.12} className="mt-9 hidden lg:block">
                                 <a
                                     href="#enquiry"
-                                    className="rule-link text-[15px] text-blue"
+                                    className="rule-link text-[15px] text-rose"
                                 >
                                     Book a trial class
                                 </a>
@@ -78,7 +78,7 @@ export default function WhyLearnHere() {
                                 key={reason.title}
                                 className="group grid grid-cols-[2.5rem_1fr] gap-x-4 border-t border-rule py-7 sm:grid-cols-[3.5rem_1fr] sm:gap-x-6 sm:py-8"
                             >
-                                <span className="eyebrow pt-1.5 tabular-nums text-[#a9a49c] transition-colors duration-300 group-hover:text-coral">
+                                <span className="eyebrow pt-1.5 tabular-nums text-[#b0a0aa] transition-colors duration-300 group-hover:text-pink">
                                     {String(i + 1).padStart(2, "0")}
                                 </span>
 
@@ -87,7 +87,7 @@ export default function WhyLearnHere() {
                                         <h3 className="font-display text-[clamp(1.35rem,2.6vw,1.85rem)] leading-tight text-text">
                                             {reason.title}
                                         </h3>
-                                        <span className="eyebrow text-[#a9a49c]">
+                                        <span className="eyebrow text-[#b0a0aa]">
                                             {reason.tone}
                                         </span>
                                     </div>
@@ -114,7 +114,7 @@ export default function WhyLearnHere() {
                                         className="flex items-center gap-2 text-[14px] text-text/80"
                                     >
                                         <Check
-                                            className="h-3.5 w-3.5 text-blue"
+                                            className="h-3.5 w-3.5 text-rose"
                                             aria-hidden="true"
                                         />
                                         {item}

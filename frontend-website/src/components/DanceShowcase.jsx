@@ -53,7 +53,7 @@ export default function DanceShowcase() {
             data-tone="dark"
             ref={ref}
             aria-labelledby="dance-title"
-            className="relative isolate overflow-hidden bg-blue py-24 sm:py-28 lg:py-36"
+            className="relative isolate overflow-hidden bg-plum py-24 sm:py-28 lg:py-36"
         >
             <div className="relative">
                 <div className="shell">
@@ -68,7 +68,7 @@ export default function DanceShowcase() {
                                 title={
                                     <>
                                         A more energetic{" "}
-                                        <span className="italic text-yellow">rhythm</span>.
+                                        <span className="italic text-gold">rhythm</span>.
                                     </>
                                 }
                                 standfirst="Wider frames, longer lines, and the moment a rehearsal becomes a performance."
@@ -100,14 +100,14 @@ export default function DanceShowcase() {
 
                         <div
                             aria-hidden="true"
-                            className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(56,91,232,0.9)_0%,rgba(56,91,232,0.2)_45%,transparent_70%)]"
+                            className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(53,21,54,0.92)_0%,rgba(53,21,54,0.2)_45%,transparent_70%)]"
                         />
 
                         {/* Overlaid pull-quote — readable, low-contrast-safe */}
                         <Reveal
                             className="absolute inset-x-0 bottom-0 flex flex-col justify-end gap-2 p-5 sm:p-8 lg:p-12"
                         >
-                            <p className="eyebrow text-yellow">On the floor</p>
+                            <p className="eyebrow text-gold">On the floor</p>
                             <p className="max-w-[26rem] font-display text-[clamp(1.5rem,3.4vw,2.6rem)] leading-[1.1] text-white sm:max-w-[34rem]">
                                 “Practice until the count disappears.”
                             </p>
@@ -154,7 +154,7 @@ export default function DanceShowcase() {
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-3">
                                             <Icon
-                                                className="h-4 w-4 shrink-0 text-yellow"
+                                                className="h-4 w-4 shrink-0 text-gold"
                                                 aria-hidden="true"
                                             />
                                             <h3 className="font-display text-[1.4rem] leading-tight text-white sm:text-[1.55rem]">

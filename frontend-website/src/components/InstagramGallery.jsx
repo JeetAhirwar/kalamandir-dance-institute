@@ -9,8 +9,8 @@ import { contactLinks, siteConfig } from "@/data/siteConfig";
  * InstagramGallery (G) — a curated grid, honestly labelled.
  *
  * There is no Instagram API integration, so this does NOT simulate a live
- * feed: it is a hand-picked selection of local assets, clearly marked as
- * placeholders, with a direct link to the official profile.
+ * feed: it is a hand-picked selection of authentic institute photography,
+ * with a direct link to the official profile.
  */
 export default function InstagramGallery() {
     return (
@@ -29,7 +29,7 @@ export default function InstagramGallery() {
                         title={
                             <>
                                 A curated{" "}
-                                <span className="italic text-coral">selection</span>.
+                                <span className="italic text-pink">selection</span>.
                             </>
                         }
                         standfirst="Highlights chosen for this page. Follow the studio profile for everything else."
@@ -41,7 +41,7 @@ export default function InstagramGallery() {
                             href={contactLinks.instagram}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group inline-flex items-center gap-2.5 rounded-[11px] border border-text px-5 py-3.5 text-[14.5px] font-medium text-text transition-all duration-200 hover:border-blue hover:bg-blue hover:text-white"
+                            className="group inline-flex items-center gap-2.5 rounded-[11px] border border-text px-5 py-3.5 text-[14.5px] font-medium text-text transition-all duration-200 hover:border-pink hover:bg-pink hover:text-white"
                         >
                             <Instagram className="h-4 w-4" aria-hidden="true" />
                             Follow {siteConfig.instagram.handle}
@@ -65,7 +65,7 @@ export default function InstagramGallery() {
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label={`View Kala Mandir on Instagram (opens in a new tab) — ${post.alt}`}
-                            className={`group relative block overflow-hidden rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
+                            className={`group relative block overflow-hidden rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
                                 i === 0 || i === 5 ? "lg:row-span-2" : ""
                             }`}
                         >
