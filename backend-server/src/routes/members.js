@@ -132,7 +132,8 @@ const setMemberStatusSchema = z.object({ status: z.enum(["active", "inactive"]) 
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-async function findMemberOr404(gymId, id) {
+async function findMemberOr404(gymId, id)
+{
   if (!Types.ObjectId.isValid(String(id))) throw notFound("Student not found");
   const member = await Member.findOne({ _id: id, gymId }).lean();
   if (!member) throw notFound("Student not found");
@@ -140,21 +141,25 @@ async function findMemberOr404(gymId, id) {
 }
 
 /** Validates that every tag id belongs to the gym (returns ObjectIds; [] = clear). */
-async function resolveTagIds(gymId, tagIds) {
+async function resolveTagIds(gymId, tagIds)
+{
   const unique = [...new Set((tagIds ?? []).map(String))];
-  if (unique.some((id) => !Types.ObjectId.isValid(id))) {
+  if (unique.some((id) => !Types.ObjectId.isValid(id)))
+  {
     throw badRequest("One of the selected tags is not valid.");
   }
   if (!unique.length) return [];
   const found = await Tag.find({ gymId, _id: { $in: unique } }).select("_id").lean();
-  if (found.length !== unique.length) {
+  if (found.length !== unique.length)
+  {
     throw badRequest("One of the selected tags no longer exists.");
   }
   return found.map((t) => t._id);
 }
 
 /** Validates an assigned trainer id belongs to the gym (null = unassigned). */
-async function resolveTrainerId(gymId, trainerId) {
+async function resolveTrainerId(gymId, trainerId)
+{
   if (trainerId == null) return null;
   if (!Types.ObjectId.isValid(String(trainerId))) throw badRequest("The selected trainer is not valid.");
   const found = await StaffProfile.findOne({ gymId, _id: trainerId }).select("_id").lean();
@@ -176,28 +181,30 @@ const MEMBER_AUDIT_KEYS = [
 
 /** Attach the derived class-quota ({attended, remaining, status, label}) and the
  *  student's latest payment method to a page of member rows. */
-async function attachQuotaToRows(rows) {
+async function attachQuotaToRows(rows)
+{
   const ids = rows.map((r) => r.membership?.id).filter(Boolean);
   const memberIds = rows.map((r) => r.id).filter(Boolean);
   if (ids.length === 0 && memberIds.length === 0) return;
   const [counts, payments] = await Promise.all([
     ids.length
       ? AttendanceRecord.aggregate([
-          { $match: { membershipId: { $in: ids.map((v) => new Types.ObjectId(v)) }, quotaCounted: true } },
-          { $group: { _id: "$membershipId", attended: { $sum: 1 } } },
-        ])
+        { $match: { membershipId: { $in: ids.map((v) => new Types.ObjectId(v)) }, quotaCounted: true } },
+        { $group: { _id: "$membershipId", attended: { $sum: 1 } } },
+      ])
       : Promise.resolve([]),
     memberIds.length
       ? PaymentRecord.aggregate([
-          { $match: { memberId: { $in: memberIds.map((v) => new Types.ObjectId(v)) } } },
-          { $sort: { paymentDate: -1, _id: -1 } },
-          { $group: { _id: "$memberId", method: { $first: "$method" } } },
-        ])
+        { $match: { memberId: { $in: memberIds.map((v) => new Types.ObjectId(v)) } } },
+        { $sort: { paymentDate: -1, _id: -1 } },
+        { $group: { _id: "$memberId", method: { $first: "$method" } } },
+      ])
       : Promise.resolve([]),
   ]);
   const byId = new Map(counts.map((c) => [String(c._id), c.attended]));
   const methodByMember = new Map(payments.map((p) => [String(p._id), p.method]));
-  for (const row of rows) {
+  for (const row of rows)
+  {
     const quota = row.membership?.classQuota ?? null;
     row.quota =
       quota == null ? null : computeQuota({ quota, attended: byId.get(String(row.membership.id)) ?? 0 });
@@ -210,12 +217,14 @@ router.get(
   "/members",
   requireAuth,
   requireCap("members.view"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const ctx = await loadGymContext(req.user.gymId);
     let rows = await decorateAllMembers(ctx.gym._id, ctx);
 
     const search = String(req.query.search ?? "").trim().toLowerCase();
-    if (search) {
+    if (search)
+    {
       const compactSearch = search.replace(/\s/g, "");
       rows = rows.filter(
         (m) =>
@@ -226,7 +235,8 @@ router.get(
       );
     }
 
-    switch (req.query.status) {
+    switch (req.query.status)
+    {
       case "active":
         rows = rows.filter((m) => m.effectiveStatus === "active");
         break;
@@ -246,20 +256,24 @@ router.get(
         break;
     }
 
-    if (req.query.planId) {
+    if (req.query.planId)
+    {
       const planId = String(req.query.planId);
       rows = rows.filter((m) => m.membership?.planId === planId);
     }
 
-    if (req.query.tagId) {
+    if (req.query.tagId)
+    {
       const tagId = String(req.query.tagId);
       rows = rows.filter((m) => (m.tagIds ?? []).some((id) => String(id) === tagId));
     }
 
     const dir = req.query.dir === "asc" ? 1 : -1;
     const sort = req.query.sort ?? "created";
-    rows.sort((a, b) => {
-      switch (sort) {
+    rows.sort((a, b) =>
+    {
+      switch (sort)
+      {
         case "name":
           return a.fullName.localeCompare(b.fullName) * dir;
         case "joined":
@@ -285,7 +299,8 @@ router.get(
   "/members/:id",
   requireAuth,
   requireCap("members.view"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const ctx = await loadGymContext(req.user.gymId);
     const member = await Member.findOne({ _id: req.params.id, gymId: ctx.gym._id }).lean();
     if (!member) throw notFound("Student not found");
@@ -298,7 +313,8 @@ router.post(
   "/members",
   requireAuth,
   requireCap("members.create"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const input = parseBody(createMemberSchema, req.body);
     const ctx = await loadGymContext(req.user.gymId);
     const gymId = ctx.gym._id;
@@ -307,13 +323,16 @@ router.post(
     if (!plan) throw badRequest("Selected membership plan was not found", "invalid_plan");
 
     let created;
-    try {
-      created = await withTransaction(async (session) => {
+    try
+    {
+      created = await withTransaction(async (session) =>
+      {
         const dupPhone = await Member.findOne({ gymId, phone: input.phone })
           .select("_id")
           .session(session);
         if (dupPhone) throw conflict("A student with this phone number already exists", "duplicate_phone");
-        if (input.email) {
+        if (input.email)
+        {
           const dupEmail = await Member.findOne({ gymId, email: input.email })
             .select("_id")
             .session(session);
@@ -363,7 +382,8 @@ router.post(
             [...(input.slotRanges ?? []), ...(input.preferredSlot ? [input.preferredSlot] : [])].filter(Boolean),
           ),
         ];
-        for (const range of ranges) {
+        for (const range of ranges)
+        {
           const slotMatch = String(range ?? "").match(
             /^(([01]\d|2[0-3]):[0-5]\d)-(([01]\d|2[0-3]):[0-5]\d)$/,
           );
@@ -378,7 +398,8 @@ router.post(
           })
             .session(session)
             .lean();
-          if (!slot) {
+          if (!slot)
+          {
             const [created] = await ClassSlot.create(
               [
                 {
@@ -405,12 +426,14 @@ router.post(
           })
             .session(session)
             .lean();
-          if (!existingEnrollment) {
+          if (!existingEnrollment)
+          {
             await SlotEnrollment.create(
               [{ gymId, slotId: slot._id, memberId: member._id, status: "enrolled" }],
               { session },
             );
-          } else if (existingEnrollment.status !== "enrolled") {
+          } else if (existingEnrollment.status !== "enrolled")
+          {
             await SlotEnrollment.updateOne(
               { _id: existingEnrollment._id },
               { $set: { status: "enrolled" } },
@@ -455,7 +478,8 @@ router.post(
           { session },
         );
 
-        if (input.initialPayment) {
+        if (input.initialPayment)
+        {
           await createPaymentRow(
             {
               gymId,
@@ -486,7 +510,8 @@ router.post(
 
         return member;
       });
-    } catch (err) {
+    } catch (err)
+    {
       if (err?.code === 11000) throw conflict("A student with this phone or email already exists");
       throw err;
     }
@@ -500,28 +525,34 @@ router.patch(
   "/members/:id",
   requireAuth,
   requireCap("members.edit"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const input = parseBody(updateMemberSchema, req.body);
     const ctx = await loadGymContext(req.user.gymId);
     const member = await findMemberOr404(ctx.gym._id, req.params.id);
 
     const updates = {};
-    if (input.tagIds !== undefined) {
+    if (input.tagIds !== undefined)
+    {
       updates.tagIds = await resolveTagIds(member.gymId, input.tagIds ?? []);
     }
-    if (input.trainerId !== undefined) {
+    if (input.trainerId !== undefined)
+    {
       updates.trainerId = await resolveTrainerId(member.gymId, input.trainerId ?? null);
     }
     const dateFields = new Set(["dateOfBirth", "joinDate"]);
-    for (const key of MEMBER_AUDIT_KEYS) {
-      if (input[key] !== undefined) {
+    for (const key of MEMBER_AUDIT_KEYS)
+    {
+      if (input[key] !== undefined)
+      {
         updates[key] = dateFields.has(key) ? (input[key] ? parseDateOnly(input[key]) : null) : input[key];
       }
     }
     if (input.email !== undefined) updates.email = input.email || null;
     if (input.status !== undefined) updates.status = input.status;
 
-    if (updates.email) {
+    if (updates.email)
+    {
       const dupEmail = await Member.findOne({
         gymId: ctx.gym._id,
         email: updates.email,
@@ -529,7 +560,8 @@ router.patch(
       }).select("_id");
       if (dupEmail) throw conflict("A student with this email already exists", "duplicate_email");
     }
-    if (updates.phone) {
+    if (updates.phone)
+    {
       const dupPhone = await Member.findOne({
         gymId: ctx.gym._id,
         phone: updates.phone,
@@ -545,7 +577,8 @@ router.patch(
     ).lean();
 
     // Keep the portal login in lockstep with the member's status.
-    if (input.status !== undefined && input.status !== member.status) {
+    if (input.status !== undefined && input.status !== member.status)
+    {
       await syncMemberLoginStatus(member._id, input.status === "active");
     }
 
@@ -568,19 +601,22 @@ router.delete(
   "/members/:id",
   requireAuth,
   requireCap("members.delete"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const ctx = await loadGymContext(req.user.gymId);
     const member = await findMemberOr404(ctx.gym._id, req.params.id);
 
     const payments = await PaymentRecord.countDocuments({ memberId: member._id });
-    if (payments > 0) {
+    if (payments > 0)
+    {
       throw badRequest(
         "This student has payment history and cannot be deleted. Deactivate the student instead.",
         "has_payments",
       );
     }
 
-    await withTransaction(async (session) => {
+    await withTransaction(async (session) =>
+    {
       await Member.deleteOne({ _id: member._id }, { session });
       await MemberMembership.deleteMany({ memberId: member._id }, { session });
       await AttendanceRecord.deleteMany({ memberId: member._id }, { session });
@@ -611,7 +647,8 @@ router.patch(
   "/members/:id/status",
   requireAuth,
   requireCap("members.edit"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const { status } = parseBody(setMemberStatusSchema, req.body);
     const ctx = await loadGymContext(req.user.gymId);
     const member = await findMemberOr404(ctx.gym._id, req.params.id);
@@ -649,7 +686,8 @@ router.get(
   "/members/:id/memberships",
   requireAuth,
   requireCap("members.view"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const ctx = await loadGymContext(req.user.gymId);
     const member = await findMemberOr404(ctx.gym._id, req.params.id);
     const rows = await MemberMembership.find({ memberId: member._id })
@@ -666,7 +704,8 @@ router.post(
   "/members/:id/renew",
   requireAuth,
   requireCap("members.edit"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const input = parseBody(renewSchema, req.body);
     const ctx = await loadGymContext(req.user.gymId);
     const member = await findMemberOr404(ctx.gym._id, req.params.id);
@@ -679,11 +718,13 @@ router.post(
     if (!plan) throw badRequest("Selected plan was not found or is inactive", "invalid_plan");
 
     const discount = input.discount ?? 0;
-    if (discount < 0 || discount > plan.price) {
+    if (discount < 0 || discount > plan.price)
+    {
       throw badRequest("Discount must be between 0 and the plan price", "invalid_discount");
     }
 
-    const membership = await withTransaction(async (session) => {
+    const membership = await withTransaction(async (session) =>
+    {
       // Per-member lock so two renewals/scans cannot interleave.
       await Member.updateOne({ _id: member._id }, { $inc: { scanLock: 1 } }, { session });
 
@@ -702,6 +743,12 @@ router.post(
         : parseDateOnly(renewalStartDate(ctx.now, currentForStart, ctx.tz));
       const end = parseDateOnly(planEndDate(start, plan));
 
+      // Supersede any still-active memberships so only the new renewal is active.
+      await MemberMembership.updateMany(
+        { memberId: member._id, status: "active" },
+        { $set: { status: "inactive" } },
+        { session },
+      );
       const [row] = await MemberMembership.create(
         [
           {
@@ -722,7 +769,8 @@ router.post(
         { session },
       );
 
-      if (input.initialPayment) {
+      if (input.initialPayment)
+      {
         await createPaymentRow(
           {
             gymId: ctx.gym._id,
@@ -770,7 +818,8 @@ router.post(
   "/members/:id/rotate-qr",
   requireAuth,
   requireCap("qr.regenerate"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const ctx = await loadGymContext(req.user.gymId);
     const member = await findMemberOr404(ctx.gym._id, req.params.id);
 
@@ -798,7 +847,8 @@ router.get(
   "/members/:id/attendance",
   requireAuth,
   requireCap("attendance.view"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const ctx = await loadGymContext(req.user.gymId);
     const member = await findMemberOr404(ctx.gym._id, req.params.id);
     const limit = intParam(req.query.limit, 20, { min: 1, max: 200 });
@@ -815,7 +865,8 @@ router.get(
   "/members/:id/payments",
   requireAuth,
   requireCap("payments.view"),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) =>
+  {
     const ctx = await loadGymContext(req.user.gymId);
     const member = await findMemberOr404(ctx.gym._id, req.params.id);
     const pageSize = intParam(req.query.pageSize, 20, { min: 1, max: 200 });
@@ -834,7 +885,8 @@ router.get(
     const planById = new Map(plans.map((p) => [String(p._id), p]));
 
     res.json(
-      rows.map((row) => {
+      rows.map((row) =>
+      {
         const membership = row.membershipId ? membershipById.get(String(row.membershipId)) : null;
         const plan = membership ? planById.get(String(membership.planId)) : null;
         return toPayment(row, member, membership, plan);
