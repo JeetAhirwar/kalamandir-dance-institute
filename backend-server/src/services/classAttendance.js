@@ -31,7 +31,7 @@ import StaffProfile from "../models/StaffProfile.js";
 import { writeAudit } from "../lib/audit.js";
 import { currentMembership, checkEligibility } from "../lib/membership.js";
 import { toAttendance, ymd } from "../lib/serialize.js";
-import { parseDateOnly, ymdInTz } from "../lib/dates.js";
+import { minutesInTz, parseDateOnly, ymdInTz } from "../lib/dates.js";
 import { quotaForMembership, syncQuotaNotifications } from "./quota.js";
 
 /** Reasons a mark can be rejected. Messages are written for the front desk. */
@@ -547,12 +547,22 @@ export async function markRosterAttendance({
 
       // Multi-slot counting — the student belongs to N batches: replicate
       // the day's status across every OTHER active slot they are enrolled
-      // in that runs on this weekday. One visit = one record per class
-      // taken, and the quota counter updates once per class.
+      // in that runs on this weekday — but ONLY for batches that have
+      // already STARTED (running or past) by now. A batch starting later
+      // today (e.g. the 2 PM batch) is NOT pre-marked when the morning
+      // trainer saves at 10:30 — the register must stay honest about
+      // classes that haven't happened. The quota counter updates once per
+      // batch that actually marked.
       let extraMarked = 0;
       const enrollments = await SlotEnrollment.find({ gymId, memberId: member._id, status: "enrolled" }).session(session).lean();
       if (enrollments.length > 0) {
-        const otherSlots = await ClassSlot.find({
+        const nowMinutes = minutesInTz(now, tz);
+        const hasStarted = (s) => {
+          const parts = String(s?.startTime ?? "").split(":").map(Number);
+          if (parts.length < 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1])) return false;
+          return nowMinutes >= parts[0] * 60 + parts[1]; // (running or ended)
+        };
+        const rawOthers = await ClassSlot.find({
           _id: { $in: enrollments.map((e) => e.slotId), $ne: slot._id },
           gymId,
           isActive: true,
@@ -561,6 +571,7 @@ export async function markRosterAttendance({
           .sort({ startTime: 1 })
           .session(session)
           .lean();
+        const otherSlots = rawOthers.filter(hasStarted);
         for (const other of otherSlots) {
           await upsertForSlot(other);
           extraMarked += 1;

@@ -162,20 +162,41 @@ async function markExtraVisitAttendance({ gymId, member, actorId, ctx, now, dayK
   }
 }
 
+/** Scan-time batch window — "running window" rule:
+ *  • A batch is auto-marked only while it is on air.
+ *  • +15 min before start (student reached a bit early).
+ *  • +60 min after end (late scan still counts that batch).
+ *  Nothing else gets pre-marked — the 2 PM batch stays unmarked until the
+ *  student actually walks into it (or the trainer marks it). */
+const SLOT_WINDOW_BEFORE_MIN = 15;
+const SLOT_WINDOW_AFTER_MIN = 60;
+
+/** `HH:MM` from ClassSlot.startTime/endTime → minutes since midnight. */
+function slotMinutes(hhmm) {
+  const parts = String(hhmm ?? "").split(":").map(Number);
+  if (parts.length < 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1])) return NaN;
+  return parts[0] * 60 + parts[1];
+}
+
 /**
  * Best-effort automatic register marks for a studio QR check-in.
  *
- * A member QR scan already creates a gym visit; this ALSO marks them
- * "present" in the register for EVERY slot they are enrolled in that runs
- * today (same weekday). N assigned classes → N records → the quota counter
- * updates N times ("3 slots = 3 attendance marks, counter −3"). Same marking
- * engine as the roster save, so quota deduction, duplicate guards and audit
- * trails behave identically. Rejections (duplicates, no membership) are
- * swallowed — the visit is still recorded; the register just stays as-is.
+ * RUNNING-WINDOW RULE: the scan marks ONLY the student's enrolled batches
+ * that are on air right now (± the small pre/post grace above). A student
+ * with a 10–11 and a 2–3 batch scanning at 10:15 gets exactly ONE mark
+ * (10–11, quota −1); the 2 PM batch stays unmarked until they walk into it,
+ * so the admin filtering the afternoon slot at 10:30 does NOT see a phantom
+ * "Present". Each later visit marks the batch running then ("came twice →
+ * 2 marks, counter −2").
  *
- * When EVERY one of today's batches is already marked (i.e. the student's
- * second+ visit in the same day), the visit itself becomes the session:
- * one extra register mark + one quota deduction (visit-wise billing).
+ * When the scan lands in NO batch window but some of today's batches were
+ * already consumed by earlier visits (repeat walk-in), the visit itself
+ * counts as an extra session (see markExtraVisitAttendance).
+ *
+ * Same marking engine as the roster save, so quota deduction, duplicate
+ * guards and audit trails behave identically. Rejections (duplicates, no
+ * membership) are swallowed — the visit is still recorded; the register
+ * just stays as-is.
  *
  * @returns {{ attendance: object, count: number, slotNames: string[] } | null}
  */
@@ -201,16 +222,27 @@ export async function autoMarkSlotAttendance({ gymId, member, actorId, ctx, now 
       .lean();
     if (slots.length === 0) return null;
 
+    // RUNNING-WINDOW filter — only batches on air (± grace) are candidates.
+    const nowMinutes = minutesInTz(now, tz);
+    const inWindow = (slot) => {
+      const start = slotMinutes(slot.startTime);
+      const end = slotMinutes(slot.endTime);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+      // Linear wrap assumption — dance batches don't run past midnight.
+      return nowMinutes >= start - SLOT_WINDOW_BEFORE_MIN && nowMinutes <= end + SLOT_WINDOW_AFTER_MIN;
+    };
+    const batchSlots = slots.filter(inWindow);
+
     // The student's preferred slot is marked first so it becomes the
     // "primary" row the front desk sees.
     if (member.preferredSlot) {
-      const index = slots.findIndex((slot) => `${slot.startTime}-${slot.endTime}` === member.preferredSlot);
-      if (index > 0) slots.unshift(...slots.splice(index, 1));
+      const index = batchSlots.findIndex((slot) => `${slot.startTime}-${slot.endTime}` === member.preferredSlot);
+      if (index > 0) batchSlots.unshift(...batchSlots.splice(index, 1));
     }
 
     const marked = [];
     const slotLabels = [];
-    for (const slot of slots) {
+    for (const slot of batchSlots) {
       const result = await markSlotAttendance({
         gymId,
         actorId,
@@ -230,7 +262,7 @@ export async function autoMarkSlotAttendance({ gymId, member, actorId, ctx, now 
 
     // Instructors of the marked slots — staff notifications name the teacher
     // handling the class the student just walked into.
-    const instructorIds = [...new Set(slots.map((s) => s.instructorId).filter(Boolean).map(String))];
+    const instructorIds = [...new Set(batchSlots.map((s) => s.instructorId).filter(Boolean).map(String))];
     const instructors = instructorIds.length
       ? await StaffProfile.find({ _id: { $in: instructorIds } }).select("fullName").lean()
       : [];
