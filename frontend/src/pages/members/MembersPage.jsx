@@ -55,7 +55,7 @@ function ClassLeftCell({ member }) {
         : q.status === "expired"
             ? "0 left"
             : `${q.remaining} left`;
-    return <Badge variant="outline" className={cn("px-1.5 py-0.5 text-[10px] font-medium tabular sm:px-2.5 sm:py-1 sm:text-xs", tone)}>{label}</Badge>;
+    return <Badge variant="outline" className={cn("px-1 py-0 text-[9px] font-medium leading-none tabular sm:px-2.5 sm:py-1 sm:text-xs", tone)}>{label}</Badge>;
 }
 export function MembersPage() {
     const data = useData();
@@ -243,10 +243,13 @@ export function MembersPage() {
                   <TableHeader>
                     <TableRow className="h-11">
                       <TableHead className="hidden w-[7%] px-3 align-middle sm:table-cell">Sr. no.</TableHead>
-                      <TableHead className="w-auto px-2 align-middle sm:w-[22%] sm:px-3">Student</TableHead>
+                      <TableHead className="px-2 align-middle md:px-3 md:w-[22%]">Student</TableHead>
                       <TableHead className="hidden w-[30%] px-2 align-middle sm:table-cell sm:w-[10%] sm:px-3">Status</TableHead>
-                      <TableHead className="px-2 align-middle sm:px-3 md:w-[10%]">Classes</TableHead>
-                      <TableHead className="px-2 align-middle sm:px-3 md:w-[11%]">Remaining Classes</TableHead>
+                      <TableHead className="w-[16%] px-2 align-middle md:px-3 md:w-[10%]">Classes</TableHead>
+                      <TableHead className="w-[22%] px-2 align-middle md:px-3 md:w-[11%]">
+                        <span className="md:hidden" title="Remaining classes">Left</span>
+                        <span className="hidden md:inline">Remaining Classes</span>
+                      </TableHead>
                       <TableHead className="hidden w-[12%] px-3 align-middle sm:table-cell">Plan</TableHead>
                       <TableHead className="hidden w-[10%] px-3 align-middle lg:table-cell">Trainer</TableHead>
                       <TableHead className="hidden w-[8%] px-3 align-middle lg:table-cell">Payment</TableHead>
@@ -259,18 +262,18 @@ export function MembersPage() {
                           {(currentPage - 1) * pageSize + index + 1}
                         </TableCell>
                         <TableCell className="px-2 align-middle sm:px-3">
-                          <div className="flex items-center gap-3">
-                            <SmartImage src={member.photoUrl} name={member.fullName} className="size-10 shrink-0 sm:size-11"/>
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <SmartImage src={member.photoUrl} name={member.fullName} className="size-8 shrink-0 sm:size-11"/>
                             <div className="min-w-0">
                               <Link to={`/members/${member.id}`} onClick={(event) => event.stopPropagation()} className="block truncate text-sm font-medium hover:underline">
                                 {member.fullName}
                               </Link>
-                              <span className="flex items-center gap-1.5">
-                                <p className="truncate text-xs text-muted-foreground">{member.memberCode}</p>
+                              <span className="flex items-center gap-1">
+                                <p className="truncate text-[11px] text-muted-foreground sm:text-xs">{member.memberCode}</p>
                                 {/* Mobile-only: the Status column is hidden below sm,
                                     so the status rides along beside the ID. */}
                                 <span className="sm:hidden">
-                                  <StatusBadge status={member.effectiveStatus} className="scale-90 px-1.5 py-0 text-[10px] leading-none"/>
+                                  <StatusBadge status={member.effectiveStatus} className="px-1 py-0 text-[9px] leading-none"/>
                                 </span>
                               </span>
                             </div>
