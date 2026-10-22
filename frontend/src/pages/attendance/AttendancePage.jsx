@@ -274,22 +274,20 @@ export function AttendancePage() {
         setEditingId(null);
     }, [roster.data]);
 
-    const students = useMemo(() => roster.data?.students ?? [], [roster.data]);
+    // Only students actually ENROLLED in one of the selected slots — the
+    // backend returns the full studio roster for every slot, so without this
+    // filter a group/"Load All" pick drags evening/other-batch students into
+    // a morning roster. Filtering here (not at display) also keeps walk-in
+    // search honest: an evening kid typed into the search shows up as a
+    // walk-in instead of echoing a hidden roster row.
+    const students = useMemo(() => (roster.data?.students ?? []).filter((s) => s.enrolled), [roster.data]);
     // Filter the loaded roster by student name or ID.
     const filteredStudents = useMemo(() => {
-        let list = students;
-        // Only students actually ENROLLED in one of the selected slots — the
-        // backend returns the full studio roster for every slot, so without
-        // this filter a group/"Load All" pick drags evening/other-batch
-        // students into a morning roster (mirrors the single-slot rule).
-        if (selectedSlotIds.length > 0) {
-            list = list.filter((s) => s.enrolled);
-        }
         const q = studentQuery.trim().toLowerCase();
-        if (!q) return list;
-        return list.filter((s) => (s.fullName ?? "").toLowerCase().includes(q) ||
+        if (!q) return students;
+        return students.filter((s) => (s.fullName ?? "").toLowerCase().includes(q) ||
             (s.memberCode ?? "").toLowerCase().includes(q));
-    }, [students, studentQuery, loadAll, selectedSlotIds]);
+    }, [students, studentQuery]);
 
     /* ------------------------------ walk-in students ------------------------- */
     // Students from OTHER slots who show up at a different time: search finds
