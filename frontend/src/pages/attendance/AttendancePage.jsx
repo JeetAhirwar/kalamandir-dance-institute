@@ -6,6 +6,7 @@ import {
     CalendarIcon,
     CheckCircle2Icon,
     CheckIcon,
+    ChevronDownIcon,
     ChevronLeftIcon,
     ClipboardCheckIcon,
     DownloadIcon,
@@ -78,81 +79,99 @@ function PaymentChip({ method }) {
 
 /** Mark-tab roster fields (Slot · Time · Date · Search), shared by both
  *  layouts of the redesigned mobile view:
- *  - variant="grid": phones only (`sm:hidden` root) — a small labelled 2×2
- *    grid placed under the tab bar, outside the roster card.
- *  - variant="inline": sm+ toolbar row (`hidden` root) — unchanged desktop
- *    flow, fields sized h-8. */
+ *  - variant="chip": phones only — a compact wrapping pill row placed under
+ *    the tab bar (slot-group chip, time chip, clickable date chip, search
+ *    field), then the roster flows as plain student cards.
+ *  - variant="inline": sm+ toolbar row — unchanged desktop flow, h-8 fields. */
 function SlotFilters({ variant, slotsLoading, activeSlots, loadAll, slotGroup, slotPick, markDate, studentQuery, groupedSlots, currentGroupSlots, onSlotGroup, onSlotPick, onDate, onSearch }) {
-    const grid = variant === "grid";
+    const chip = variant === "chip";
     const disabled = slotsLoading || activeSlots.length === 0 || loadAll;
-    const selectCls = grid
-      ? "h-10 w-full min-w-0 rounded-lg border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
-      : "h-8 w-auto rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30";
-    return (<div className={grid
-        ? "grid grid-cols-2 gap-2 sm:hidden"
-        : "hidden sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-1.5"}>
-      <label className={grid ? "flex min-w-0 flex-col gap-1" : "contents"}>
-        <span className={cn("text-[10px] font-medium text-muted-foreground", grid ? "" : "hidden")}>Slot</span>
-        <select
-          aria-label="Slot"
-          className={selectCls}
-          disabled={disabled}
-          value={slotGroup}
-          onChange={(e) => onSlotGroup(e.target.value)}
-        >
-          <option value="all">{grid ? "All" : "Slot: All"}</option>
-          {SLOT_GROUPS.map((group) => {
+    const groupOpts = (<>
+      <option value="all">{chip ? "All" : "Slot: All"}</option>
+      {SLOT_GROUPS.map((group) => {
+        const gs = groupedSlots[group.key] ?? [];
+        // Distinct students enroled across the group's slots (not a
+        // record/slot count — one student in 2 slots = 1).
+        const students = distinctStudentsOf(gs);
+        return (<option key={group.key} value={group.key} disabled={gs.length === 0}>
+          {group.label.replace(/\s+Slots$/, "")}{gs.length === 0 ? " (none)" : ` (${students})`}
+        </option>);
+      })}
+    </>);
+    const timeOpts = (<>
+      <option value="" disabled>Slot Timings</option>
+      <option value="__all__">
+        Select All ({distinctStudentsOf(currentGroupSlots)})
+      </option>
+      {slotGroup === "all"
+        ? SLOT_GROUPS.map((group) => {
             const gs = groupedSlots[group.key] ?? [];
-            // Distinct students enroled across the group's slots (not a
-            // record/slot count — one student in 2 slots = 1).
-            const students = distinctStudentsOf(gs);
-            return (<option key={group.key} value={group.key} disabled={gs.length === 0}>
-              {group.label.replace(/\s+Slots$/, "")}{gs.length === 0 ? " (none)" : ` (${students})`}
-            </option>);
-          })}
-        </select>
-      </label>
-      <label className={grid ? "flex min-w-0 flex-col gap-1" : "contents"}>
-        <span className={cn("text-[10px] font-medium text-muted-foreground", grid ? "" : "hidden")}>Time</span>
-        <select
-          aria-label="Slot Timings"
-          className={cn(selectCls, !grid && "sm:max-w-52")}
-          disabled={disabled}
-          value={slotPick}
-          onChange={(e) => onSlotPick(e.target.value)}
-        >
-          <option value="" disabled>Slot Timings</option>
-          <option value="__all__">
-            Select All ({distinctStudentsOf(currentGroupSlots)})
-          </option>
-          {slotGroup === "all"
-            ? SLOT_GROUPS.map((group) => {
-                const gs = groupedSlots[group.key] ?? [];
-                if (gs.length === 0) return null;
-                return (<optgroup key={group.key} label={group.label.replace(/\s+Slots$/, "")}>
-                  {gs.map((s) => (<option key={s.id} value={s.id}>
-                    {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
-                  </option>))}
-                </optgroup>);
-              })
-            : currentGroupSlots.map((s) => (<option key={s.id} value={s.id}>
+            if (gs.length === 0) return null;
+            return (<optgroup key={group.key} label={group.label.replace(/\s+Slots$/, "")}>
+              {gs.map((s) => (<option key={s.id} value={s.id}>
                 {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
               </option>))}
-        </select>
-      </label>
-      <label className={grid ? "flex min-w-0 flex-col gap-1" : "contents"}>
-        <span className={cn("text-[10px] font-medium text-muted-foreground", grid ? "" : "hidden")}>Date</span>
-        <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => onDate(e.target.value)} className={grid
-          ? "h-10 w-full rounded-lg bg-background text-xs"
-          : "h-8 w-36 rounded-md bg-background text-xs"}/>
-      </label>
-      <label className={grid ? "flex min-w-0 flex-col gap-1" : "contents"}>
-        <span className={cn("text-[10px] font-medium text-muted-foreground", grid ? "" : "hidden")}>Search</span>
-        <div className={cn("relative", !grid && "w-40")}>
+            </optgroup>);
+          })
+        : currentGroupSlots.map((s) => (<option key={s.id} value={s.id}>
+            {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
+          </option>))}
+    </>);
+
+    if (chip) {
+      const pillCls = "h-8 w-full min-w-0 rounded-full border border-border/70 bg-secondary px-2 text-[11px] font-medium text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30";
+      return (<div className="grid grid-cols-2 gap-2 sm:hidden">
+        <span className="relative inline-flex">
+          <select aria-label="Slot group" className={`${pillCls} appearance-none pr-6`} disabled={disabled} value={slotGroup} onChange={(e) => onSlotGroup(e.target.value)}>{groupOpts}</select>
+          <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
+        </span>
+        <span className="relative inline-flex">
+          <select aria-label="Slot timing" className={`${pillCls} appearance-none pr-6`} disabled={disabled} value={slotPick} onChange={(e) => onSlotPick(e.target.value)}>{timeOpts}</select>
+          <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
+        </span>
+        <label className="relative inline-flex h-8 w-full cursor-pointer items-center gap-1.5 rounded-full border border-border/70 bg-secondary px-2 text-[11px] font-medium text-foreground" title="Change date">
+          <CalendarIcon className="size-3.5 shrink-0 text-muted-foreground"/>
+          <span className="truncate">{format(new Date(`${markDate}T00:00:00`), "d-M-yyyy")}</span>
+          <input
+            type="date"
+            aria-label="Session date"
+            value={markDate}
+            onChange={(e) => { if (e.target.value) onDate(e.target.value); }}
+            onClick={(e) => { try { e.currentTarget.showPicker(); } catch { /* older browsers: focused input still opens on click */ } }}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          />
+        </label>
+        <div className="relative h-8">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
-          <Input aria-label="Search student" placeholder="Search student" value={studentQuery} onChange={(e) => onSearch(e.target.value)} className={cn(grid ? "h-10" : "h-8", "w-full rounded-lg border-input bg-background pl-7 text-xs sm:rounded-md")}/>
+          <Input aria-label="Search student" placeholder="Search" value={studentQuery} onChange={(e) => onSearch(e.target.value)} className="h-8 w-full rounded-full border-input bg-secondary pl-7 pr-2 text-[11px]"/>
         </div>
-      </label>
+      </div>);
+    }
+
+    return (<div className="hidden sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-1.5">
+      <select
+        aria-label="Slot"
+        className="h-8 w-auto rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+        disabled={disabled}
+        value={slotGroup}
+        onChange={(e) => onSlotGroup(e.target.value)}
+      >
+        {groupOpts}
+      </select>
+      <select
+        aria-label="Slot Timings"
+        className="h-8 w-auto rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:max-w-52"
+        disabled={disabled}
+        value={slotPick}
+        onChange={(e) => onSlotPick(e.target.value)}
+      >
+        {timeOpts}
+      </select>
+      <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => onDate(e.target.value)} className="h-8 w-36 rounded-md bg-background text-xs"/>
+      <div className="relative w-40">
+        <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
+        <Input aria-label="Search student" placeholder="Search student" value={studentQuery} onChange={(e) => onSearch(e.target.value)} className="h-8 w-full rounded-md border-input bg-background pl-7 text-xs"/>
+      </div>
     </div>);
 }
 
@@ -685,9 +704,9 @@ export function AttendancePage() {
         <TabsContent value="mark">
         {/* Mobile: roster filters sit right under the tab bar, outside the
             card — the roster below is its own card (mobile-first spec). */}
-        <div className="mb-4 sm:hidden">
+        <div className="mb-3 sm:hidden">
           <SlotFilters
-            variant="grid"
+            variant="chip"
             slotsLoading={slots.loading}
             activeSlots={activeSlots}
             loadAll={loadAll}
@@ -703,37 +722,61 @@ export function AttendancePage() {
             onSearch={setStudentQuery}
           />
         </div>
-      <Card className="graphite-surface flat-on-mobile border-border/70">
-        <CardContent className="space-y-5 p-5">
+      <Card className="rounded-none border-0 bg-transparent py-0 shadow-none sm:rounded-xl sm:border sm:border-border/70 sm:bg-card sm:py-6 sm:shadow-sm">
+        <CardContent className="space-y-2.5 p-2 sm:space-y-5 sm:p-5">
 
           {(loadAll || slotPick) ? (() => {
             const instructorNames = [...new Set(selectedSlots
               .map((s) => s.instructorName)
               .filter(Boolean))];
-            return (<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{loadAll ? "Load All:" : slotGroup === "all" ? "All Slots:" : `${activeGroup?.label}:`}</span>
-              {loadAll
-                ? `${selectedSlots.length} slots — every student loaded, each saved to their own slot`
-                : slotPick === "__all__"
-                  ? `${selectedSlots.length} slots selected — each student is saved to their own slot`
-                  : `${selectedSlots.length} slot selected`}
-              {instructorNames.length > 0 ? (<Badge variant="outline" className="gap-1 border-primary/30 bg-primary/10 px-2 py-0 font-medium text-primary">
-                  <UsersIcon className="size-3"/> {instructorNames.join(", ")}
-                </Badge>) : (<span>No instructor assigned</span>)}
-              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" aria-label="Clear slot selection" onClick={() => {
-                setLoadAll(false);
-                setSlotGroup("all");
-                setSlotPick("");
-              }}>
-                <XIcon className="size-3"/> Clear
-              </Button>
-            </div>);
+            const slotCountText = loadAll || slotPick === "__all__"
+              ? `${selectedSlots.length} slots`
+              : `${selectedSlots.length} slot`;
+            const detailText = loadAll
+              ? `${selectedSlots.length} slots — every student loaded, each saved to their own slot`
+              : slotPick === "__all__"
+                ? `${selectedSlots.length} slots selected — each student is saved to their own slot`
+                : `${selectedSlots.length} slot selected`;
+            return (<>
+              {/* Mobile: small compact chips (the long explanation rides as a tooltip) */}
+              <div className="flex flex-wrap items-center gap-1.5 sm:hidden">
+                <span className="inline-flex items-center rounded-full border border-border/70 bg-secondary px-2 py-0.5 text-[10px] font-medium text-foreground" title={detailText}>
+                  {slotCountText}
+                </span>
+                {instructorNames.length > 0 ? (<Badge variant="outline" className="max-w-32 gap-1 border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    <UsersIcon className="size-2.5 shrink-0"/> <span className="truncate">{instructorNames.join(", ")}</span>
+                  </Badge>) : (<span className="text-[10px] text-muted-foreground">No instructor</span>)}
+                <Button size="sm" variant="ghost" className="h-6 gap-0.5 rounded-full px-1.5 text-[10px]" aria-label="Clear slot selection" onClick={() => {
+                  setLoadAll(false);
+                  setSlotGroup("all");
+                  setSlotPick("");
+                }}>
+                  <XIcon className="size-2.5"/> Clear
+                </Button>
+              </div>
+              {/* sm+: descriptive info row */}
+              <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:flex">
+                <span className="font-semibold text-foreground">{loadAll ? "Load All:" : slotGroup === "all" ? "All Slots:" : `${activeGroup?.label}:`}</span>
+                {detailText}
+                {instructorNames.length > 0 ? (<Badge variant="outline" className="gap-1 border-primary/30 bg-primary/10 px-2 py-0 font-medium text-primary">
+                    <UsersIcon className="size-3"/> {instructorNames.join(", ")}
+                  </Badge>) : (<span>No instructor assigned</span>)}
+                <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" aria-label="Clear slot selection" onClick={() => {
+                  setLoadAll(false);
+                  setSlotGroup("all");
+                  setSlotPick("");
+                }}>
+                  <XIcon className="size-3"/> Clear
+                </Button>
+              </div>
+            </>);
           })() : null}
 
-          {/* Students panel — mobile: borderless section (no card-in-card);
-              sm+ keeps the boxed roster. */}
+          {/* Students panel — mobile: the "Students (n)" row hides (chips +
+              info line carry the context); sm+ shows the boxed roster with
+              its heading and inline filters. */}
           <div className="rounded-none border-0 sm:rounded-xl sm:border sm:border-border/70">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b-0 px-1 py-2 sm:border-b sm:border-border/70 sm:px-4 sm:py-2.5">
+            <div className="hidden flex-wrap items-center justify-between gap-3 sm:flex sm:border-b sm:border-border/70 sm:px-4 sm:py-2.5">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <UsersIcon className="size-4 text-muted-foreground"/>
                 Students{" "}
@@ -765,17 +808,17 @@ export function AttendancePage() {
               />
             </div>
 
-            {!loadedQuery ? (<div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
+            {!loadedQuery ? (<div className="flex flex-col items-center gap-2 px-2 py-5 text-center sm:px-4 sm:py-12">
                 <span className="flex size-12 items-center justify-center rounded-full border border-km-gold/30 bg-km-gold/10 text-km-gold">
                   <UsersIcon className="size-5"/>
                 </span>
                 <p className="text-sm font-medium">Pick a slot timing to load students</p>
                 <p className="text-xs text-muted-foreground">Students will appear here to mark their attendance.</p>
-              </div>) : roster.loading ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading students…</div>) : students.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
+              </div>) : roster.loading ? (<div className="px-2 py-5 text-center text-sm text-muted-foreground sm:px-4 sm:py-8">Loading students…</div>) : students.length === 0 ? (<div className="px-2 py-5 text-center text-sm text-muted-foreground sm:px-4 sm:py-8">
                 No student in this slot.
-              </div>) : filteredStudents.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
+              </div>) : filteredStudents.length === 0 ? (<div className="px-2 py-5 text-center text-sm text-muted-foreground sm:px-4 sm:py-8">
                 No students match “{studentQuery.trim()}”.
-              </div>) : (<ul className="space-y-2 p-2 sm:space-y-0 sm:divide-y sm:divide-border/60 sm:p-0">
+              </div>) : (<ul className="space-y-2 p-0 sm:space-y-0 sm:divide-y sm:divide-border/60 sm:p-0">
                 {filteredStudents.map((s) => {
               const saved = savedStatuses[s.memberId] ?? null;
               const isEditing = editingId === s.memberId;
@@ -889,16 +932,17 @@ export function AttendancePage() {
             </div>) : null}
 
           {/* Save bar — Load All + bulk commit at the bottom of the sheet.
-              Mobile: sticky so Save is always reachable (mockup footer). */}
-          <div className="sticky bottom-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/95 px-3 py-2.5 shadow-sm backdrop-blur-sm sm:static sm:rounded-none sm:border-0 sm:border-t sm:bg-transparent sm:px-4 sm:py-3 sm:shadow-none sm:backdrop-blur-none">
-              <p className="text-xs text-muted-foreground">
+              Mobile: only the two buttons (no box/status line); sm+ keeps the
+              full-width footer with the status text. */}
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:w-full sm:flex-nowrap sm:items-center sm:justify-between sm:border-t sm:border-border/70 sm:px-4 sm:py-3">
+              <p className="hidden text-xs text-muted-foreground sm:block">
                 {students.length === 0
                   ? "No students loaded — pick a slot or Load All."
                   : hasChanges
                     ? `${pendingCount} ${pendingCount === 1 ? "change" : "changes"} unsaved`
                     : "All changes saved"}
               </p>
-              <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
                 <Button size="sm" variant="outline" className="h-8 flex-1 gap-1.5 px-3 sm:flex-none" disabled={slots.loading || activeSlots.length === 0 || loadAll} onClick={() => {
                 setLoadAll(true);
                 setSlotGroup("all");
