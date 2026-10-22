@@ -63,8 +63,9 @@ const schema = z.object({
         .trim()
         .max(600, "Please keep the message under 600 characters.")
         .optional(),
-    // Honeypot — hidden from humans, tempting for bots.
-    company: z.string().max(0).optional(),
+    // Honeypot — hidden from humans, tempting for bots. Any value here is
+    // dropped silently in `onSubmit`; nothing to reveal, no validation error.
+    company: z.string().optional(),
 });
 
 /* -------------------------------------------------------------------------- */

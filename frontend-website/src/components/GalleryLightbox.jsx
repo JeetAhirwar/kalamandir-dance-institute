@@ -75,7 +75,7 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                     role="dialog"
                     aria-modal="true"
                     aria-label={`Gallery image ${index + 1} of ${items.length}: ${item.caption || item.alt}`}
-                    className="fixed inset-0 z-[90] flex flex-col bg-charcoal/97 backdrop-blur-sm"
+                    className="fixed inset-0 z-[90] flex flex-col bg-paper/97 backdrop-blur-sm"
                     initial={reduce ? { opacity: 1 } : { opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -85,7 +85,7 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                 >
                     {/* Top bar */}
                     <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6">
-                        <span className="eyebrow tabular-nums text-white/50">
+                        <span className="eyebrow tabular-nums text-muted">
                             {String(index + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")}
                         </span>
                         <button
@@ -93,7 +93,7 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                             type="button"
                             onClick={onClose}
                             aria-label="Close gallery"
-                            className="grid h-11 w-11 place-items-center rounded-full border border-white/20 text-white transition-colors duration-200 hover:border-white/50 hover:bg-white/10"
+                            className="grid h-11 w-11 place-items-center rounded-full border border-rule text-text transition-colors duration-200 hover:border-text hover:bg-white"
                         >
                             <X className="h-5 w-5" aria-hidden="true" />
                         </button>
@@ -105,7 +105,7 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                             type="button"
                             onClick={() => go(-1)}
                             aria-label="Previous image"
-                            className="absolute left-2 z-10 grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/30 text-white transition-colors duration-200 hover:border-white/50 hover:bg-black/60 sm:left-4 sm:h-12 sm:w-12"
+                            className="absolute left-2 z-10 grid h-11 w-11 place-items-center rounded-full border border-rule bg-white/85 text-text transition-colors duration-200 hover:border-text hover:bg-white sm:left-4 sm:h-12 sm:w-12"
                         >
                             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                         </button>
@@ -116,9 +116,9 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                                     <div
                                         role="img"
                                         aria-label={item.alt}
-                                        className="grid h-[50vh] w-[80vw] max-w-[40rem] place-items-center rounded-[14px] border border-white/15 bg-white/[0.04] text-center"
+                                        className="grid h-[50vh] w-[80vw] max-w-[40rem] place-items-center rounded-[14px] border border-rule bg-white text-center"
                                     >
-                                        <span className="eyebrow text-white/50">
+                                        <span className="eyebrow text-muted">
                                             Image unavailable
                                         </span>
                                     </div>
@@ -130,17 +130,17 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                                         height={item.height}
                                         decoding="async"
                                         onError={() => setFailed(true)}
-                                        className="max-h-[68svh] w-auto max-w-full rounded-[14px] object-contain"
+                                        className="max-h-[68svh] w-auto max-w-full rounded-[10px] object-contain shadow-[0_36px_90px_-48px_rgba(32,33,36,0.55)] outline outline-1 outline-black/[0.06]"
                                     />
                                 )}
                             </div>
 
                             <figcaption className="mt-5 max-w-[40rem] px-14 text-center">
-                                <p className="font-display text-[1.3rem] leading-tight text-white sm:text-[1.5rem]">
+                                <p className="font-display text-[1.3rem] leading-tight text-text sm:text-[1.5rem]">
                                     {item.caption}
                                 </p>
-                                <p className="eyebrow mt-2 text-white/40">
-                                    {item.category} · {item.status === "institute" ? "Kala Mandir" : `Placeholder · ${item.source}`}
+                                <p className="eyebrow mt-2 text-muted">
+                                    {item.category} · {item.status === "institute" ? "Kala Mandir student work" : `Placeholder · ${item.source}`}
                                 </p>
                             </figcaption>
                         </figure>
@@ -149,7 +149,7 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                             type="button"
                             onClick={() => go(1)}
                             aria-label="Next image"
-                            className="absolute right-2 z-10 grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/30 text-white transition-colors duration-200 hover:border-white/50 hover:bg-black/60 sm:right-4 sm:h-12 sm:w-12"
+                            className="absolute right-2 z-10 grid h-11 w-11 place-items-center rounded-full border border-rule bg-white/85 text-text transition-colors duration-200 hover:border-text hover:bg-white sm:right-4 sm:h-12 sm:w-12"
                         >
                             <ChevronRight className="h-5 w-5" aria-hidden="true" />
                         </button>
@@ -168,7 +168,7 @@ export default function GalleryLightbox({ items, index, onClose, onNavigate }) {
                                     className={`h-1.5 shrink-0 rounded-full transition-all duration-300 ${
                                         i === index
                                             ? "w-8 bg-coral"
-                                            : "w-3 bg-white/25 hover:bg-white/50"
+                                            : "w-3 bg-ink/15 hover:bg-ink/40"
                                     }`}
                                 />
                             ))}

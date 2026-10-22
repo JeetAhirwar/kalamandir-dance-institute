@@ -5,24 +5,25 @@
  * caption, intrinsic size (so layout never shifts) and provenance.
  *
  * ── PROVENANCE ─────────────────────────────────────────────────────────────
- * `status: "placeholder"`  → licensed stock photography used until the
- *                            institute supplies approved originals.
- * `status: "institute"`    → authentic Kala Mandir artwork/class photography
- *                            supplied and approved by the institute.
+ * `status: "institute"`    → authentic Kala Mandir artwork / class
+ *                            photography, supplied via the institute's
+ *                            Google Business Profile and approved for use.
+ * `status: "placeholder"`  → licensed stock photography used where no
+ *                            authentic asset exists yet (Instagram showcase
+ *                            and a few activity shots). Placeholders are
+ *                            NEVER presented on screen as Kala Mandir
+ *                            students or artwork.
  *
- * NO image is presented on screen as a Kala Mandir student or class photo
- * while it is a placeholder — the section shows an honest notice until real
- * work replaces these.
+ * ── SOURCES ────────────────────────────────────────────────────────────────
+ * The institute works below were supplied as Google-hosted images
+ * (lh3.googleusercontent.com/gps-cs-s/…) by the client. Full-size variants
+ * were re-fetched at `=s1800`, converted to WebP locally with ffmpeg and
+ * stored in `public/assets/institute/` so the site never hotlinks.
+ * Captions and alt text only describe what is actually visible in each
+ * image — no artist names, media guesses or awards are invented.
  *
- * ── SOURCING ───────────────────────────────────────────────────────────────
- * All current placeholders are from Pexels (www.pexels.com/license) — free for
- * commercial use, no attribution required, no known restrictions on
- * modification. They were downloaded and stored locally (`public/assets/…`) so
- * the site never hotlinks.
- *
- * To drop in real artwork: replace `src`/`fallback`, set
- * `status: "institute"`, write a truthful `caption`, and flip
- * `showPlaceholderNotice` below to `false`.
+ * Alt-text note: media descriptions stay descriptive ("what you see");
+ * medium (pastel/oil/clay) is only claimed where it is clearly visible.
  */
 
 export const showPlaceholderNotice = true;
@@ -32,355 +33,153 @@ export const galleryCategories = [
     { id: "drawing", label: "Drawing" },
     { id: "painting", label: "Painting" },
     { id: "craft", label: "Craft" },
-    { id: "dance", label: "Dance" },
 ];
 
+/** Original Google-hosted source of each institute asset (provenance trail). */
+export const instituteSources = {
+    "km-artwork-01":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9QIaHafZLtCGZ56l9HO_ozQQAME2ReJpjeZMQxit39dyc3MdRuobfJdep4z-nj32UUDBnJ25gX2ZuXp_Hr7as5usklzoUvu2kob389sfGDwrnkEJOu7EWz3h76EasPK5dnYaMYmLlHwiYzJ",
+    "km-artwork-02":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9TMUEI3_hqxaYq8WYFiWk4TCawBjp2hRMz5-lDh29Fvsc5IKF-xIHnPrgo99R6MlilheWE0eB-ecukupnMFpQpqKqUDpUArhgNdWR-DVwyNjAMD28V1gLRbG6JPuadUjafTGdUZLhihPgQ",
+    "km-artwork-03":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9SVDJTVMTComfyR7v-CsKY-QSGhJgUqTPskZZh2vSgp9EfI0mAzye_Nlx8kbednaNTtIhfsEY7vJ9DTXSsNwUSAGGM4Ow7fFI3pwR6h6S0YubBofW5f4odQPUjiymXv5x_4HEtZVLuXHsNz",
+    "km-artwork-04":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9QRE9Pu4ZbqNf8c92qfNU-nk6PkHKmSsJ5koxrQGV00L8vHNWPtAog9Nuw0nPljP7V7Qlh77_wF_nrQokypQmSzAEJyCxRCweqFPsDQot2pK0Gp1oZUb_aaoa17s_oKj2WQlibHlKDh7XXh",
+    "km-artwork-05":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9TyJC-NWZcHLm4eFl3G0ZQ8eUBHrQkJTtwtGUIUisBLYh9zyXfAcdKIWJJZEyGEDObREoDmf278s92ihwzPDIIvToxcHnc_0coAnZXi4jsjriogF5ELxCODAIuLTLTZ9eCxIwZA2V3Oyhs",
+    "km-artwork-06":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9S7VZcNun-JHBSlvq33PKMkG7J55ZjnCYjIVyv1rUOSykWes6ovuA5rnXZe39BHF1SezFwcTk9vAK9x7aiedgmK2ZNCvrPboGYUI1RNwlU4qkg1FyI1K8o8K7mOYe5pfo9mzjXM4xqKdG4x",
+    "km-artwork-07":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9RQZf6_N2SyGCkH2Kdqa6S1zpuP8kkEQ7V9Q9-NydhDX8Df6WPilYd0wZ_raZ_qa-_9Ne44mxeb3FDNpD7NhgkFBVOgiJ3DI6YVql5kfvvNtO7cmi5G9tg97f9-N4VKHQSM0dPATnPDDkzM",
+    "km-artwork-08":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9Tga430z9NTXT4JhcypmT4M5XHlV0E8rxnjiskVHMUdFVf3yJEgYX8sa6ivp4QuvAkcbjBHWWQk5qXmgCNrZK5itHreQhOTkpWfFJFaNplD33WRNJePhZiev7zpV3xVG1Gt8vYGVcx_bbe9",
+    "km-artwork-09":
+        "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9QY83C0ZxANrvqvxr22pg-xOnpxxjRVu8R1X95cHQDkWEjmTRIvhVGVqCvcuIlprumpySpii6hwxEsxQM987Jblnc4V390ND6z2bWckbSqdhLhPBv0xwEgc5DGrCn9f0bbj2i6Ch5QWJuuC",
+};
+
 const pexels = "Pexels";
+const googleListing = "Google Business Profile (supplied by the client)";
+
+/**
+ * THE EXHIBITION — the nine authentic works supplied by the institute.
+ *
+ * `crop` selects the display proportion inside the masonry (the full,
+ * uncropped image is always shown in the lightbox). Proportions vary on
+ * purpose so the spread reads like a curated wall, not a uniform grid.
+ */
+const institute = (n, category, caption, alt, width, height, crop, position = "50% 50%") => ({
+    id: `km-artwork-${n}`,
+    category,
+    src: `/assets/institute/km-artwork-${n}.webp`,
+    fallback: `/assets/institute/km-artwork-${n}.jpg`,
+    alt,
+    caption,
+    width,
+    height,
+    status: "institute",
+    source: googleListing,
+    crop,
+    position,
+});
 
 export const galleryItems = [
-    /* ------------------------------- DRAWING ------------------------------- */
-    {
-        id: "draw-profile",
-        category: "drawing",
-        src: "/assets/art/art-sketch-profile.webp",
-        fallback: "/assets/art/art-sketch-profile.jpg",
-        alt: "Profile of a face being drawn in graphite with a pencil",
-        caption: "Graphite study — profile",
-        width: 1200,
-        height: 795,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "draw-blue-portrait",
-        category: "drawing",
-        src: "/assets/art/art-sketch-portrait-blue.webp",
-        fallback: "/assets/art/art-sketch-portrait-blue.jpg",
-        alt: "Hand drawing a portrait in blue pencil on white paper",
-        caption: "Portrait practice — coloured pencil",
-        width: 1200,
-        height: 675,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "draw-sketchbook",
-        category: "drawing",
-        src: "/assets/art/art-sketchbook-faces.webp",
-        fallback: "/assets/art/art-sketchbook-faces.jpg",
-        alt: "Open sketchbook filled with loosely drawn faces",
-        caption: "Sketchbook pages — figure & face",
-        width: 1200,
-        height: 1800,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "draw-botanical",
-        category: "drawing",
-        src: "/assets/art/art-botanical-study.webp",
-        fallback: "/assets/art/art-botanical-study.jpg",
-        alt: "Botanical pencil studies of leaves laid out on a wooden desk",
-        caption: "Botanical observation study",
-        width: 1200,
-        height: 1800,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "draw-easel",
-        category: "drawing",
-        src: "/assets/art/art-portrait-on-easel.webp",
-        fallback: "/assets/art/art-portrait-on-easel.jpg",
-        alt: "Artist drawing a portrait on paper fixed to an easel",
-        caption: "Portrait work in progress",
-        width: 1200,
-        height: 801,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "draw-fundamentals",
-        category: "drawing",
-        src: "/assets/art/art-drawing-fundamentals.webp",
-        fallback: "/assets/art/art-drawing-fundamentals.jpg",
-        alt: "Close view of a hand shading a still-life drawing exercise",
-        caption: "Fundamentals — light & shade",
-        width: 1200,
-        height: 801,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-
     /* ------------------------------ PAINTING ------------------------------- */
-    {
-        id: "paint-vivid",
-        category: "painting",
-        src: "/assets/painting/paint-abstract-vivid.webp",
-        fallback: "/assets/painting/paint-abstract-vivid.jpg",
-        alt: "Vivid abstract painting in orange, yellow, blue and black strokes",
-        caption: "Abstract in acrylic",
-        width: 1200,
-        height: 838,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "paint-red",
-        category: "painting",
-        src: "/assets/painting/paint-abstract-red.webp",
-        fallback: "/assets/painting/paint-abstract-red.jpg",
-        alt: "Textured abstract painting in red and white with palette knife marks",
-        caption: "Impasto surface — palette knife",
-        width: 1200,
-        height: 860,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "paint-brushes",
-        category: "painting",
-        src: "/assets/painting/paint-palette-brushes.webp",
-        fallback: "/assets/painting/paint-palette-brushes.jpg",
-        alt: "Paintbrushes resting on a palette loaded with mixed colour",
-        caption: "Palette & brushes",
-        width: 1200,
-        height: 1800,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "paint-artist",
-        category: "painting",
-        src: "/assets/painting/paint-artist-landscape.webp",
-        fallback: "/assets/painting/paint-artist-landscape.jpg",
-        alt: "Painter working on a landscape canvas at an easel by a window",
-        caption: "Landscape in progress",
-        width: 1200,
-        height: 1800,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "paint-viewer",
-        category: "painting",
-        src: "/assets/painting/paint-gallery-viewer.webp",
-        fallback: "/assets/painting/paint-gallery-viewer.jpg",
-        alt: "Visitor studying a large painting hung on a gallery wall",
-        caption: "Looking closely",
-        width: 1200,
-        height: 800,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
+    institute(
+        "01",
+        "painting",
+        "Still life — clay pots & coconut",
+        "Student still-life artwork of clay pots and a coconut on a toned background",
+        1350,
+        1800,
+        "square",
+        "50% 48%",
+    ),
+    institute(
+        "02",
+        "painting",
+        "Figure on a circular canvas",
+        "Colourful figure painting on a circular canvas — a girl in a white top and red tartan skirt, photographed at the studio",
+        1350,
+        1800,
+        "portrait",
+        "50% 45%",
+    ),
+    institute(
+        "05",
+        "painting",
+        "Saraswati on a lotus",
+        "Student painting of the goddess Saraswati seated on a lotus with a white swan, in teal water tones",
+        1012,
+        1800,
+        "square",
+        "50% 42%",
+    ),
+    institute(
+        "09",
+        "painting",
+        "Figure study on the easel",
+        "A student painter at an easel beside an oil figure study in warm reds and whites",
+        1012,
+        1800,
+        "landscape",
+        "62% 42%",
+    ),
+
+    /* ------------------------------ DRAWING -------------------------------- */
+    institute(
+        "03",
+        "drawing",
+        "In class — Madhubani Krishna",
+        "A student colouring a Madhubani-style Krishna face artwork at a blue work table",
+        1012,
+        1800,
+        "portrait",
+        "50% 38%",
+    ),
+    institute(
+        "04",
+        "drawing",
+        "Birds on a branch — graphite",
+        "Graphite drawing of small birds perched on a leafy branch",
+        1012,
+        1800,
+        "portrait",
+        "50% 42%",
+    ),
+    institute(
+        "07",
+        "drawing",
+        "Profile in white charcoal",
+        "Portrait profile of a woman drawn in white charcoal on grey paper",
+        1012,
+        1800,
+        "portrait",
+        "50% 40%",
+    ),
 
     /* -------------------------------- CRAFT -------------------------------- */
-    {
-        id: "craft-watercolour",
-        category: "craft",
-        src: "/assets/craft/craft-watercolour-floral.webp",
-        fallback: "/assets/craft/craft-watercolour-floral.jpg",
-        alt: "Hand painting loose floral forms in watercolour on paper",
-        caption: "Watercolour florals",
-        width: 1100,
-        height: 733,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "craft-paper",
-        category: "craft",
-        src: "/assets/craft/craft-paper-craft.webp",
-        fallback: "/assets/craft/craft-paper-craft.jpg",
-        alt: "Hands cutting and arranging coloured paper shapes with glitter",
-        caption: "Paper, colour & texture",
-        width: 1100,
-        height: 1650,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "craft-pastels",
-        category: "craft",
-        src: "/assets/craft/craft-pastel-box.webp",
-        fallback: "/assets/craft/craft-pastel-box.jpg",
-        alt: "Wooden box divided into compartments holding pastels and drawing tools",
-        caption: "Pastels & drawing tools",
-        width: 1100,
-        height: 1648,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "craft-together",
-        category: "craft",
-        src: "/assets/craft/craft-drawing-together.webp",
-        fallback: "/assets/craft/craft-drawing-together.jpg",
-        alt: "Two people drawing together on a large sheet of paper on the floor",
-        caption: "Making things together",
-        width: 1100,
-        height: 733,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "craft-texture",
-        category: "craft",
-        src: "/assets/gallery/gallery-paint-texture.webp",
-        fallback: "/assets/gallery/gallery-paint-texture.jpg",
-        alt: "Close detail of thick paint texture built up in layers",
-        caption: "Surface study",
-        width: 1000,
-        height: 667,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
+    institute(
+        "06",
+        "craft",
+        "Clay floral relief",
+        "Hand-built clay mural of flowers in raised relief",
+        1350,
+        1800,
+        "landscape",
+        "50% 46%",
+    ),
 
     /* -------------------------------- DANCE -------------------------------- */
-    {
-        id: "dance-classical",
-        category: "dance",
-        src: "/assets/gallery/gallery-classical-green.webp",
-        fallback: "/assets/gallery/gallery-classical-green.jpg",
-        alt: "Classical dancer in a deep green costume captured mid-movement on a dark stage",
-        caption: "Classical form on stage",
-        width: 1000,
-        height: 1498,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "dance-lift",
-        category: "dance",
-        src: "/assets/gallery/gallery-contemporary-lift.webp",
-        fallback: "/assets/gallery/gallery-contemporary-lift.jpg",
-        alt: "Two contemporary dancers performing a supported lift on stage",
-        caption: "Partnered movement",
-        width: 1000,
-        height: 668,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "dance-barre",
-        category: "dance",
-        src: "/assets/dance/dance-barre-studio.webp",
-        fallback: "/assets/dance/dance-barre-studio.jpg",
-        alt: "Dancer in a bright studio with arms extended in a training posture",
-        caption: "Studio practice",
-        width: 1300,
-        height: 1950,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "dance-contemporary",
-        category: "dance",
-        src: "/assets/dance/dance-contemporary-duo.webp",
-        fallback: "/assets/dance/dance-contemporary-duo.jpg",
-        alt: "Two dancers extending into a wide contemporary pose on a wooden floor",
-        caption: "Contemporary duet",
-        width: 1300,
-        height: 867,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "dance-studio-solo",
-        category: "dance",
-        src: "/assets/dance/dance-studio-solo.webp",
-        fallback: "/assets/dance/dance-studio-solo.jpg",
-        alt: "Dancer balancing on one leg in a sunlit rehearsal studio",
-        caption: "Rehearsal room",
-        width: 1300,
-        height: 867,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "landscape",
-    },
-    {
-        id: "dance-zumba",
-        category: "dance",
-        src: "/assets/dance/zumba-stage-energy.webp",
-        fallback: "/assets/dance/zumba-stage-energy.jpg",
-        alt: "Group of dancers performing an energetic routine in colourful costumes",
-        caption: "Energy in motion",
-        width: 1300,
-        height: 1950,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "dance-classical-outdoor",
-        category: "dance",
-        src: "/assets/dance/dance-classical-outdoor.webp",
-        fallback: "/assets/dance/dance-classical-outdoor.jpg",
-        alt: "Dancer in traditional white and red costume holding a classical hand gesture",
-        caption: "Traditional costume & gesture",
-        width: 1300,
-        height: 1949,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
-    {
-        id: "dance-studio-table",
-        category: "dance",
-        src: "/assets/gallery/gallery-studio-table.webp",
-        fallback: "/assets/gallery/gallery-studio-table.jpg",
-        alt: "Two people working side by side at a studio table with art materials",
-        caption: "Between sessions",
-        width: 1000,
-        height: 1498,
-        status: "placeholder",
-        source: pexels,
-        license: "https://www.pexels.com/license/",
-        shape: "portrait",
-    },
+    institute(
+        "08",
+        "painting",
+        "Two dancers on a circular canvas",
+        "Student painting of two dancers on a circular canvas, against a colourful geometric background",
+        1012,
+        1800,
+        "portrait",
+        "50% 42%",
+    ),
 ];
 
 /** Instagram showcase — curated local assets (never scraped from Instagram). */
@@ -456,99 +255,99 @@ export const instagramPosts = [
 /**
  * Editorial image slots used by the opening sections.
  * Kept here so a single swap updates hero, intro and showcase together.
+ * Hero and intro now use authentic institute media.
  */
 export const editorialImages = {
     hero: {
         primary: {
-            src: "/assets/hero/hero-dance-classical.webp",
-            fallback: "/assets/hero/hero-dance-classical.jpg",
-            alt: "Classical dancer holding an expressive posture in warm stage light",
-            width: 1500,
-            height: 2250,
-            status: "placeholder",
-            source: pexels,
+            src: "/assets/institute/km-artwork-08.webp",
+            fallback: "/assets/institute/km-artwork-08.jpg",
+            alt: "Student painting of two dancers on a circular canvas, against a colourful geometric background",
+            width: 1012,
+            height: 1800,
+            status: "institute",
+            source: googleListing,
         },
         secondary: {
-            src: "/assets/hero/hero-artist-easel.webp",
-            fallback: "/assets/hero/hero-artist-easel.jpg",
-            alt: "Artist working at an easel with a loaded palette",
-            width: 1400,
-            height: 2097,
-            status: "placeholder",
-            source: pexels,
+            src: "/assets/institute/km-artwork-02.webp",
+            fallback: "/assets/institute/km-artwork-02.jpg",
+            alt: "Colourful student figure painting on a circular canvas",
+            width: 1350,
+            height: 1800,
+            status: "institute",
+            source: googleListing,
         },
     },
     intro: {
         main: {
-            src: "/assets/intro/intro-teaching-easel.webp",
-            fallback: "/assets/intro/intro-teaching-easel.jpg",
-            alt: "Instructor guiding a student painting at an easel",
-            width: 1200,
+            src: "/assets/institute/km-artwork-03.webp",
+            fallback: "/assets/institute/km-artwork-03.jpg",
+            alt: "A student colouring a Madhubani-style Krishna artwork at a class work table",
+            width: 1012,
             height: 1800,
-            status: "placeholder",
-            source: pexels,
+            status: "institute",
+            source: googleListing,
         },
         side: {
-            src: "/assets/intro/intro-classroom.webp",
-            fallback: "/assets/intro/intro-classroom.jpg",
-            alt: "Artwork and materials arranged across a working studio",
-            width: 1200,
-            height: 799,
-            status: "placeholder",
-            source: pexels,
+            src: "/assets/institute/km-artwork-06.webp",
+            fallback: "/assets/institute/km-artwork-06.jpg",
+            alt: "Clay mural of flowers in raised relief, made in class",
+            width: 1350,
+            height: 1800,
+            status: "institute",
+            source: googleListing,
         },
     },
     artDetail: [
-        {
-            id: "ad-1",
-            src: "/assets/gallery/gallery-artist-studio.webp",
-            fallback: "/assets/gallery/gallery-artist-studio.jpg",
-            alt: "Artist standing at an easel in a light-filled studio",
-            caption: "Studio practice",
-            width: 1000,
-            height: 1500,
-            status: "placeholder",
-            source: pexels,
-        },
-        {
-            id: "ad-2",
-            src: "/assets/painting/paint-artist-landscape.webp",
-            fallback: "/assets/painting/paint-artist-landscape.jpg",
-            alt: "Painter working on a landscape canvas beside a window",
-            caption: "Landscape painting",
-            width: 1200,
-            height: 1800,
-            status: "placeholder",
-            source: pexels,
-        },
-        {
-            id: "ad-3",
-            src: "/assets/gallery/gallery-brush-strokes.webp",
-            fallback: "/assets/gallery/gallery-brush-strokes.jpg",
-            alt: "Rows of blue brush strokes painted as a colour study",
-            caption: "Colour study",
-            width: 1000,
-            height: 820,
-            status: "placeholder",
-            source: pexels,
-        },
-        {
-            id: "ad-4",
-            src: "/assets/painting/paint-gallery-viewer.webp",
-            fallback: "/assets/painting/paint-gallery-viewer.jpg",
-            alt: "Person looking closely at a painting on a gallery wall",
-            caption: "On the wall",
-            width: 1200,
-            height: 800,
-            status: "placeholder",
-            source: pexels,
-        },
+        institute(
+            "09",
+            "painting",
+            "At the easel",
+            "A student painter at an easel beside an oil figure study",
+            1012,
+            1800,
+            "portrait",
+            "62% 42%",
+        ),
+        institute(
+            "05",
+            "painting",
+            "Saraswati on a lotus",
+            "Student painting of the goddess Saraswati seated on a lotus with a white swan",
+            1012,
+            1800,
+            "landscape",
+            "50% 42%",
+        ),
+        institute(
+            "06",
+            "craft",
+            "Clay relief work",
+            "Hand-built clay mural of flowers in raised relief",
+            1350,
+            1800,
+            "square",
+            "50% 46%",
+        ),
+        institute(
+            "01",
+            "painting",
+            "Still life practice",
+            "Student still-life artwork of clay pots and a coconut",
+            1350,
+            1800,
+            "landscape",
+            "50% 48%",
+        ),
     ],
     danceShowcase: {
+        // 21:9 band needs a landscape frame — authentic portrait footage does
+        // not crop to this shape without losing the dancers. Placeholder kept
+        // until landscape performance photography is supplied.
         wide: {
             src: "/assets/dance/dance-classical-stage.webp",
             fallback: "/assets/dance/dance-classical-stage.jpg",
-            alt: "Classical dancer performing under a focused stage light",
+            alt: "Classical dancer performing under a focused stage light (placeholder image)",
             width: 1300,
             height: 1948,
             status: "placeholder",
@@ -557,7 +356,7 @@ export const editorialImages = {
         duo: {
             src: "/assets/dance/choreo-wedding-couple.webp",
             fallback: "/assets/dance/choreo-wedding-couple.jpg",
-            alt: "Couple in wedding attire sharing a dance moment",
+            alt: "Couple in wedding attire sharing a dance moment (placeholder image)",
             width: 1200,
             height: 1804,
             status: "placeholder",
@@ -566,25 +365,27 @@ export const editorialImages = {
         group: {
             src: "/assets/dance/dance-group-class.webp",
             fallback: "/assets/dance/dance-group-class.jpg",
-            alt: "Group class rehearsing a routine together",
+            alt: "Group class rehearsing a routine together (placeholder image)",
             width: 1300,
             height: 867,
             status: "placeholder",
             source: pexels,
         },
+        // Portrait slot carries authentic student artwork of dancers.
         zumba: {
-            src: "/assets/dance/zumba-fitness-class.webp",
-            fallback: "/assets/dance/zumba-fitness-class.jpg",
-            alt: "Instructor leading a high-energy group fitness session",
-            width: 1300,
-            height: 866,
-            status: "placeholder",
-            source: pexels,
+            src: "/assets/institute/km-artwork-08.webp",
+            fallback: "/assets/institute/km-artwork-08.jpg",
+            alt: "Student painting of two dancers on a circular canvas, against a colourful geometric background",
+            width: 1012,
+            height: 1800,
+            status: "institute",
+            source: googleListing,
+            position: "50% 42%",
         },
         wedding: {
             src: "/assets/dance/choreo-indian-attire.webp",
             fallback: "/assets/dance/choreo-indian-attire.jpg",
-            alt: "Three performers in coordinated traditional Indian attire",
+            alt: "Three performers in coordinated traditional Indian attire (placeholder image)",
             width: 1200,
             height: 800,
             status: "placeholder",

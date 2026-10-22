@@ -5,6 +5,7 @@ import SmartImage from "@/components/SmartImage";
 import SectionHeading from "@/components/SectionHeading";
 import { Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
 import { editorialImages } from "@/data/gallery";
+import { contactLinks } from "@/data/siteConfig";
 import { useIsDesktop } from "@/hooks";
 
 const HIGHLIGHTS = [
@@ -26,10 +27,11 @@ const HIGHLIGHTS = [
 ];
 
 /**
- * DanceShowcase (E) — a wider, more energetic visual rhythm.
+ * DanceShowcase (E) — the energetic half of the institute.
  *
- * Dramatic cropping, one full-width image band and a dark transition
- * background. Same typography and spacing rules as the rest of the page.
+ * One full-width image band on a bold cobalt field, with the studio's palette
+ * for accents. Practice/performance videos live on the institute's official
+ * Instagram (linked honestly below) — nothing is embedded that doesn't exist.
  */
 export default function DanceShowcase() {
     const ref = useRef(null);
@@ -51,7 +53,7 @@ export default function DanceShowcase() {
             data-tone="dark"
             ref={ref}
             aria-labelledby="dance-title"
-            className="grain relative isolate overflow-hidden bg-charcoal py-24 sm:py-28 lg:py-36"
+            className="relative isolate overflow-hidden bg-blue py-24 sm:py-28 lg:py-36"
         >
             <div className="relative">
                 <div className="shell">
@@ -66,7 +68,7 @@ export default function DanceShowcase() {
                                 title={
                                     <>
                                         A more energetic{" "}
-                                        <span className="italic text-coral">rhythm</span>.
+                                        <span className="italic text-yellow">rhythm</span>.
                                     </>
                                 }
                                 standfirst="Wider frames, longer lines, and the moment a rehearsal becomes a performance."
@@ -74,7 +76,7 @@ export default function DanceShowcase() {
                         </div>
 
                         <Reveal delay={0.12} className="lg:col-span-4 lg:col-start-9 lg:self-end">
-                            <p className="border-l border-white/15 pl-5 text-[0.975rem] leading-[1.7] text-white/60">
+                            <p className="border-l border-white/25 pl-5 text-[0.975rem] leading-[1.7] text-white/75">
                                 Dance is taught as a craft: posture, timing, control
                                 and then freedom — practised in front of mirrors and
                                 finished on stage.
@@ -98,14 +100,14 @@ export default function DanceShowcase() {
 
                         <div
                             aria-hidden="true"
-                            className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(23,24,27,0.85)_0%,rgba(23,24,27,0.15)_45%,transparent_70%)]"
+                            className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(56,91,232,0.9)_0%,rgba(56,91,232,0.2)_45%,transparent_70%)]"
                         />
 
                         {/* Overlaid pull-quote — readable, low-contrast-safe */}
                         <Reveal
                             className="absolute inset-x-0 bottom-0 flex flex-col justify-end gap-2 p-5 sm:p-8 lg:p-12"
                         >
-                            <p className="eyebrow text-coral">On the floor</p>
+                            <p className="eyebrow text-yellow">On the floor</p>
                             <p className="max-w-[26rem] font-display text-[clamp(1.5rem,3.4vw,2.6rem)] leading-[1.1] text-white sm:max-w-[34rem]">
                                 “Practice until the count disappears.”
                             </p>
@@ -126,7 +128,7 @@ export default function DanceShowcase() {
                                 image={danceShowcase.zumba}
                                 sizes="(max-width: 639px) 40vw, 30vw"
                                 className="aspect-[3/4] w-full rounded-[14px]"
-                                position="50% 40%"
+                                position="50% 30%"
                             />
                         </Reveal>
                         <Reveal delay={0.16} className="col-span-12 sm:col-span-4">
@@ -143,23 +145,23 @@ export default function DanceShowcase() {
                         {HIGHLIGHTS.map(({ icon: Icon, title, body }, i) => (
                             <RevealItem
                                 key={title}
-                                className="border-t border-white/12 py-7 lg:py-8"
+                                className="border-t border-white/20 py-7 lg:py-8"
                             >
                                 <div className="flex items-start gap-4">
-                                    <span className="eyebrow mt-1 tabular-nums text-white/30">
+                                    <span className="eyebrow mt-1 tabular-nums text-white/45">
                                         {String(i + 1).padStart(2, "0")}
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-3">
                                             <Icon
-                                                className="h-4 w-4 shrink-0 text-coral"
+                                                className="h-4 w-4 shrink-0 text-yellow"
                                                 aria-hidden="true"
                                             />
                                             <h3 className="font-display text-[1.4rem] leading-tight text-white sm:text-[1.55rem]">
                                                 {title}
                                             </h3>
                                         </div>
-                                        <p className="mt-2.5 text-[0.95rem] leading-[1.65] text-white/55">
+                                        <p className="mt-2.5 text-[0.95rem] leading-[1.65] text-white/70">
                                             {body}
                                         </p>
                                     </div>
@@ -169,10 +171,10 @@ export default function DanceShowcase() {
                     </RevealGroup>
 
                     {/* CTA */}
-                    <Reveal delay={0.1} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-white/12 pt-8">
+                    <Reveal delay={0.1} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-white/20 pt-8">
                         <a
                             href="#enquiry"
-                            className="group inline-flex items-center gap-2 rounded-[11px] bg-paper px-6 py-3.5 text-[15px] font-medium text-ink transition-colors duration-200 hover:bg-white"
+                            className="group inline-flex items-center gap-2 rounded-[11px] bg-white px-6 py-3.5 text-[15px] font-medium text-ink transition-colors duration-200 hover:bg-paper"
                         >
                             Enquire about choreography
                             <ArrowUpRight
@@ -184,7 +186,15 @@ export default function DanceShowcase() {
                             href="#gallery"
                             className="rule-link text-[15px] text-white/70 hover:text-white"
                         >
-                            See dance in the gallery
+                            See the students in the gallery
+                        </a>
+                        <a
+                            href={contactLinks.instagram}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rule-link text-[15px] text-white/70 hover:text-white"
+                        >
+                            Watch class videos on Instagram
                         </a>
                     </Reveal>
                 </div>

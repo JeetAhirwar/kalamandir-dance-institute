@@ -1,22 +1,28 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   KALA MANDIR — luxury editorial design system
-   Hybrid dark + warm paper. Photography carries the colour; the UI stays
-   quiet: fine rules, small caps labels, oversized serif display type.
+   KALA MANDIR — bright editorial design system
+   Warm ivory surfaces carry the page; colour comes from the students' actual
+   artwork. Accents play like a paint palette: coral, orange, cobalt, magenta,
+   yellow and teal. Ink is used for type and selected details (footer, CTAs),
+   never as a dominant surface.
    ========================================================================== */
 
 @theme {
-  /* Colour tokens — exact values from the creative direction */
-  --color-ink: #202124;          /* primary dark */
-  --color-charcoal: #17181b;     /* deep charcoal */
-  --color-paper: #f6f2ea;        /* warm paper */
+  /* Colour tokens — bright, artwork-inspired palette */
+  --color-ink: #202124;          /* primary dark (type, footer, CTAs) */
+  --color-charcoal: #17181b;     /* deep surface — footer & lightbox only */
+  --color-paper: #faf6ee;        /* warm ivory ground */
   --color-white: #ffffff;
   --color-text: #222222;         /* primary text on light */
   --color-muted: #77736d;        /* secondary text */
-  --color-rule: #ded8ce;         /* fine borders on light */
-  --color-blue: #385be8;         /* editorial accent */
-  --color-coral: #e77c66;        /* restrained coral accent */
+  --color-rule: #e6dfd3;         /* fine borders on light */
+  --color-blue: #385be8;         /* cobalt accent */
+  --color-coral: #e77c66;        /* coral accent */
+  --color-orange: #ee8a31;       /* tangerine accent */
+  --color-magenta: #d63c92;      /* magenta accent */
+  --color-yellow: #f5b937;       /* marigold accent */
+  --color-teal: #189b85;         /* jade accent */
 
   /* Type */
   --font-display: "DM Serif Display", Georgia, "Times New Roman", serif;

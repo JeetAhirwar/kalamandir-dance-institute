@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
  * `rule` draws a hairline underneath, echoing print layout.
  */
 export default function SectionHeading({
+    id,
     eyebrow,
     title,
     standfirst,
@@ -53,6 +54,7 @@ export default function SectionHeading({
 
             <RevealItem>
                 <h2
+                    id={id}
                     className={cn(
                         "mt-5 font-display text-[clamp(2.15rem,5vw,3.75rem)] leading-[1.04] tracking-[-0.01em]",
                         isDark ? "text-white" : "text-text",

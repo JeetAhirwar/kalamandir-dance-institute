@@ -6,12 +6,25 @@ import { cn } from "@/lib/utils";
 /**
  * ClassCard — editorial card, deliberately NOT a uniform product tile.
  *
- * Each card carries its own proportion (`layout`) and tone so the grid reads
- * like a catalogue spread. The whole card links to the relevant section or the
- * enquiry form; clicking also pre-selects that interest in the form.
+ * Each card carries its own proportion (`layout`) and its own accent from the
+ * studio palette (kicker + bullet dots), so the grid still reads like a
+ * catalogue spread while every class gets a friendly identity.
+ * The whole card links to the relevant section or the enquiry form; clicking
+ * also pre-selects that interest in the form.
  */
+
+/* Kept literal so Tailwind's scanner sees every class string. */
+const ACCENTS = {
+    teal: { kicker: "text-teal", dot: "bg-teal" },
+    magenta: { kicker: "text-magenta", dot: "bg-magenta" },
+    coral: { kicker: "text-coral", dot: "bg-coral" },
+    orange: { kicker: "text-orange", dot: "bg-orange" },
+    blue: { kicker: "text-blue", dot: "bg-blue" },
+};
+
 export default function ClassCard({ item }) {
     const { title, kicker, summary, points, index, image, anchor, interest } = item;
+    const accent = ACCENTS[item.accent] || ACCENTS.coral;
 
     const handleInterest = () => {
         // Pre-select the matching option when the visitor lands on the form.
@@ -58,7 +71,7 @@ export default function ClassCard({ item }) {
                 <div className="mt-5 border-t border-rule pt-4">
                     <div className="flex items-start justify-between gap-5">
                         <div className="min-w-0">
-                            <p className="eyebrow text-coral">{kicker}</p>
+                            <p className={cn("eyebrow", accent.kicker)}>{kicker}</p>
                             <h3 className="mt-2.5 font-display text-[clamp(1.5rem,3.2vw,2.15rem)] leading-[1.08] tracking-[-0.01em] text-text transition-colors duration-200 group-hover:text-blue">
                                 {title}
                             </h3>
@@ -83,7 +96,7 @@ export default function ClassCard({ item }) {
                             >
                                 <span
                                     aria-hidden="true"
-                                    className="h-1 w-1 rounded-full bg-coral/70"
+                                    className={cn("h-1 w-1 rounded-full", accent.dot)}
                                 />
                                 {point}
                             </li>

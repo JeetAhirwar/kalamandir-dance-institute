@@ -8,13 +8,12 @@ import { siteConfig } from "@/data/siteConfig";
 import { useIsDesktop } from "@/hooks";
 
 /**
- * Hero — the opening viewport, art-directed like a magazine cover.
+ * Hero — the opening viewport, bright and welcoming.
  *
- * Left: oversized serif headline with an intentional two-line break, a short
- * two-line statement, two CTAs with clearly different weight, and a location
- * label. Right: one dominant photograph with a single smaller overlap.
- *
- * No floating panels, no neon, no invented statistics.
+ * Warm ivory ground with soft paint-wash colour. Left: oversized serif
+ * headline, a short statement and two CTAs with clearly different weight.
+ * Right: authentic Kala Mandir photography — students dancing in front of a
+ * backdrop they painted, with a student painting overlapped below.
  */
 export default function Hero() {
     const ref = useRef(null);
@@ -34,19 +33,34 @@ export default function Hero() {
 
     const { hero } = editorialImages;
 
+    /* Palette pulled from the students' artwork — coral, orange, cobalt,
+       magenta, yellow, teal — used also as a recurring brand motif. */
+    const palette = [
+        { bg: "bg-coral", delay: 0.55 },
+        { bg: "bg-orange", delay: 0.62 },
+        { bg: "bg-blue", delay: 0.69 },
+        { bg: "bg-magenta", delay: 0.76 },
+        { bg: "bg-yellow", delay: 0.83 },
+        { bg: "bg-teal", delay: 0.9 },
+    ];
+
     return (
         <section
             id="home"
-            data-tone="dark"
+            data-tone="light"
             ref={ref}
             aria-labelledby="hero-title"
-            className="grain relative isolate overflow-hidden bg-charcoal"
+            className="relative isolate overflow-hidden bg-paper"
         >
-            {/* Warm gradient wash so type stays readable over photography */}
+            {/* Soft paint washes — very restrained, keep type contrast high */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,rgba(23,24,27,0.97)_0%,rgba(23,24,27,0.92)_38%,rgba(23,24,27,0.55)_62%,rgba(23,24,27,0.72)_100%)]"
-            />
+                className="pointer-events-none absolute inset-0"
+            >
+                <span className="absolute -left-32 -top-32 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(231,124,102,0.16),transparent_65%)]" />
+                <span className="absolute -right-40 top-10 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,rgba(56,91,232,0.13),transparent_65%)]" />
+                <span className="absolute bottom-[-12rem] left-1/3 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(245,185,55,0.18),transparent_65%)]" />
+            </div>
 
             <div className="relative mx-auto grid min-h-[100svh] w-full max-w-[85rem] grid-cols-1 items-center gap-y-10 px-5 pb-16 pt-28 sm:px-8 sm:pt-32 lg:grid-cols-12 lg:gap-x-10 lg:px-10 lg:pb-20 lg:pt-32 xl:px-14">
                 {/* ── Copy column ─────────────────────────────────────────── */}
@@ -59,11 +73,11 @@ export default function Hero() {
                         initial={reduce ? false : { opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 0.61, 0.36, 1] }}
-                        className="eyebrow flex flex-wrap items-center gap-x-3 gap-y-2 text-white/50"
+                        className="eyebrow flex flex-wrap items-center gap-x-3 gap-y-2 text-muted"
                     >
-                        <span className="h-px w-7 bg-white/30" aria-hidden="true" />
+                        <span className="h-px w-7 bg-rule" aria-hidden="true" />
                         <span>{siteConfig.tagline}</span>
-                        <span className="text-white/25" aria-hidden="true">
+                        <span className="text-muted/50" aria-hidden="true">
                             ·
                         </span>
                         <span>Sector 52, Noida</span>
@@ -72,22 +86,41 @@ export default function Hero() {
                     {/* Headline */}
                     <h1
                         id="hero-title"
-                        className="mt-6 font-display text-[clamp(3rem,10.5vw,7rem)] leading-[0.94] tracking-[-0.02em] text-white"
+                        className="mt-6 font-display text-[clamp(2.9rem,9.5vw,4.6rem)] leading-[0.94] tracking-[-0.02em] text-text lg:text-[clamp(4.2rem,6.6vw,6.9rem)]"
                     >
                         <LineReveal delay={0.35}>Where Art</LineReveal>
                         <LineReveal delay={0.47}>
                             Comes{" "}
                             <span className="italic text-coral">Alive</span>
-                            <span className="text-white/40">.</span>
+                            <span className="text-text/35">.</span>
                         </LineReveal>
                     </h1>
+
+                    {/* Palette motif — the studio's colours, from student work */}
+                    <motion.div
+                        initial={reduce ? false : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.6, delay: 0.9 }}
+                        className="mt-5 flex items-center gap-2"
+                        aria-hidden="true"
+                    >
+                        {palette.map(({ bg, delay }, i) => (
+                            <motion.span
+                                key={i}
+                                initial={reduce ? false : { scale: 0 }}
+                                animate={reduce ? undefined : { scale: 1 }}
+                                transition={{ duration: 0.35, delay, ease: "backOut" }}
+                                className={`h-2.5 w-2.5 rounded-full ${bg} motion-reduce:hidden`}
+                            />
+                        ))}
+                    </motion.div>
 
                     {/* Statement — kept to roughly two lines on desktop */}
                     <motion.p
                         initial={reduce ? false : { opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.75, delay: 0.7, ease: [0.22, 0.61, 0.36, 1] }}
-                        className="mt-7 max-w-[30rem] text-[1.0625rem] leading-[1.6] text-white/65 sm:text-[1.125rem]"
+                        className="mt-6 max-w-[30rem] text-[1.0625rem] leading-[1.6] text-muted sm:text-[1.125rem]"
                     >
                         Discover your creativity through art, dance and movement at
                         Kala Mandir.
@@ -102,7 +135,7 @@ export default function Hero() {
                     >
                         <a
                             href="#classes"
-                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] bg-paper px-7 py-4 text-[15px] font-medium tracking-[0.01em] text-ink transition-colors duration-200 hover:bg-white"
+                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] bg-text px-7 py-4 text-[15px] font-medium tracking-[0.01em] text-paper transition-colors duration-200 hover:bg-blue"
                         >
                             Explore Classes
                             <ArrowUpRight
@@ -112,10 +145,10 @@ export default function Hero() {
                         </a>
 
                         <a
-                            href="#art"
-                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] border border-white/22 px-7 py-4 text-[15px] tracking-[0.01em] text-white/85 transition-colors duration-200 hover:border-white/50 hover:text-white"
+                            href="#gallery"
+                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] border border-text/20 px-7 py-4 text-[15px] tracking-[0.01em] text-text transition-colors duration-200 hover:border-text hover:bg-white"
                         >
-                            Discover Our Art
+                            See Student Artwork
                         </a>
                     </motion.div>
 
@@ -124,10 +157,10 @@ export default function Hero() {
                         initial={reduce ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.8, delay: 1.25 }}
-                        className="mt-12 hidden items-center gap-3 text-white/40 lg:flex"
+                        className="mt-12 hidden items-center gap-3 text-muted/70 lg:flex"
                         aria-hidden="true"
                     >
-                        <span className="grid h-8 w-8 place-items-center rounded-full border border-white/20">
+                        <span className="grid h-8 w-8 place-items-center rounded-full border border-rule">
                             <motion.span
                                 animate={reduce ? undefined : { y: [0, 4, 0] }}
                                 transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
@@ -145,7 +178,7 @@ export default function Hero() {
                     <svg
                         aria-hidden="true"
                         viewBox="0 0 200 200"
-                        className="pointer-events-none absolute -right-6 -top-10 hidden h-40 w-40 text-coral/45 lg:block"
+                        className="pointer-events-none absolute -right-6 -top-10 hidden h-40 w-40 text-blue/55 lg:block"
                         fill="none"
                     >
                         <motion.path
@@ -168,7 +201,7 @@ export default function Hero() {
                         />
                     </svg>
 
-                    {/* Dominant image */}
+                    {/* Dominant image — student dancers + painted backdrop */}
                     <motion.div
                         initial={reduce ? false : { clipPath: "inset(0% 0% 100% 0%)", opacity: 0.5 }}
                         animate={{ clipPath: "inset(0% 0% 0% 0%)", opacity: 1 }}
@@ -180,13 +213,8 @@ export default function Hero() {
                             image={hero.primary}
                             priority
                             sizes="(max-width: 1023px) 92vw, 46vw"
-                            className="aspect-[4/5] w-full rounded-[18px] sm:aspect-[5/6] lg:aspect-[4/5] lg:rounded-[22px]"
-                            position="50% 32%"
-                        />
-                        {/* subtle inner shadow so the photo sits in the dark scene */}
-                        <span
-                            aria-hidden="true"
-                            className="pointer-events-none absolute inset-0 rounded-[18px] shadow-[inset_0_0_70px_-24px_rgba(0,0,0,0.75)] lg:rounded-[22px]"
+                            className="aspect-[4/5] w-full rounded-[18px] border border-white/70 shadow-[0_36px_80px_-46px_rgba(32,33,36,0.5)] sm:aspect-[5/6] lg:aspect-[4/5] lg:rounded-[22px]"
+                            position="50% 30%"
                         />
                     </motion.div>
 
@@ -202,11 +230,11 @@ export default function Hero() {
                             image={hero.secondary}
                             priority
                             sizes="(max-width: 1023px) 40vw, 20vw"
-                            className="aspect-[4/5] w-full rounded-[14px] border border-white/12 shadow-[0_28px_60px_-30px_rgba(0,0,0,0.95)] lg:rounded-[16px]"
-                            position="50% 30%"
+                            className="aspect-[4/5] w-full rounded-[14px] border-4 border-white shadow-[0_28px_60px_-34px_rgba(32,33,36,0.55)] lg:rounded-[16px]"
+                            position="50% 45%"
                         />
-                        <span className="eyebrow absolute -top-6 left-1 text-white/40">
-                            Studio
+                        <span className="eyebrow absolute -top-6 left-1 text-muted">
+                            Student work
                         </span>
                     </motion.div>
                 </div>
@@ -215,7 +243,7 @@ export default function Hero() {
             {/* Bottom transition rule into the next section */}
             <div className="relative">
                 <Reveal
-                    className="h-px w-full origin-center bg-white/10"
+                    className="h-px w-full origin-center bg-rule"
                     aria-hidden="true"
                 />
             </div>

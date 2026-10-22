@@ -119,7 +119,11 @@ export default function IntroSection() {
                         </Reveal>
 
                         {/* Fine caption row, editorial detail */}
-                        <Reveal delay={0.15} className="mt-12 grid grid-cols-2 gap-6 sm:grid-cols-3">
+                        <Reveal
+                            delay={0.15}
+                            as="dl"
+                            className="mt-12 grid grid-cols-2 gap-6 sm:grid-cols-3"
+                        >
                             {[
                                 { k: "Disciplines", v: "Art · Dance" },
                                 { k: "Format", v: "Studio classes" },

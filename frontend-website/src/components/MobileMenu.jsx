@@ -78,17 +78,21 @@ export default function MobileMenu({ open, onClose, active }) {
                     role="dialog"
                     aria-modal="true"
                     aria-label="Site menu"
-                    className="fixed inset-0 z-40 flex flex-col bg-charcoal lg:hidden"
+                    className="fixed inset-0 z-40 flex flex-col bg-paper lg:hidden"
                     initial={reduce ? { opacity: 1 } : { opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={reduce ? { opacity: 0 } : { opacity: 0 }}
                     transition={{ duration: 0.28, ease }}
                 >
-                    {/* soft warm glow so the panel isn't a flat black slab */}
+                    {/* soft colour washes so the panel isn't a flat slab */}
                     <div
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_75%_at_85%_0%,rgba(231,124,102,0.16),transparent_60%)]"
-                    />
+                        className="pointer-events-none absolute inset-0"
+                    >
+                        <span className="absolute inset-0 bg-[radial-gradient(120%_60%_at_90%_0%,rgba(56,91,232,0.08),transparent_55%)]" />
+                        <span className="absolute bottom-0 left-0 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(231,124,102,0.12),transparent_65%)]" />
+                        <span className="absolute bottom-0 right-0 h-[22rem] w-[22rem] rounded-full bg-[radial-gradient(circle,rgba(245,185,55,0.14),transparent_65%)]" />
+                    </div>
 
                     <div className="relative flex h-full flex-col overflow-y-auto px-6 pb-10 pt-24 sm:px-8">
                         <motion.nav
@@ -109,9 +113,9 @@ export default function MobileMenu({ open, onClose, active }) {
                                                 href={item.href}
                                                 onClick={onClose}
                                                 aria-current={isActive ? "true" : undefined}
-                                                className="group flex items-baseline gap-4 border-b border-white/10 py-4"
+                                                className="group flex items-baseline gap-4 border-b border-rule py-4"
                                             >
-                                                <span className="eyebrow w-7 shrink-0 tabular-nums text-white/30">
+                                                <span className="eyebrow w-7 shrink-0 tabular-nums text-[#a9a49c]">
                                                     {String(index + 1).padStart(2, "0")}
                                                 </span>
                                                 <span
@@ -119,7 +123,7 @@ export default function MobileMenu({ open, onClose, active }) {
                                                         "font-display text-[2rem] leading-none tracking-[-0.01em] transition-colors duration-200 sm:text-[2.4rem]",
                                                         isActive
                                                             ? "text-coral"
-                                                            : "text-white group-hover:text-white/75",
+                                                            : "text-text group-hover:text-muted",
                                                     )}
                                                 >
                                                     {item.label}
@@ -134,7 +138,7 @@ export default function MobileMenu({ open, onClose, active }) {
                                 <a
                                     href="#enquiry"
                                     onClick={onClose}
-                                    className="flex items-center justify-between gap-3 rounded-[12px] bg-paper px-5 py-4 text-[15px] font-medium text-ink transition-colors duration-200 hover:bg-white"
+                                    className="flex items-center justify-between gap-3 rounded-[12px] bg-text px-5 py-4 text-[15px] font-medium text-paper transition-colors duration-200 hover:bg-blue"
                                 >
                                     Book a Trial Class
                                     <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -143,7 +147,7 @@ export default function MobileMenu({ open, onClose, active }) {
                                 <div className="grid grid-cols-2 gap-3">
                                     <a
                                         href={contactLinks.phone}
-                                        className="flex items-center justify-center gap-2 rounded-[12px] border border-white/15 py-3.5 text-[13.5px] text-white/85 transition-colors duration-200 hover:border-white/35"
+                                        className="flex items-center justify-center gap-2 rounded-[12px] border border-rule bg-white py-3.5 text-[13.5px] text-text transition-colors duration-200 hover:border-text"
                                     >
                                         <Phone className="h-4 w-4" aria-hidden="true" />
                                         Call
@@ -152,7 +156,7 @@ export default function MobileMenu({ open, onClose, active }) {
                                         href={contactLinks.instagram}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 rounded-[12px] border border-white/15 py-3.5 text-[13.5px] text-white/85 transition-colors duration-200 hover:border-white/35"
+                                        className="flex items-center justify-center gap-2 rounded-[12px] border border-rule bg-white py-3.5 text-[13.5px] text-text transition-colors duration-200 hover:border-text"
                                     >
                                         <Instagram className="h-4 w-4" aria-hidden="true" />
                                         Instagram
@@ -163,15 +167,15 @@ export default function MobileMenu({ open, onClose, active }) {
 
                         <motion.div
                             variants={itemVariants}
-                            className="mt-10 border-t border-white/10 pt-6"
+                            className="mt-10 border-t border-rule pt-6"
                         >
-                            <p className="eyebrow text-white/35">Studio</p>
-                            <address className="mt-2 not-italic text-[14px] leading-relaxed text-white/60">
+                            <p className="eyebrow text-muted">Studio</p>
+                            <address className="mt-2 not-italic text-[14px] leading-relaxed text-muted">
                                 {siteConfig.address.full}
                             </address>
                             <a
                                 href={`tel:${siteConfig.phone.e164}`}
-                                className="mt-1.5 inline-block font-display text-[19px] text-white"
+                                className="mt-1.5 inline-block font-display text-[19px] text-text"
                             >
                                 {siteConfig.phone.display}
                             </a>
