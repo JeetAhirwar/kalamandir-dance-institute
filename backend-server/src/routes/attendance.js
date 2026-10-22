@@ -741,12 +741,16 @@ router.get(
       else if (row.attendanceStatus === "late") late.add(key);
       else if (row.attendanceStatus === "absent") absent.add(key);
     }
-    // Attended = union of present+late students (a student marked late once
-    // and present elsewhere still counts for one present student).
+    // Attended = distinct students with present or late marks (union — a
+    // student marked late once and present elsewhere still counts once).
     const attendedMembers = new Set([...present, ...late]);
     const attended = attendedMembers.size;
     const lateToday = late.size;
-    const absentToday = absent.size;
+    // Absent: only those explicitly absent who are NOT already counted as
+    // present/late — prevents double-counting when a student has multiple
+    // records (e.g. auto-present in one slot, manual-absent in another).
+    const trulyAbsent = new Set([...absent].filter((key) => !attendedMembers.has(key)));
+    const absentToday = trulyAbsent.size;
     const totalMarked = attended + absentToday;
     const attendanceRate = totalMarked === 0 ? 0 : Math.round((attended / totalMarked) * 100);
 

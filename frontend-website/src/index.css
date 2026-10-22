@@ -1,0 +1,236 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   KALA MANDIR — luxury editorial design system
+   Hybrid dark + warm paper. Photography carries the colour; the UI stays
+   quiet: fine rules, small caps labels, oversized serif display type.
+   ========================================================================== */
+
+@theme {
+  /* Colour tokens — exact values from the creative direction */
+  --color-ink: #202124;          /* primary dark */
+  --color-charcoal: #17181b;     /* deep charcoal */
+  --color-paper: #f6f2ea;        /* warm paper */
+  --color-white: #ffffff;
+  --color-text: #222222;         /* primary text on light */
+  --color-muted: #77736d;        /* secondary text */
+  --color-rule: #ded8ce;         /* fine borders on light */
+  --color-blue: #385be8;         /* editorial accent */
+  --color-coral: #e77c66;        /* restrained coral accent */
+
+  /* Type */
+  --font-display: "DM Serif Display", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---------- Self-hosted fonts (Latin only, no third-party requests) ------- */
+@font-face {
+  font-family: "DM Serif Display";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/dm-serif-display-normal-2.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "DM Serif Display";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/dm-serif-display-italic-1.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/assets/fonts/inter-normal-5.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* --------------------------------- base ---------------------------------- */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-blue);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-blue);
+    outline-offset: 3px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+    font-weight: 400;
+  }
+
+  /* Anchor targets clear the floating navbar */
+  section[id] {
+    scroll-margin-top: 6.5rem;
+  }
+
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+/* --------------------------- editorial helpers --------------------------- */
+@layer components {
+  /* Centred editorial container: ~1360px max, fluid 24 → 72px gutters */
+  .shell {
+    width: 100%;
+    max-width: 85rem; /* 1360px */
+    margin-inline: auto;
+    padding-inline: clamp(1.5rem, 4.5vw, 4.5rem);
+  }
+
+  /* Small uppercase eyebrow with restrained tracking */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  /* Fine hairline used instead of card borders throughout the page */
+  .hairline {
+    border-top: 1px solid var(--color-rule);
+  }
+
+  .hairline-dark {
+    border-top: 1px solid rgb(255 255 255 / 0.14);
+  }
+
+  /* Restrained grain for dark, immersive sections only */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.055;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  /* Editorial text link with an animated rule */
+  .rule-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding-bottom: 0.35rem;
+    transition: color 220ms ease;
+  }
+  .rule-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 1px;
+    width: 100%;
+    background: currentColor;
+    transform-origin: left;
+    transform: scaleX(1);
+    transition: transform 260ms ease;
+  }
+  .rule-link:hover::after {
+    transform-origin: right;
+    transform: scaleX(0.15);
+  }
+
+  /* Minimal editorial form fields — bottom rule, no boxes */
+  .field {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--color-rule);
+    padding: 0.7rem 0 0.6rem;
+    font-size: 0.975rem;
+    color: var(--color-text);
+    border-radius: 0;
+    transition: border-color 200ms ease;
+  }
+  .field::placeholder {
+    color: #a9a49c;
+  }
+  .field:hover {
+    border-color: #c9c2b5;
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-blue);
+  }
+  .field[aria-invalid="true"] {
+    border-color: #b4462f;
+  }
+  select.field {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%2377736d' stroke-width='1.4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.15rem center;
+    padding-right: 1.5rem;
+  }
+  textarea.field {
+    resize: vertical;
+    min-height: 5.5rem;
+  }
+}
+
+/* ----------------------- reduced-motion & fallbacks ---------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Loader shown until the hero image decodes (removed by React on load) */
+@keyframes km-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+.km-skeleton {
+  background: linear-gradient(100deg, #e7e1d5 30%, #f1ece2 50%, #e7e1d5 70%);
+  background-size: 220% 100%;
+  animation: km-pulse 1.6s ease-in-out infinite;
+}
