@@ -1,5 +1,6 @@
 import { Instagram, ArrowUpRight } from "lucide-react";
 import SmartImage from "@/components/SmartImage";
+import TiltCard from "@/components/TiltCard";
 import SectionHeading from "@/components/SectionHeading";
 import { Reveal, RevealGroup } from "@/components/Reveal";
 import { instagramPosts, showPlaceholderNotice } from "@/data/gallery";
@@ -59,13 +60,14 @@ export default function InstagramGallery() {
                 {/* Curated grid — varied spans, not a uniform feed mock */}
                 <RevealGroup className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:mt-16 lg:grid-cols-4 lg:gap-5">
                     {instagramPosts.map((post, i) => (
-                        <a
+                        <TiltCard
                             key={post.id}
+                            max={7}
                             href={contactLinks.instagram}
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label={`View Kala Mandir on Instagram (opens in a new tab) — ${post.alt}`}
-                            className={`group relative block overflow-hidden rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
+                            className={`group relative block overflow-hidden rounded-[12px] transform-gpu will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
                                 i === 0 || i === 5 ? "lg:row-span-2" : ""
                             }`}
                         >
@@ -89,7 +91,7 @@ export default function InstagramGallery() {
                             >
                                 <Instagram className="h-4 w-4" />
                             </span>
-                        </a>
+                        </TiltCard>
                     ))}
                 </RevealGroup>
 

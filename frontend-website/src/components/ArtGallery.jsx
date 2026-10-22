@@ -3,11 +3,15 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import SmartImage from "@/components/SmartImage";
+import Magnetic from "@/components/Magnetic";
+import SplitText from "@/components/SplitText";
+import BrushStroke from "@/components/BrushStroke";
 import GalleryLightbox, { ZoomCue } from "@/components/GalleryLightbox";
 import { Reveal, RevealGroup } from "@/components/Reveal";
 import { galleryCategories, galleryItems } from "@/data/gallery";
 import { cn } from "@/lib/utils";
 import { ease } from "@/lib/motion";
+import { useScrollSkew } from "@/lib/useScrollSkew";
 
 /**
  * ArtGallery — THE section the page is built around.
@@ -61,6 +65,7 @@ export default function ArtGallery() {
     const [active, setActive] = useState("all");
     const [openIndex, setOpenIndex] = useState(null);
     const reduce = useReducedMotion();
+    const skew = useScrollSkew();
 
     const filtered = useMemo(
         () =>
@@ -106,7 +111,9 @@ export default function ArtGallery() {
                         }
                         standfirst="A curated wall of actual student work from Kala Mandir — drawing, painting, craft and dance — presented the way a gallery would hang it."
                         className="max-w-[38rem]"
-                    />
+                    >
+                        <BrushStroke className="mt-7 h-4 w-56 text-pink/70" />
+                    </SectionHeading>
 
                     <Reveal delay={0.1} className="lg:pb-1">
                         <div
@@ -165,8 +172,11 @@ export default function ArtGallery() {
                     </p>
                 </Reveal>
 
-                {/* Masonry exhibition wall */}
-                <div className="mt-10 columns-1 gap-5 sm:columns-2 lg:mt-14 lg:columns-3 lg:gap-6">
+                {/* Masonry exhibition wall — flexes subtly with scroll speed */}
+                <motion.div
+                    style={{ skewY: reduce ? 0 : skew }}
+                    className="mt-10 columns-1 gap-5 sm:columns-2 lg:mt-14 lg:columns-3 lg:gap-6"
+                >
                     <AnimatePresence mode="popLayout" initial={false}>
                         {filtered.map((item) => {
                             const accent = ACCENTS[item.category] || ACCENTS.all;
@@ -245,24 +255,26 @@ export default function ArtGallery() {
                             );
                         })}
                     </AnimatePresence>
-                </div>
+                </motion.div>
 
                 {/* Enquiry CTA under the exhibition */}
                 <RevealGroup className="mt-14 flex flex-col items-start gap-6 border-t border-rule pt-8 sm:flex-row sm:items-center sm:justify-between">
                     <p className="max-w-[30rem] font-display text-[1.45rem] leading-snug text-text sm:text-[1.7rem]">
-                        Want work like this on your wall?
+                        <SplitText text="Want work like this on your wall?" />
                     </p>
                     <div className="flex flex-wrap gap-x-7 gap-y-4">
-                        <a
-                            href="#enquiry"
-                            className="group inline-flex items-center gap-2 rounded-[11px] bg-rose px-6 py-3.5 text-[15px] font-medium text-white transition-colors duration-200 hover:bg-pink"
-                        >
-                            Enquire about art classes
-                            <ArrowUpRight
-                                aria-hidden="true"
-                                className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                            />
-                        </a>
+                        <Magnetic>
+                            <a
+                                href="#enquiry"
+                                className="group inline-flex items-center gap-2 rounded-[11px] bg-rose px-6 py-3.5 text-[15px] font-medium text-white transition-colors duration-200 hover:bg-pink"
+                            >
+                                Enquire about art classes
+                                <ArrowUpRight
+                                    aria-hidden="true"
+                                    className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                                />
+                            </a>
+                        </Magnetic>
                         <a
                             href="#art-detail"
                             className="rule-link text-[15px] text-text hover:text-rose"

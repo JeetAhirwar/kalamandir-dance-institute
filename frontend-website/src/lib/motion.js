@@ -19,6 +19,18 @@ export const revealUp = {
     },
 };
 
+/** Soft-focus entrance: blur clears as the element rises — used sparingly on
+ *  a hero line or a pull-quote for a cinematic settle. */
+export const revealBlur = {
+    hidden: { opacity: 0, y: 18, filter: "blur(10px)" },
+    visible: {
+        opacity: 1,
+        y: 0,
+        filter: "blur(0px)",
+        transition: { duration: 0.85, ease },
+    },
+};
+
 /** Staggered children (headlines, lists, meta rows). */
 export const stagger = (delay = 0, staggerChildren = 0.09) => ({
     hidden: {},

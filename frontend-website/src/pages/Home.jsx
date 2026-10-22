@@ -1,12 +1,18 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import IntroSection from "@/components/IntroSection";
+import PaperArtwork from "@/components/PaperArtwork";
 import ClassesSection from "@/components/ClassesSection";
 import Marquee from "@/components/Marquee";
 import ArtGallery from "@/components/ArtGallery";
 import DanceShowcase from "@/components/DanceShowcase";
+import DanceScrollSequence from "@/components/DanceScrollSequence";
+import HorizontalWalk from "@/components/HorizontalWalk";
+import AnimatedPoster from "@/components/AnimatedPoster";
+import StudioWall from "@/components/StudioWall";
 import WhyLearnHere from "@/components/WhyLearnHere";
 import InstagramGallery from "@/components/InstagramGallery";
+import StudioJournal from "@/components/StudioJournal";
 import EnquiryForm from "@/components/EnquiryForm";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
@@ -40,12 +46,18 @@ export default function Home() {
             <main id="main">
                 <Hero />
                 <IntroSection />
+                <PaperArtwork />
                 <ClassesSection />
                 <Marquee items={DISCIPLINES} tone="art" />
                 <ArtGallery />
                 <DanceShowcase />
+                <DanceScrollSequence />
+                <HorizontalWalk />
+                <AnimatedPoster />
+                <StudioWall />
                 <WhyLearnHere />
                 <InstagramGallery />
+                <StudioJournal />
                 <EnquiryForm />
                 <ContactSection />
             </main>

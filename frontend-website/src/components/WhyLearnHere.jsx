@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
+import ScrollWordReveal from "@/components/ScrollWordReveal";
 import { Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
 
 const REASONS = [
@@ -49,13 +50,10 @@ export default function WhyLearnHere() {
                                 number="05"
                                 eyebrow="Why learn here?"
                                 title={
-                                    <>
-                                        Serious about the craft,{" "}
-                                        <span className="italic text-pink">
-                                            gentle
-                                        </span>{" "}
-                                        with the beginner.
-                                    </>
+                                    <ScrollWordReveal
+                                        text="Serious about the craft, gentle with the beginner."
+                                        accent={["gentle"]}
+                                    />
                                 }
                                 standfirst="Four reasons families and first-timers keep returning to the same room."
                             />

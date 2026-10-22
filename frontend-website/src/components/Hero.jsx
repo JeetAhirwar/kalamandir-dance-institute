@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 import SmartImage from "@/components/SmartImage";
+import Magnetic from "@/components/Magnetic";
 import { LineReveal, Reveal } from "@/components/Reveal";
 import { editorialImages } from "@/data/gallery";
 import { siteConfig } from "@/data/siteConfig";
@@ -134,23 +135,27 @@ export default function Hero() {
                         transition={{ duration: 0.75, delay: 0.85, ease: [0.22, 0.61, 0.36, 1] }}
                         className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
                     >
-                        <a
-                            href="#classes"
-                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] bg-rose px-7 py-4 text-[15px] font-medium tracking-[0.01em] text-white transition-colors duration-200 hover:bg-pink"
-                        >
-                            Explore Classes
-                            <ArrowUpRight
-                                aria-hidden="true"
-                                className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                            />
-                        </a>
+                        <Magnetic>
+                            <a
+                                href="#classes"
+                                className="group inline-flex items-center justify-center gap-2 rounded-[11px] bg-rose px-7 py-4 text-[15px] font-medium tracking-[0.01em] text-white transition-colors duration-200 hover:bg-pink"
+                            >
+                                Explore Classes
+                                <ArrowUpRight
+                                    aria-hidden="true"
+                                    className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                                />
+                            </a>
+                        </Magnetic>
 
-                        <a
-                            href="#gallery"
-                            className="group inline-flex items-center justify-center gap-2 rounded-[11px] border border-rose/25 px-7 py-4 text-[15px] tracking-[0.01em] text-rose transition-colors duration-200 hover:border-rose hover:bg-blossom"
-                        >
-                            See Student Artwork
-                        </a>
+                        <Magnetic strength={0.25}>
+                            <a
+                                href="#gallery"
+                                className="group inline-flex items-center justify-center gap-2 rounded-[11px] border border-rose/25 px-7 py-4 text-[15px] tracking-[0.01em] text-rose transition-colors duration-200 hover:border-rose hover:bg-blossom"
+                            >
+                                See Student Artwork
+                            </a>
+                        </Magnetic>
                     </motion.div>
 
                     {/* Scroll indicator */}

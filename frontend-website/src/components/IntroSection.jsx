@@ -2,6 +2,7 @@ import { ArrowUpRight } from "lucide-react";
 import SmartImage from "@/components/SmartImage";
 import SectionHeading from "@/components/SectionHeading";
 import { MaskReveal, Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
+import { revealBlur } from "@/lib/motion";
 import { editorialImages } from "@/data/gallery";
 
 /**
@@ -51,6 +52,48 @@ export default function IntroSection() {
                                 className="aspect-[16/10] w-[86%] rounded-[14px]"
                             />
                         </MaskReveal>
+
+                        {/* Editorial marginalia — fills the left column and
+                            carries the studio's own colour identity. */}
+                        <Reveal
+                            delay={0.2}
+                            variants={revealBlur}
+                            className="mt-8 hidden rounded-[14px] border border-rule bg-white/70 p-5 lg:block"
+                        >
+                            <p className="font-display text-[1.5rem] leading-[1.2] text-text">
+                                Art and dance,{" "}
+                                <span className="italic text-rose">
+                                    taught in the same room
+                                </span>
+                                .
+                            </p>
+                            <RevealGroup
+                                className="mt-5"
+                                staggerChildren={0.06}
+                                aria-label="The colours used across the studio"
+                            >
+                                <span className="eyebrow mb-2 block text-[#b0a0aa]">
+                                    The studio palette
+                                </span>
+                                <div className="flex gap-1.5">
+                                    {[
+                                        "bg-blush",
+                                        "bg-butter",
+                                        "bg-lavender",
+                                        "bg-pink",
+                                        "bg-rose",
+                                        "bg-violet",
+                                        "bg-gold",
+                                    ].map((c) => (
+                                        <RevealItem
+                                            key={c}
+                                            aria-hidden="true"
+                                            className={`h-6 flex-1 rounded-full ${c}`}
+                                        />
+                                    ))}
+                                </div>
+                            </RevealGroup>
+                        </Reveal>
                     </div>
 
                     {/* Copy */}
