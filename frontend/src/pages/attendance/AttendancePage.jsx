@@ -278,9 +278,11 @@ export function AttendancePage() {
     // Filter the loaded roster by student name or ID.
     const filteredStudents = useMemo(() => {
         let list = students;
-        // When a specific slot is selected (not "Load All"), show only
-        // students enrolled in that slot — not the entire studio roster.
-        if (!loadAll && selectedSlotIds.length === 1) {
+        // Only students actually ENROLLED in one of the selected slots — the
+        // backend returns the full studio roster for every slot, so without
+        // this filter a group/"Load All" pick drags evening/other-batch
+        // students into a morning roster (mirrors the single-slot rule).
+        if (selectedSlotIds.length > 0) {
             list = list.filter((s) => s.enrolled);
         }
         const q = studentQuery.trim().toLowerCase();
