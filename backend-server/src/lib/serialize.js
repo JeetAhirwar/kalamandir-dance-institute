@@ -316,7 +316,7 @@ export function toEnrollment(doc, memberDoc) {
   };
 }
 
-export function toClassSlot(doc, instructorDoc, enrolledCount) {
+export function toClassSlot(doc, instructorDoc, enrolledCount, enrolledMemberIds = []) {
   if (!doc) return null;
   return {
     id: id(doc._id),
@@ -336,6 +336,9 @@ export function toClassSlot(doc, instructorDoc, enrolledCount) {
     updatedAt: iso(doc.updatedAt),
     instructorName: instructorDoc?.fullName ?? null,
     enrolledCount: enrolledCount ?? 0,
+    /** Distinct member ids enroled — lets the UI compute student counts that
+     *  don't double-count a student enroled across several batches. */
+    enrolledMemberIds: Array.isArray(enrolledMemberIds) ? enrolledMemberIds : [],
   };
 }
 

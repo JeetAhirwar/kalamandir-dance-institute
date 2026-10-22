@@ -101,14 +101,22 @@ async function decorateSlots(gymId, rows) {
     instructorIds.length ? StaffProfile.find({ _id: { $in: instructorIds } }).lean() : [],
     SlotEnrollment.aggregate([
       { $match: { gymId: rows[0].gymId, status: "enrolled" } },
-      { $group: { _id: "$slotId", count: { $sum: 1 } } },
+      // Distinct member ids (a student enroled twice still counts once) plus
+      // the raw record count — the UI needs both: per-slot headcount uses the
+      // record count, group totals ("Morning (5)") sum DISTINCT students.
+      { $group: { _id: "$slotId", count: { $sum: 1 }, memberIds: { $addToSet: "$memberId" } } },
     ]),
   ]);
   const byId = new Map(instructors.map((s) => [String(s._id), s]));
-  const countById = new Map(counts.map((c) => [String(c._id), c.count]));
-  return rows.map((row) =>
-    toClassSlot(row, byId.get(String(row.instructorId)) ?? null, countById.get(String(row._id)) ?? 0),
-  );
+  return rows.map((row) => {
+    const agg = counts.find((c) => String(c._id) === String(row._id)) ?? null;
+    return toClassSlot(
+      row,
+      byId.get(String(row.instructorId)) ?? null,
+      agg?.count ?? 0,
+      agg?.memberIds?.map(String) ?? [],
+    );
+  });
 }
 
 /**

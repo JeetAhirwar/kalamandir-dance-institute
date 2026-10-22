@@ -39,17 +39,16 @@ import { AttendanceHistoryContent } from "./AttendanceHistoryPage";
 /** Status → label, dot colour, chip classes (Present / Late / Absent). */
 const STATUS_META = {
     present: { label: "Present", short: "P", dot: "bg-emerald-500", chip: "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-    late: { label: "Late", short: "L", dot: "bg-amber-500", chip: "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400" },
     absent: { label: "Absent", short: "A", dot: "bg-red-500", chip: "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400" },
 };
-const STATUS_ORDER = ["present", "late", "absent"];
+const STATUS_ORDER = ["present", "absent"];
 
 function StatusChip({ status }) {
     const meta = STATUS_META[status];
     if (!meta) return <Badge variant="outline">—</Badge>;
-    return (<Badge variant="outline" className={cn("gap-1.5 font-medium", meta.chip)}>
+    return (<Badge variant="outline" className={cn("gap-1.5 font-medium tabular-nums", meta.chip)}>
       <span className={cn("size-1.5 rounded-full", meta.dot)}/>
-      {meta.label}
+      {meta.short}
     </Badge>);
 }
 
@@ -429,6 +428,23 @@ export function AttendancePage() {
         [slots.data],
     );
 
+    /** DISTINCT students enroled across a set of slots — a student in two
+     *  morning batches counts once ("Morning (5)", not "(11)"). Sums the
+     *  per-slot counts only as a fallback for cached API responses that
+     *  predate `enrolledMemberIds`. */
+    const distinctStudentsOf = (list) => {
+        const ids = new Set();
+        let fallback = 0;
+        for (const s of list) {
+            if (Array.isArray(s?.enrolledMemberIds) && s.enrolledMemberIds.length > 0) {
+                s.enrolledMemberIds.forEach((mid) => ids.add(String(mid)));
+            } else {
+                fallback += s?.enrolledCount ?? 0;
+            }
+        }
+        return ids.size || fallback;
+    };
+
     /** "7:00 AM – 8:15 AM" for a row's class slot; walk-ins have no time.
      *  Prefers the time the API already ships on the row, then falls back to a
      *  lookup against the locally loaded slot list (covers records written
@@ -595,8 +611,9 @@ export function AttendancePage() {
                   <option value="all">Slot: All</option>
                   {SLOT_GROUPS.map((group) => {
                     const gs = groupedSlots[group.key] ?? [];
-                    // Students enroled across the group's slots (not slot count).
-                    const students = gs.reduce((sum, s) => sum + (s.enrolledCount ?? 0), 0);
+                    // Distinct students enroled across the group's slots (not
+                    // a record/slot count — one student in 2 slots = 1).
+                    const students = distinctStudentsOf(gs);
                     return (<option key={group.key} value={group.key} disabled={gs.length === 0}>
                       {group.label.replace(/\s+Slots$/, "")}{gs.length === 0 ? " (none)" : ` (${students})`}
                     </option>);
@@ -616,7 +633,7 @@ export function AttendancePage() {
                 >
                   <option value="" disabled>Slot Timings</option>
                   <option value="__all__">
-                    Select All ({currentGroupSlots.reduce((sum, s) => sum + (s.enrolledCount ?? 0), 0)})
+                    Select All ({distinctStudentsOf(currentGroupSlots)})
                   </option>
                   {slotGroup === "all"
                     ? SLOT_GROUPS.map((group) => {
@@ -686,13 +703,12 @@ export function AttendancePage() {
             }}>
                           <PencilIcon className="size-3.5"/> Edit
                         </Button>
-                      </div>) : (<div className="flex items-center gap-1.5">
+                      </div>) : (<div className="flex items-center gap-2">
                         {STATUS_ORDER.map((st) => {
                 const meta = STATUS_META[st];
                 const active = statuses[s.memberId] === st;
-                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("h-8 min-w-9 px-2 sm:px-3", active && meta.chip)} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
-                              <span aria-hidden="true" className="sm:hidden">{meta.short}</span>
-                              <span className="hidden sm:inline">{meta.label}</span>
+                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("h-10 w-10 rounded-2xl font-bold text-sm whitespace-nowrap", active ? "bg-emerald-500/20 border-emerald-500 text-emerald-600" : "border-border/60 text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-600")} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
+                              {meta.short}
                             </Button>);
             })}
                         {isEditing ? (<Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground" aria-label="Cancel edit" onClick={() => setEditingId(null)}>
@@ -718,14 +734,12 @@ export function AttendancePage() {
                         <p className="truncate text-xs text-muted-foreground">{m.memberCode ?? "—"}{m.planName ? ` · ${m.planName}` : ""}</p>
                       </div>
                     </div>
-                    {walkInSavingId === m.id ? <Loader2Icon className="size-4 animate-spin text-muted-foreground"/> : (<div className="flex items-center gap-1.5">
-                        <Button size="sm" variant="outline" className="h-8 min-w-9 px-2 hover:border-emerald-500/40 hover:text-emerald-600 sm:px-3" onClick={() => markWalkIn(m.id, "present")}>
-                          <span aria-hidden="true" className="sm:hidden">P</span>
-                          <span className="hidden sm:inline">Present</span>
+                    {walkInSavingId === m.id ? <Loader2Icon className="size-4 animate-spin text-muted-foreground"/> : (<div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" className="h-10 w-10 rounded-2xl font-bold text-sm border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/20" onClick={() => markWalkIn(m.id, "present")}>
+                          P
                         </Button>
-                        <Button size="sm" variant="outline" className="h-8 min-w-9 px-2 hover:border-red-500/40 hover:text-red-600 sm:px-3" onClick={() => markWalkIn(m.id, "absent")}>
-                          <span aria-hidden="true" className="sm:hidden">A</span>
-                          <span className="hidden sm:inline">Absent</span>
+                        <Button size="sm" variant="outline" className="h-10 w-10 rounded-2xl font-bold text-sm border-red-500/40 text-red-600 hover:bg-red-500/20" onClick={() => markWalkIn(m.id, "absent")}>
+                          A
                         </Button>
                       </div>)}
                   </li>))}

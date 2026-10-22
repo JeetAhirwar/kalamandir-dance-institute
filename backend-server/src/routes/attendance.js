@@ -269,7 +269,8 @@ router.get(
     };
 
     res.json({
-      slot: toClassSlot(slot, null, enrollments.length),
+      // Distinct member ids so the caller can also count unique students.
+      slot: toClassSlot(slot, null, enrollments.length, [...new Set(enrollments.map((e) => String(e.memberId)))]),
       date: dayKey,
       isSlotDay,
       students: members.map((m) => ({
