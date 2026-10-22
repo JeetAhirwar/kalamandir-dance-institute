@@ -780,6 +780,21 @@
   z-index: -1;
 }
 
+/* Attendance Mark tab (phones): the roster section floats straight on the
+   page background — no card-in-card frames. sm+ keeps the boxed card. */
+@media (max-width: 639.98px) {
+  .flat-on-mobile {
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    padding: 0;
+    box-shadow: none;
+  }
+  .flat-on-mobile::after {
+    display: none;
+  }
+}
+
 /* Deep burgundy brand surface (login right rail, sidebar accents). */
 .burgundy-surface {
   position: relative;

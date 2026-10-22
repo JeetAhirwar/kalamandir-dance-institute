@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
+    CalendarIcon,
     CheckCircle2Icon,
     CheckIcon,
     ChevronLeftIcon,
@@ -75,6 +76,86 @@ function PaymentChip({ method }) {
     </span>);
 }
 
+/** Mark-tab roster fields (Slot · Time · Date · Search), shared by both
+ *  layouts of the redesigned mobile view:
+ *  - variant="grid": phones only (`sm:hidden` root) — a small labelled 2×2
+ *    grid placed under the tab bar, outside the roster card.
+ *  - variant="inline": sm+ toolbar row (`hidden` root) — unchanged desktop
+ *    flow, fields sized h-8. */
+function SlotFilters({ variant, slotsLoading, activeSlots, loadAll, slotGroup, slotPick, markDate, studentQuery, groupedSlots, currentGroupSlots, onSlotGroup, onSlotPick, onDate, onSearch }) {
+    const grid = variant === "grid";
+    const disabled = slotsLoading || activeSlots.length === 0 || loadAll;
+    const selectCls = grid
+      ? "h-10 w-full min-w-0 rounded-lg border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+      : "h-8 w-auto rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30";
+    return (<div className={grid
+        ? "grid grid-cols-2 gap-2 sm:hidden"
+        : "hidden sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-1.5"}>
+      <label className={grid ? "flex min-w-0 flex-col gap-1" : "contents"}>
+        <span className={cn("text-[10px] font-medium text-muted-foreground", grid ? "" : "hidden")}>Slot</span>
+        <select
+          aria-label="Slot"
+          className={selectCls}
+          disabled={disabled}
+          value={slotGroup}
+          onChange={(e) => onSlotGroup(e.target.value)}
+        >
+          <option value="all">{grid ? "All" : "Slot: All"}</option>
+          {SLOT_GROUPS.map((group) => {
+            const gs = groupedSlots[group.key] ?? [];
+            // Distinct students enroled across the group's slots (not a
+            // record/slot count — one student in 2 slots = 1).
+            const students = distinctStudentsOf(gs);
+            return (<option key={group.key} value={group.key} disabled={gs.length === 0}>
+              {group.label.replace(/\s+Slots$/, "")}{gs.length === 0 ? " (none)" : ` (${students})`}
+            </option>);
+          })}
+        </select>
+      </label>
+      <label className={grid ? "flex min-w-0 flex-col gap-1" : "contents"}>
+        <span className={cn("text-[10px] font-medium text-muted-foreground", grid ? "" : "hidden")}>Time</span>
+        <select
+          aria-label="Slot Timings"
+          className={cn(selectCls, !grid && "sm:max-w-52")}
+          disabled={disabled}
+          value={slotPick}
+          onChange={(e) => onSlotPick(e.target.value)}
+        >
+          <option value="" disabled>Slot Timings</option>
+          <option value="__all__">
+            Select All ({distinctStudentsOf(currentGroupSlots)})
+          </option>
+          {slotGroup === "all"
+            ? SLOT_GROUPS.map((group) => {
+                const gs = groupedSlots[group.key] ?? [];
+                if (gs.length === 0) return null;
+                return (<optgroup key={group.key} label={group.label.replace(/\s+Slots$/, "")}>
+                  {gs.map((s) => (<option key={s.id} value={s.id}>
+                    {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
+                  </option>))}
+                </optgroup>);
+              })
+            : currentGroupSlots.map((s) => (<option key={s.id} value={s.id}>
+                {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
+              </option>))}
+        </select>
+      </label>
+      <label className={grid ? "flex min-w-0 flex-col gap-1" : "contents"}>
+        <span className={cn("text-[10px] font-medium text-muted-foreground", grid ? "" : "hidden")}>Date</span>
+        <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => onDate(e.target.value)} className={grid
+          ? "h-10 w-full rounded-lg bg-background text-xs"
+          : "h-8 w-36 rounded-md bg-background text-xs"}/>
+      </label>
+      <label className={grid ? "flex min-w-0 flex-col gap-1" : "contents"}>
+        <span className={cn("text-[10px] font-medium text-muted-foreground", grid ? "" : "hidden")}>Search</span>
+        <div className={cn("relative", !grid && "w-40")}>
+          <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
+          <Input aria-label="Search student" placeholder="Search student" value={studentQuery} onChange={(e) => onSearch(e.target.value)} className={cn(grid ? "h-10" : "h-8", "w-full rounded-lg border-input bg-background pl-7 text-xs sm:rounded-md")}/>
+        </div>
+      </label>
+    </div>);
+}
+
 /** Paid-class quota chip for the register — "4 left".
  *  Colour rule: 4+ left green · 3–2 yellow · 1 or 0 red. Rounded pill corners. */
 function ClassLeftChip({ quota }) {
@@ -129,6 +210,22 @@ function fmtSlotTime(hhmm) {
     return `${h12}:${mins} ${h24 < 12 ? "AM" : "PM"}`;
 }
 
+/** Distinct students across a list of slots (not a record count — a student
+ *  enrolled in 2 slots = 1). Prefers the API's enrolledMemberIds, falls back
+ *  to enrolment counts when the ids aren't shipped. */
+const distinctStudentsOf = (list) => {
+    const ids = new Set();
+    let fallback = 0;
+    for (const s of list) {
+        if (Array.isArray(s?.enrolledMemberIds) && s.enrolledMemberIds.length > 0) {
+            s.enrolledMemberIds.forEach((mid) => ids.add(String(mid)));
+        } else {
+            fallback += s?.enrolledCount ?? 0;
+        }
+    }
+    return ids.size || fallback;
+};
+
 /** Dot colour per time-of-day group, so a student's batch reads at a glance. */
 const GROUP_DOT = {
     morning: "bg-amber-500",
@@ -164,13 +261,24 @@ export function AttendancePage() {
 
     /* --------------------- tab state (mark | view | history) ------------------ */
     const [searchParams, setSearchParams] = useSearchParams();
-    const navigate = useNavigate();
     const tabParam = searchParams.get("tab");
-    const activeTab = tabParam === "view" || tabParam === "history" ? tabParam : "mark";
+    const activeTab = tabParam === "view" || tabParam === "history" || tabParam === "all" ? tabParam : "mark";
     const setTab = (value) => {
         const next = new URLSearchParams(searchParams);
         if (value === "mark") next.delete("tab"); else next.set("tab", value);
         setSearchParams(next, { replace: true });
+    };
+
+    /* Mark-tab filter handlers — shared by the mobile grid and the sm+ toolbar. */
+    const handleSlotGroup = (value) => {
+        setLoadAll(false);
+        setSlotGroup(value);
+        setSlotPick("");
+    };
+    const handleSlotPick = (value) => {
+        if (value === "") { setSlotPick(""); return; }
+        setLoadAll(false);
+        setSlotPick(value);
     };
 
     /* ------------------------------ header stats ----------------------------- */
@@ -402,6 +510,17 @@ export function AttendancePage() {
 
     const list = useAsync(() => data.listAttendance({ from: dayRange.from, to: dayRange.to, page: 1, pageSize: 100 }), [data, dayRange]);
 
+    /* --------- View All: attendance by day — one date chip, no filters ------- */
+    const [viewAllDate, setViewAllDate] = useState(() => ymdOf(new Date()));
+    const viewAllRange = useMemo(() => {
+        const [y, m, d] = viewAllDate.split("-").map(Number);
+        const start = new Date(y, m - 1, d);
+        return { from: start.toISOString(), to: new Date(start.getTime() + 86_399_999).toISOString() };
+    }, [viewAllDate]);
+    const viewAllList = useAsync(() => data.listAttendance({ from: viewAllRange.from, to: viewAllRange.to, page: 1, pageSize: 100 }), [data, viewAllRange]);
+    const viewAllRows = useMemo(() => (viewAllList.data?.items ?? []).filter((r) => r.attendanceStatus), [viewAllList.data]);
+    const viewAllLabel = format(new Date(`${viewAllDate}T00:00:00`), "EEE, d MMM yyyy");
+
     // Class-attendance rows only (those carry an attendanceStatus).
     const classRows = useMemo(() => {
         const rows = (list.data?.items ?? []).filter((r) => r.attendanceStatus);
@@ -448,23 +567,6 @@ export function AttendancePage() {
      *  morning batches counts once ("Morning (5)", not "(11)"). Sums the
      *  per-slot counts only as a fallback for cached API responses that
      *  predate `enrolledMemberIds`. */
-    const distinctStudentsOf = (list) => {
-        const ids = new Set();
-        let fallback = 0;
-        for (const s of list) {
-            if (Array.isArray(s?.enrolledMemberIds) && s.enrolledMemberIds.length > 0) {
-                s.enrolledMemberIds.forEach((mid) => ids.add(String(mid)));
-            } else {
-                fallback += s?.enrolledCount ?? 0;
-            }
-        }
-        return ids.size || fallback;
-    };
-
-    /** "7:00 AM – 8:15 AM" for a row's class slot; walk-ins have no time.
-     *  Prefers the time the API already ships on the row, then falls back to a
-     *  lookup against the locally loaded slot list (covers records written
-     *  before the route started returning the times). */
     const slotTimeOf = (row) => {
         const start = row.slotStartTime;
         const end = row.slotEndTime;
@@ -540,7 +642,7 @@ export function AttendancePage() {
             </span>
             <span className="text-xs font-medium sm:text-sm">Attendance</span>
           </div>
-          <h1 className="font-sans text-2xl font-bold tracking-tight sm:text-3xl sm:font-semibold">Manage Attendance</h1>
+          <h1 className="font-sans text-lg font-bold tracking-tight sm:text-3xl sm:font-semibold">Manage Attendance</h1>
           <p className="max-w-xl text-xs text-muted-foreground sm:text-sm">
             Mark attendance for students and view past records — all in one place.
           </p>
@@ -574,14 +676,34 @@ export function AttendancePage() {
             <span className="hidden sm:inline">Attendance History</span>
           </TabsTrigger>
           <span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-foreground/15"/>
-          <button type="button" className="flex h-11 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-2 text-[11px] font-medium text-foreground/60 transition-colors hover:text-foreground sm:h-auto sm:flex-none sm:px-4 sm:py-1 sm:text-sm" aria-label="View all attendance records" onClick={() => navigate("/attendance/history")}>
-            <ListIcon className="size-4 text-foreground/80"/>
+          <TabsTrigger value="all" className="h-11 flex-1 rounded-full px-2 py-0 text-[11px] font-medium [&>svg]:text-foreground/80 data-[state=active]:font-semibold data-[state=active]:[&>svg]:text-primary sm:h-auto sm:flex-none sm:px-4 sm:py-1 sm:text-sm">
+            <ListIcon className="size-4"/>
             <span>View All</span>
-          </button>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="mark">
-      <Card className="graphite-surface border-border/70">
+        {/* Mobile: roster filters sit right under the tab bar, outside the
+            card — the roster below is its own card (mobile-first spec). */}
+        <div className="mb-4 sm:hidden">
+          <SlotFilters
+            variant="grid"
+            slotsLoading={slots.loading}
+            activeSlots={activeSlots}
+            loadAll={loadAll}
+            slotGroup={slotGroup}
+            slotPick={slotPick}
+            markDate={markDate}
+            studentQuery={studentQuery}
+            groupedSlots={groupedSlots}
+            currentGroupSlots={currentGroupSlots}
+            onSlotGroup={handleSlotGroup}
+            onSlotPick={handleSlotPick}
+            onDate={setMarkDate}
+            onSearch={setStudentQuery}
+          />
+        </div>
+      <Card className="graphite-surface flat-on-mobile border-border/70">
         <CardContent className="space-y-5 p-5">
 
           {(loadAll || slotPick) ? (() => {
@@ -625,74 +747,22 @@ export function AttendancePage() {
                   Mobile: a labelled 2×2 grid (mockup layout); sm+ keeps the
                   inline row. The <label> wrappers collapse via sm:contents so
                   the sm+ flow is byte-identical to before. */}
-              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-1.5">
-                <label className="flex min-w-0 flex-col gap-0.5 sm:contents">
-                  <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Slot</span>
-                  <select
-                    aria-label="Slot"
-                    className="h-10 w-full rounded-lg border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:h-8 sm:w-auto sm:rounded-md sm:px-2"
-                  disabled={slots.loading || activeSlots.length === 0 || loadAll}
-                  value={slotGroup}
-                  onChange={(e) => {
-                    setLoadAll(false);
-                    setSlotGroup(e.target.value);
-                    setSlotPick("");
-                  }}
-                >
-                  <option value="all">Slot: All</option>
-                  {SLOT_GROUPS.map((group) => {
-                    const gs = groupedSlots[group.key] ?? [];
-                    // Distinct students enroled across the group's slots (not
-                    // a record/slot count — one student in 2 slots = 1).
-                    const students = distinctStudentsOf(gs);
-                    return (<option key={group.key} value={group.key} disabled={gs.length === 0}>
-                      {group.label.replace(/\s+Slots$/, "")}{gs.length === 0 ? " (none)" : ` (${students})`}
-                    </option>);
-                  })}
-                </select>
-                </label>
-                <label className="flex min-w-0 flex-col gap-0.5 sm:contents">
-                  <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Time</span>
-                <select
-                  aria-label="Slot Timings"
-                  className="h-10 w-full rounded-lg border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:h-8 sm:w-auto sm:rounded-md sm:max-w-52 sm:px-2"
-                  disabled={slots.loading || activeSlots.length === 0 || loadAll}
-                  value={slotPick}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "") { setSlotPick(""); return; }
-                    setLoadAll(false);
-                    setSlotPick(v);
-                  }}
-                >
-                  <option value="" disabled>Slot Timings</option>
-                  <option value="__all__">
-                    Select All ({distinctStudentsOf(currentGroupSlots)})
-                  </option>
-                  {slotGroup === "all"
-                    ? SLOT_GROUPS.map((group) => {
-                        const gs = groupedSlots[group.key] ?? [];
-                        if (gs.length === 0) return null;
-                        return (<optgroup key={group.key} label={group.label.replace(/\s+Slots$/, "")}>
-                          {gs.map((s) => (<option key={s.id} value={s.id}>
-                            {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
-                          </option>))}
-                        </optgroup>);
-                      })
-                    : currentGroupSlots.map((s) => (<option key={s.id} value={s.id}>
-                        {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
-                      </option>))}
-                </select>
-                </label>
-                <label className="flex min-w-0 flex-col gap-0.5 sm:contents">
-                  <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Date</span>
-                <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} className="mt-2 h-10 w-full rounded-lg bg-background text-xs sm:mt-0 sm:h-8 sm:w-36 sm:rounded-md"/>
-                </label>
-                <div className="relative mt-2 w-full sm:mt-0 sm:w-40">
-                  <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
-                  <Input aria-label="Search student" placeholder="Search student" value={studentQuery} onChange={(e) => setStudentQuery(e.target.value)} className="h-10 w-full rounded-lg border-input bg-background pl-7 text-xs sm:h-8 sm:rounded-md"/>
-                </div>
-              </div>
+              <SlotFilters
+                variant="inline"
+                slotsLoading={slots.loading}
+                activeSlots={activeSlots}
+                loadAll={loadAll}
+                slotGroup={slotGroup}
+                slotPick={slotPick}
+                markDate={markDate}
+                studentQuery={studentQuery}
+                groupedSlots={groupedSlots}
+                currentGroupSlots={currentGroupSlots}
+                onSlotGroup={handleSlotGroup}
+                onSlotPick={handleSlotPick}
+                onDate={setMarkDate}
+                onSearch={setStudentQuery}
+              />
             </div>
 
             {!loadedQuery ? (<div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
@@ -964,6 +1034,41 @@ export function AttendancePage() {
       {/* ------------------------- Attendance history ------------------------- */}
       <TabsContent value="history">
         <AttendanceHistoryContent/>
+      </TabsContent>
+
+      {/* ------- View All: aaj ki attendance — no filters, one date chip ------- */}
+      <TabsContent value="all">
+        <div className="flex flex-col gap-4">
+          <label className="relative inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-full border border-border/70 bg-secondary px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary/70" title="Change date">
+            <CalendarIcon className="size-3.5 text-muted-foreground"/>
+            {viewAllLabel}
+            <input
+              type="date"
+              aria-label="Attendance date"
+              value={viewAllDate}
+              onChange={(e) => { if (e.target.value) setViewAllDate(e.target.value); }}
+              onClick={(e) => { try { e.currentTarget.showPicker(); } catch { /* older browsers: fall back to focusing the input */ } }}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </label>
+          {viewAllList.loading ? (<p className="py-10 text-center text-sm text-muted-foreground">Loading attendance…</p>)
+            : viewAllRows.length === 0 ? (<p className="py-10 text-center text-sm text-muted-foreground">No attendance recorded yet.</p>)
+            : (<ul className="space-y-2 sm:space-y-0 sm:rounded-xl sm:border sm:border-border/60 sm:divide-y sm:divide-border/60">
+                {viewAllRows.map((row) => (<li key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:rounded-none sm:border-0 sm:px-4 sm:py-3 sm:shadow-none">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <SmartImage src={row.memberPhoto} name={row.memberName ?? "Student"} className="size-8 shrink-0"/>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{row.memberName ?? "Student"}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {row.memberCode ?? "—"}
+                        {slotTimeOf(row) ? ` · ${slotTimeOf(row)}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <StatusChip status={row.attendanceStatus}/>
+                </li>))}
+              </ul>)}
+        </div>
       </TabsContent>
       </Tabs>
 
