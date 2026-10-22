@@ -585,6 +585,10 @@ router.delete(
       await MemberMembership.deleteMany({ memberId: member._id }, { session });
       await AttendanceRecord.deleteMany({ memberId: member._id }, { session });
       await ClassEnrollment.deleteMany({ memberId: member._id }, { session });
+      // Batch (slot) enrollments too — otherwise the deleted student lingers
+      // as a "ghost" in every batch they were enroled in, inflating the
+      // per-slot and group student counts on the attendance screen.
+      await SlotEnrollment.deleteMany({ memberId: member._id }, { session });
       await writeAudit(
         {
           gymId: ctx.gym._id,
