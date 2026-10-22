@@ -1,7 +1,7 @@
 import { Router } from "express";
 import AuditLog from "../models/AuditLog.js";
 import User from "../models/User.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireCap } from "../middleware/auth.js";
 import { asyncHandler } from "../lib/errors.js";
 import { toAudit } from "../lib/serialize.js";
 import { intParam } from "../middleware/validate.js";
