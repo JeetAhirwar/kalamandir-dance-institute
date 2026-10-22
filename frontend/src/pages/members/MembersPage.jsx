@@ -34,9 +34,9 @@ const STATUS_FILTERS = [
 function ClassesCell({ member }) {
     const q = member.quota;
     if (!q || q.status === "none") {
-        return <span className="text-muted-foreground">—</span>;
+        return <span className="text-xs text-muted-foreground sm:text-sm">—</span>;
     }
-    return <span className="text-sm tabular">{q.attended} / {q.quota}</span>;
+    return <span className="text-xs tabular sm:text-sm">{q.attended} / {q.quota}</span>;
 }
 /** Bachi hui classes (remaining quota) — a tinted chip, same colour rule as
  *  the roster quota: 4+ left green · 2–3 yellow · 0–1 red (over/expired red). */
@@ -55,7 +55,7 @@ function ClassLeftCell({ member }) {
         : q.status === "expired"
             ? "0 left"
             : `${q.remaining} left`;
-    return <Badge variant="outline" className={cn("font-medium tabular", tone)}>{label}</Badge>;
+    return <Badge variant="outline" className={cn("px-1.5 py-0.5 text-[10px] font-medium tabular sm:px-2.5 sm:py-1 sm:text-xs", tone)}>{label}</Badge>;
 }
 export function MembersPage() {
     const data = useData();
@@ -245,8 +245,8 @@ export function MembersPage() {
                       <TableHead className="hidden w-[7%] px-3 align-middle sm:table-cell">Sr. no.</TableHead>
                       <TableHead className="w-auto px-2 align-middle sm:w-[22%] sm:px-3">Student</TableHead>
                       <TableHead className="hidden w-[30%] px-2 align-middle sm:table-cell sm:w-[10%] sm:px-3">Status</TableHead>
-                      <TableHead className="hidden w-[10%] px-3 align-middle md:table-cell">Classes</TableHead>
-                      <TableHead className="hidden w-[11%] px-3 align-middle md:table-cell">Class Left</TableHead>
+                      <TableHead className="px-2 align-middle sm:px-3 md:w-[10%]">Classes</TableHead>
+                      <TableHead className="px-2 align-middle sm:px-3 md:w-[11%]">Remaining Classes</TableHead>
                       <TableHead className="hidden w-[12%] px-3 align-middle sm:table-cell">Plan</TableHead>
                       <TableHead className="hidden w-[10%] px-3 align-middle lg:table-cell">Trainer</TableHead>
                       <TableHead className="hidden w-[8%] px-3 align-middle lg:table-cell">Payment</TableHead>
@@ -279,10 +279,10 @@ export function MembersPage() {
                         <TableCell className="hidden px-2 align-middle sm:table-cell sm:px-3">
                           <StatusBadge status={member.effectiveStatus}/>
                         </TableCell>
-                        <TableCell className="hidden px-3 text-sm align-middle md:table-cell">
+                        <TableCell className="px-2 align-middle sm:px-3">
                           <ClassesCell member={member}/>
                         </TableCell>
-                        <TableCell className="hidden px-3 text-sm align-middle md:table-cell">
+                        <TableCell className="px-2 align-middle sm:px-3">
                           <ClassLeftCell member={member}/>
                         </TableCell>
                         <TableCell className="hidden px-3 align-middle sm:table-cell">
