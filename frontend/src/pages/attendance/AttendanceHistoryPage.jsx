@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, Loader2Icon, PencilIcon, } from "lucide-react";
+import { subscribeLiveNotification } from "@/lib/liveBus";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/shared/States";
 import { SmartImage } from "@/components/shared/SmartImage";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +75,16 @@ export function AttendanceHistoryContent() {
     const rangeValid = from.length > 0 && to.length > 0 && from <= to;
     const query = useMemo(() => ({ from, to, status, page, pageSize: PAGE_SIZE }), [from, to, status, page]);
     const list = useAsync(() => data.listAttendance(query), [data, query], { enabled: rangeValid });
+    /* Live refresh — a fresh studio QR check-in appears in history without a
+       manual refresh (throttled bursts make it one reload, not five). */
+    const lastLiveReloadRef = useRef(0);
+    useEffect(() => subscribeLiveNotification(() => {
+        const now = Date.now();
+        if (now - lastLiveReloadRef.current < 2500)
+            return;
+        lastLiveReloadRef.current = now;
+        list.reload();
+    }), [list.reload]);
     // A shrunken result set can leave us stranded past the last page — snap back.
     useEffect(() => {
         if (!list.data)

@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SmartImage } from "@/components/shared/SmartImage";
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync, useDebounced } from "@/hooks";
+import { subscribeLiveNotification } from "@/lib/liveBus";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { PAYMENT_METHOD_LABELS, formatDateTime, titleCase } from "@/lib/format";
 import { can } from "@/lib/permissions";
@@ -401,6 +402,23 @@ export function AttendancePage() {
         });
     }, [classRows, viewSlotId, search]);
 
+    /* Live refresh — students can scan the studio QR from the door and mark
+       themselves present server-side. The Topbar broadcasts every newly
+       polled notification; a burst reloads the roster, register and state
+       cards so the page updates in real time (never over staff's unsaved
+       local P/L/A picks, and throttled so one burst = one reload). */
+    const hasUnsavedMarks = useMemo(() => students.some((s) => (statuses[s.memberId] ?? null) !== (savedStatuses[s.memberId] ?? null)), [students, statuses, savedStatuses]);
+    const lastLiveReloadRef = useRef(0);
+    useEffect(() => subscribeLiveNotification(() => {
+        const now = Date.now();
+        if (hasUnsavedMarks || now - lastLiveReloadRef.current < 2500)
+            return;
+        lastLiveReloadRef.current = now;
+        summary.reload();
+        roster.reload();
+        list.reload();
+    }), [hasUnsavedMarks, summary.reload, roster.reload, list.reload]);
+
     /** slotId → slot lookup, so a row can show its class time ("7:00 AM – 8:15 AM").
      *  Uses the FULL slot list (not just active) so archived slots still resolve. */
     const slotById = useMemo(() => new Map((slots.data ?? []).map((s) => [String(s.id), s])), [slots.data]);
@@ -576,9 +594,11 @@ export function AttendancePage() {
                 >
                   <option value="all">Slot: All</option>
                   {SLOT_GROUPS.map((group) => {
-                    const count = (groupedSlots[group.key] ?? []).length;
-                    return (<option key={group.key} value={group.key} disabled={count === 0}>
-                      {group.label.replace(/\s+Slots$/, "")}{count === 0 ? " (none)" : ` (${count})`}
+                    const gs = groupedSlots[group.key] ?? [];
+                    // Students enroled across the group's slots (not slot count).
+                    const students = gs.reduce((sum, s) => sum + (s.enrolledCount ?? 0), 0);
+                    return (<option key={group.key} value={group.key} disabled={gs.length === 0}>
+                      {group.label.replace(/\s+Slots$/, "")}{gs.length === 0 ? " (none)" : ` (${students})`}
                     </option>);
                   })}
                 </select>
@@ -595,19 +615,21 @@ export function AttendancePage() {
                   }}
                 >
                   <option value="" disabled>Slot Timings</option>
-                  <option value="__all__">Select All ({currentGroupSlots.length})</option>
+                  <option value="__all__">
+                    Select All ({currentGroupSlots.reduce((sum, s) => sum + (s.enrolledCount ?? 0), 0)})
+                  </option>
                   {slotGroup === "all"
                     ? SLOT_GROUPS.map((group) => {
                         const gs = groupedSlots[group.key] ?? [];
                         if (gs.length === 0) return null;
                         return (<optgroup key={group.key} label={group.label.replace(/\s+Slots$/, "")}>
                           {gs.map((s) => (<option key={s.id} value={s.id}>
-                            {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
+                            {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
                           </option>))}
                         </optgroup>);
                       })
                     : currentGroupSlots.map((s) => (<option key={s.id} value={s.id}>
-                        {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)}
+                        {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
                       </option>))}
                 </select>
                 <div className="relative w-full sm:w-40">

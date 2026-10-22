@@ -11,12 +11,16 @@ import { StudentSearchBox } from "@/components/shared/StudentSearchBox";
 import { SmartImage } from "@/components/shared/SmartImage";
 import { ROLE_LABELS, can } from "@/lib/permissions";
 import { gymCheckinUrl, renderQrImage } from "@/lib/qr";
+import { emitLiveNotification } from "@/lib/liveBus";
 import { appVersion } from "@/config/env";
 export function Topbar({ onOpenMenu }) {
     const { session, data, signOut } = useAuth();
     const navigate = useNavigate();
     const [unread, setUnread] = useState(0);
     const seenIdsRef = useRef(new Set());
+    // The very first poll just seeds the badge — popups fire only for events
+    // that arrive AFTER the page mounted (otherwise every unread would toast).
+    const firstLoadRef = useRef(true);
     useEffect(() => {
         if (!data)
             return;
@@ -26,21 +30,29 @@ export function Topbar({ onOpenMenu }) {
             .then((rows) => {
                 if (cancelled)
                     return;
-                const newUnread = rows.length;
                 for (const n of rows) {
                     if (!seenIdsRef.current.has(n.id)) {
                         seenIdsRef.current.add(n.id);
-                        if (seenIdsRef.current.size > rows.length) {
+                        if (!firstLoadRef.current) {
+                            // Live popup — something arrived while the page was open.
                             toast(n.title, {
                                 description: n.body,
+                                duration: 6000,
                                 action: n.link
                                     ? { label: "View", onClick: () => navigate(n.link) }
                                     : undefined,
                             });
+                            // Let open pages (Attendance…) react without a refresh.
+                            emitLiveNotification(n);
                         }
                     }
                 }
-                setUnread(newUnread);
+                firstLoadRef.current = false;
+                // Keep the seen-set bounded on long sessions.
+                if (seenIdsRef.current.size > 200) {
+                    seenIdsRef.current = new Set([...seenIdsRef.current].slice(-100));
+                }
+                setUnread(rows.length);
             })
             .catch(() => undefined);
         refresh();
