@@ -731,6 +731,28 @@ export function AttendancePage() {
                         <p className="truncate text-sm font-medium">{s.fullName}</p>
                         <p className="text-xs text-muted-foreground">
                           <span className="block truncate sm:inline">{s.memberCode ?? "—"}</span>
+                          {/* Quota chips beside the ID — mirrors the students-page
+                              tone rule (4+ left green · 2–3 yellow · 0–1 red). */}
+                          {s.quota && s.quota.status !== "none" ? (() => {
+                            const tone = s.quota.status === "exceeded" || s.quota.status === "expired" || s.quota.remaining < 2
+                              ? "border-destructive/30 bg-destructive/10 text-destructive"
+                              : s.quota.remaining < 4
+                                ? "border-warning/30 bg-warning/10 text-warning"
+                                : "border-success/30 bg-success/10 text-success";
+                            const left = s.quota.status === "exceeded"
+                              ? `${s.quota.exceeded} over`
+                              : s.quota.status === "expired"
+                                ? "0 left"
+                                : `${s.quota.remaining} left`;
+                            return (<span className="inline-flex flex-wrap items-center gap-1 align-middle sm:mx-0.5">
+                              <span className="rounded border border-border/60 bg-muted px-1 py-px text-[9px] font-medium leading-tight tabular text-muted-foreground sm:text-[10px]">
+                                Classes {s.quota.quota ?? "—"}
+                              </span>
+                              <span className={cn("rounded border px-1 py-px text-[9px] font-medium leading-tight tabular sm:text-[10px]", tone)}>
+                                {left}
+                              </span>
+                            </span>);
+                          })() : null}
                           {enrolled ? (<span className="inline-flex items-center gap-1.5 align-middle whitespace-nowrap sm:ml-1.5">
                               <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", GROUP_DOT[enrolled.key] ?? "bg-muted-foreground/40")}/>
                               <span>{enrolled.text}</span>
