@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import {
     CalendarCheckIcon,
     CheckCircle2Icon,
+    CheckIcon,
     ClipboardCheckIcon,
     DownloadIcon,
     EyeIcon,
@@ -46,8 +47,8 @@ const STATUS_ORDER = ["present", "absent"];
 function StatusChip({ status }) {
     const meta = STATUS_META[status];
     if (!meta) return <Badge variant="outline">—</Badge>;
-    return (<Badge variant="outline" className={cn("gap-1.5 font-medium tabular-nums", meta.chip)}>
-      <span className={cn("size-1.5 rounded-full", meta.dot)}/>
+    return (<Badge variant="outline" className={cn("gap-1 font-medium tabular-nums", meta.chip)}>
+      <span className={cn("size-2 shrink-0 rounded-full", meta.dot)}/>
       {meta.short}
     </Badge>);
 }
@@ -695,23 +696,30 @@ export function AttendancePage() {
                       </div>
                       {savingId === s.memberId ? <Loader2Icon className="size-3.5 animate-spin text-muted-foreground"/> : null}
                     </div>
-                    {isSaved ? (<div className="flex items-center gap-2">
-                        <StatusChip status={saved}/>
-                        <Button size="sm" variant="outline" className="h-8 px-3" aria-label={`Edit attendance for ${s.fullName}`} onClick={() => {
+                    {isSaved ? (<div className="flex flex-col items-center gap-1">
+                        <div className={`relative h-10 w-10 rounded-full border-2 ${saved === "present" ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : "border-red-500 bg-red-500/10 text-red-600"} flex items-center justify-center cursor-pointer hover:border-emerald-500/60 hover:bg-emerald-500/20 transition-colors`} aria-label="Mark present" onClick={() => {
                 setEditingId(s.memberId);
                 setStatuses((prev) => ({ ...prev, [s.memberId]: saved }));
             }}>
-                          <PencilIcon className="size-3.5"/> Edit
+                          <span className="font-bold text-[13px]">{saved === "present" ? "P" : "A"}</span>
+                          {saved === "present" ? (<CheckIcon className="absolute -bottom-1 right-1 size-3 text-emerald-600"/> ) : null}
+                        </div>
+                        <Button size="sm" variant="outline" className="h-7 w-7 rounded-full p-0 text-xs text-muted-foreground hover:text-emerald-600" aria-label={`Edit attendance for ${s.fullName}`} onClick={() => {
+                setEditingId(s.memberId);
+                setStatuses((prev) => ({ ...prev, [s.memberId]: saved }));
+            }}>
+                          <PencilIcon className="size-3"/>
                         </Button>
-                      </div>) : (<div className="flex items-center gap-2">
+                      </div>) : (<div className="flex flex-col items-center gap-1">
                         {STATUS_ORDER.map((st) => {
                 const meta = STATUS_META[st];
                 const active = statuses[s.memberId] === st;
-                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("h-10 w-10 rounded-2xl font-bold text-sm whitespace-nowrap", active ? "bg-emerald-500/20 border-emerald-500 text-emerald-600" : "border-border/60 text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-600")} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
-                              {meta.short}
+                return (<Button key={st} size="sm" variant={active ? "secondary" : "outline"} aria-label={meta.label} title={meta.label} aria-pressed={active} className={cn("relative h-10 w-10 rounded-full border-2 font-bold text-[13px] whitespace-nowrap", active ? (st === "present" ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : "border-red-500 bg-red-500/10 text-red-600") : "border-border/60 text-muted-foreground hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600")} onClick={() => isEditing ? saveStudent(s.memberId, st) : selectStatus(s.memberId, st)}>
+                              <span>{meta.short}</span>
+                              {st === "present" && active ? (<CheckIcon className="absolute -bottom-1 right-1 size-3 text-emerald-600"/> ) : null}
                             </Button>);
             })}
-                        {isEditing ? (<Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground" aria-label="Cancel edit" onClick={() => setEditingId(null)}>
+                        {isEditing ? (<Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0 text-muted-foreground hover:text-emerald-600" aria-label="Cancel edit" onClick={() => setEditingId(null)}>
                             <XIcon className="size-3.5"/>
                           </Button>) : null}
                       </div>)}
@@ -734,11 +742,11 @@ export function AttendancePage() {
                         <p className="truncate text-xs text-muted-foreground">{m.memberCode ?? "—"}{m.planName ? ` · ${m.planName}` : ""}</p>
                       </div>
                     </div>
-                    {walkInSavingId === m.id ? <Loader2Icon className="size-4 animate-spin text-muted-foreground"/> : (<div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" className="h-10 w-10 rounded-2xl font-bold text-sm border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/20" onClick={() => markWalkIn(m.id, "present")}>
+                    {walkInSavingId === m.id ? <Loader2Icon className="size-4 animate-spin text-muted-foreground"/> : (<div className="flex flex-col items-center gap-1">
+                        <Button size="sm" variant="outline" className="h-10 w-10 rounded-full border-emerald-500/40 text-emerald-600 font-bold text-[13px] hover:bg-emerald-500/20 hover:border-emerald-500 transition-colors" onClick={() => markWalkIn(m.id, "present")}>
                           P
                         </Button>
-                        <Button size="sm" variant="outline" className="h-10 w-10 rounded-2xl font-bold text-sm border-red-500/40 text-red-600 hover:bg-red-500/20" onClick={() => markWalkIn(m.id, "absent")}>
+                        <Button size="sm" variant="outline" className="h-10 w-10 rounded-full border-red-500/40 text-red-600 font-bold text-[13px] hover:bg-red-500/20 hover:border-red-500 transition-colors" onClick={() => markWalkIn(m.id, "absent")}>
                           A
                         </Button>
                       </div>)}
