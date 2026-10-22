@@ -51,7 +51,8 @@ export const CLASS_REJECTIONS = {
 
 const BASE_REASONS = Object.keys(CLASS_REJECTIONS);
 
-function memberSummary(member, membership, planDoc, quota) {
+function memberSummary(member, membership, planDoc, quota)
+{
   return {
     id: String(member._id),
     memberCode: member.memberCode,
@@ -64,13 +65,15 @@ function memberSummary(member, membership, planDoc, quota) {
   };
 }
 
-async function rejected(reason, extra = {}, member = null, membership = null, quota = null, session = null) {
+async function rejected(reason, extra = {}, member = null, membership = null, quota = null, session = null)
+{
   const out = {
     status: "rejected",
     reason,
     message: CLASS_REJECTIONS[reason] ?? "Attendance could not be marked.",
   };
-  if (member) {
+  if (member)
+  {
     const planDoc = membership
       ? await MembershipPlan.findById(membership.planId).session(session).lean()
       : null;
@@ -80,12 +83,14 @@ async function rejected(reason, extra = {}, member = null, membership = null, qu
 }
 
 /** Calendar date key (YYYY-MM-DD) for a slot session in the gym's timezone. */
-function sessionDayKey(date, tz) {
+function sessionDayKey(date, tz)
+{
   return ymdInTz(date, tz);
 }
 
 /** The weekday (0=Sun…6=Sat) of a Date in the gym's timezone. */
-function weekdayInTz(date, tz) {
+function weekdayInTz(date, tz)
+{
   const dayKey = ymdInTz(date, tz); // YYYY-MM-DD
   const [y, m, d] = dayKey.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -94,7 +99,8 @@ function weekdayInTz(date, tz) {
 /**
  * Resolve the staff profile for a trainer-scoped actor (null for other roles).
  */
-async function trainerProfile(gymId, actorRole, actorId) {
+async function trainerProfile(gymId, actorRole, actorId)
+{
   if (actorRole !== "trainer") return null;
   return StaffProfile.findOne({ gymId, profileId: actorId }).lean();
 }
@@ -127,7 +133,8 @@ export async function markSlotAttendance({
   attendanceStatus = null,
   notes = null,
   ctx,
-}) {
+})
+{
   const statusValue = attendanceStatus && ["present", "late", "absent"].includes(attendanceStatus)
     ? attendanceStatus
     : null;
@@ -136,44 +143,54 @@ export async function markSlotAttendance({
 
   // Resolve the session date (defaults to today in the gym's timezone).
   let sessionDate;
-  if (date) {
+  if (date)
+  {
     sessionDate = parseDateOnly(date);
-    if (Number.isNaN(sessionDate?.getTime?.() ?? NaN)) {
+    if (Number.isNaN(sessionDate?.getTime?.() ?? NaN))
+    {
       return rejected("invalid_date");
     }
-  } else {
+  } else
+  {
     sessionDate = parseDateOnly(ymdInTz(now, tz));
   }
 
-  return withTransaction(async (session) => {
+  return withTransaction(async (session) =>
+  {
     // 1. Slot must exist, be active, and belong to this gym.
     const slot = await ClassSlot.findOne({ _id: slotId, gymId }).session(session).lean();
     if (!slot) return rejected("slot_not_found", {}, null, null, null, session);
     if (!slot.isActive) return rejected("slot_inactive", {}, null, null, null, session);
 
     // 2. Trainer scoping — instructors may only mark their own slots.
-    if (actorRole === "trainer") {
+    if (actorRole === "trainer")
+    {
       const profile = await trainerProfile(gymId, actorRole, actorId);
-      if (!profile || String(slot.instructorId ?? "") !== String(profile._id)) {
+      if (!profile || String(slot.instructorId ?? "") !== String(profile._id))
+      {
         return rejected("wrong_slot", {}, null, null, null, session);
       }
     }
 
     // 3. The date must fall on one of the slot's scheduled weekdays.
     const weekday = weekdayInTz(sessionDate, tz);
-    if (!Array.isArray(slot.weekdays) || !slot.weekdays.some((d) => Number(d) === weekday)) {
+    if (!Array.isArray(slot.weekdays) || !slot.weekdays.some((d) => Number(d) === weekday))
+    {
       return rejected("not_a_slot_day", { weekday, slotWeekdays: slot.weekdays }, null, null, null, session);
     }
 
     // 4. Resolve member by opaque token, id, or member code.
     let member;
-    if (lookup?.token) {
+    if (lookup?.token)
+    {
       member = await Member.findOne({ qrToken: lookup.token }).session(session);
       if (!member) return rejected("invalid_qr", {}, null, null, null, session);
-    } else if (lookup?.memberId) {
+    } else if (lookup?.memberId)
+    {
       member = await Member.findOne({ _id: lookup.memberId, gymId }).session(session);
       if (!member) return rejected("not_found", {}, null, null, null, session);
-    } else {
+    } else
+    {
       member = await Member.findOne({ gymId, memberCode: String(lookup?.code ?? "").trim().toUpperCase() })
         .session(session);
       if (!member) return rejected("not_found", {}, null, null, null, session);
@@ -186,7 +203,8 @@ export async function markSlotAttendance({
     await Member.updateOne({ _id: member._id }, { $inc: { scanLock: 1 } }, { session });
 
     // 7. Member must be active to attend.
-    if (member.status !== "active") {
+    if (member.status !== "active")
+    {
       return rejected("member_inactive", {}, member, null, null, session);
     }
 
@@ -203,7 +221,8 @@ export async function markSlotAttendance({
     // (quota exhaustion/expiry must never lose the attendance); only a student
     // with NO membership at all is rejected, since there is nothing to bill.
     let eligibilityStatus = "active";
-    if (membership) {
+    if (membership)
+    {
       const eligibility = checkEligibility({
         memberStatus: member.status,
         membership: {
@@ -217,7 +236,8 @@ export async function markSlotAttendance({
         expiringSoonDays: ctx.expiringSoonDays ?? 7,
       });
       eligibilityStatus = eligibility.status ?? "active";
-    } else {
+    } else
+    {
       return rejected("no_membership", {}, member, null, null, session);
     }
 
@@ -231,7 +251,8 @@ export async function markSlotAttendance({
     })
       .session(session)
       .lean();
-    if (existing) {
+    if (existing)
+    {
       return rejected("duplicate", { attendanceId: String(existing._id) }, member, membership, null, session);
     }
 
@@ -243,8 +264,8 @@ export async function markSlotAttendance({
           memberId: member._id,
           membershipId: membership._id,
           // checkIn: now,
-          checkIn: instantInTz(dayKey, slotDoc.startTime, tz),
-          sessionDate: parseDateOnly(dayKey),
+          checkIn: instantInTz(dayKey, slot.startTime, tz),
+          // sessionDate: parseDateOnly(dayKey),
           status: "checked_in",
           method,
           scannerId: actorId || null,
@@ -308,30 +329,37 @@ export async function markDemoAttendance({
   method = "class",
   notes = null,
   ctx,
-}) {
+})
+{
   const { tz } = ctx;
   const now = new Date();
 
-  return withTransaction(async (session) => {
+  return withTransaction(async (session) =>
+  {
     const klass = await GymClass.findOne({ _id: classId, gymId }).session(session).lean();
     if (!klass) return rejected("slot_not_found", {}, null, null, null, session);
 
     // Instructor scoping for trainers (trainerId is a StaffProfile id).
-    if (actorRole === "trainer") {
+    if (actorRole === "trainer")
+    {
       const profile = await trainerProfile(gymId, actorRole, actorId);
-      if (!profile || String(klass.trainerId ?? "") !== String(profile._id)) {
+      if (!profile || String(klass.trainerId ?? "") !== String(profile._id))
+      {
         return rejected("wrong_slot", {}, null, null, null, session);
       }
     }
 
     let member;
-    if (lookup?.token) {
+    if (lookup?.token)
+    {
       member = await Member.findOne({ qrToken: lookup.token }).session(session);
       if (!member) return rejected("invalid_qr", {}, null, null, null, session);
-    } else if (lookup?.memberId) {
+    } else if (lookup?.memberId)
+    {
       member = await Member.findOne({ _id: lookup.memberId, gymId }).session(session);
       if (!member) return rejected("not_found", {}, null, null, null, session);
-    } else {
+    } else
+    {
       member = await Member.findOne({ gymId, memberCode: String(lookup?.code ?? "").trim().toUpperCase() })
         .session(session);
       if (!member) return rejected("not_found", {}, null, null, null, session);
@@ -339,7 +367,8 @@ export async function markDemoAttendance({
     if (String(member.gymId) !== String(gymId)) return rejected("forbidden", {}, null, null, null, session);
 
     await Member.updateOne({ _id: member._id }, { $inc: { scanLock: 1 } }, { session });
-    if (member.status !== "active") {
+    if (member.status !== "active")
+    {
       return rejected("member_inactive", {}, member, null, null, session);
     }
 
@@ -358,7 +387,8 @@ export async function markDemoAttendance({
     const existing = await AttendanceRecord.findOne({ gymId, memberId: member._id, dedupeKey })
       .session(session)
       .lean();
-    if (existing) {
+    if (existing)
+    {
       return rejected("duplicate", { attendanceId: String(existing._id) }, member, membership, null, session);
     }
 
@@ -440,17 +470,21 @@ export async function markRosterAttendance({
   date,
   marks,
   ctx,
-}) {
+})
+{
   const { tz } = ctx;
   const now = new Date();
 
   let sessionDate;
-  if (date) {
+  if (date)
+  {
     sessionDate = parseDateOnly(date);
-    if (Number.isNaN(sessionDate?.getTime?.() ?? NaN)) {
+    if (Number.isNaN(sessionDate?.getTime?.() ?? NaN))
+    {
       return { status: "rejected", reason: "invalid_date", message: CLASS_REJECTIONS.invalid_date, results: [] };
     }
-  } else {
+  } else
+  {
     sessionDate = parseDateOnly(ymdInTz(now, tz));
   }
   const dayKey = sessionDayKey(sessionDate, tz);
@@ -461,9 +495,11 @@ export async function markRosterAttendance({
   if (!slot.isActive) return { status: "rejected", reason: "slot_inactive", message: CLASS_REJECTIONS.slot_inactive, results: [] };
 
   // Instructors may only mark their own slots.
-  if (actorRole === "trainer") {
+  if (actorRole === "trainer")
+  {
     const profile = await trainerProfile(gymId, actorRole, actorId);
-    if (!profile || String(slot.instructorId ?? "") !== String(profile._id)) {
+    if (!profile || String(slot.instructorId ?? "") !== String(profile._id))
+    {
       return { status: "rejected", reason: "wrong_slot", message: CLASS_REJECTIONS.wrong_slot, results: [] };
     }
   }
@@ -475,12 +511,15 @@ export async function markRosterAttendance({
   // propagation below ("student has 3 batches → Present marks all 3").
   const weekday = new Date(`${dayKey}T00:00:00Z`).getUTCDay();
 
-  for (const mark of marks) {
+  for (const mark of marks)
+  {
     const status = mark.status === "absent" ? "absent" : mark.status === "late" ? "late" : "present";
-    const outcome = await withTransaction(async (session) => {
+    const outcome = await withTransaction(async (session) =>
+    {
       const member = await Member.findOne({ _id: mark.memberId, gymId }).session(session);
       if (!member) return { memberId: mark.memberId, status: "rejected", reason: "not_found", message: CLASS_REJECTIONS.not_found };
-      if (member.status !== "active") {
+      if (member.status !== "active")
+      {
         return { memberId: mark.memberId, status: "rejected", reason: "member_inactive", message: CLASS_REJECTIONS.member_inactive };
       }
 
@@ -494,7 +533,8 @@ export async function markRosterAttendance({
 
       /** Upsert this member's mark for one slot session (dedupe-safe).
        *  Used for the picked slot AND every other enrolled slot of the day. */
-      const upsertForSlot = async (slotDoc) => {
+      const upsertForSlot = async (slotDoc) =>
+      {
         const dedupeKey = `slot:${slotDoc._id}:${dayKey}`;
         // Upsert so a status can be corrected after the first mark.
         const existing = await AttendanceRecord.findOne({ gymId, memberId: member._id, dedupeKey }).session(session).lean();
@@ -506,13 +546,15 @@ export async function markRosterAttendance({
           notes: mark.notes ?? null,
         };
         let attendance;
-        if (existing) {
+        if (existing)
+        {
           attendance = await AttendanceRecord.findOneAndUpdate(
             { _id: existing._id },
             { $set: update },
             { new: true, session },
           ).lean();
-        } else {
+        } else
+        {
           [attendance] = await AttendanceRecord.create(
             [
               {
@@ -520,7 +562,8 @@ export async function markRosterAttendance({
                 memberId: member._id,
                 membershipId: membership?._id ?? null,
                 // checkIn: now,
-                sessionDate: parseDateOnly(dayKey),
+                checkIn: instantInTz(dayKey, slotDoc.startTime, tz),
+                // sessionDate: parseDateOnly(dayKey),
                 status: "checked_in",
                 method: "class",
                 scannerId: actorId || null,
@@ -539,7 +582,8 @@ export async function markRosterAttendance({
         }
         // Only bill quota against a real membership; demo/absent rows carry none.
         let quota = null;
-        if (membership) {
+        if (membership)
+        {
           quota = await quotaForMembership(membership, session);
           await syncQuotaNotifications({ gymId, member, membership, quota, session });
         }
@@ -558,9 +602,11 @@ export async function markRosterAttendance({
       // batch that actually marked.
       let extraMarked = 0;
       const enrollments = await SlotEnrollment.find({ gymId, memberId: member._id, status: "enrolled" }).session(session).lean();
-      if (enrollments.length > 0) {
+      if (enrollments.length > 0)
+      {
         const nowMinutes = minutesInTz(now, tz);
-        const hasStarted = (s) => {
+        const hasStarted = (s) =>
+        {
           const parts = String(s?.startTime ?? "").split(":").map(Number);
           if (parts.length < 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1])) return false;
           return nowMinutes >= parts[0] * 60 + parts[1]; // (running or ended)
@@ -575,7 +621,8 @@ export async function markRosterAttendance({
           .session(session)
           .lean();
         const otherSlots = rawOthers.filter(hasStarted);
-        for (const other of otherSlots) {
+        for (const other of otherSlots)
+        {
           await upsertForSlot(other);
           extraMarked += 1;
         }
