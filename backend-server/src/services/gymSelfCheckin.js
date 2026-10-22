@@ -10,14 +10,16 @@
  */
 
 import AttendanceRecord from "../models/AttendanceRecord.js";
+import ClassSlot from "../models/ClassSlot.js";
 import { badRequest } from "../lib/errors.js";
-import { minutesInTz } from "../lib/dates.js";
+import { minutesInTz, ymdInTz } from "../lib/dates.js";
 import { toMinutes } from "../lib/schedule.js";
 import { parseQrPayload } from "../lib/qr.js";
 import { toAttendance } from "../lib/serialize.js";
 import { writeAudit } from "../lib/audit.js";
 import { runCheckIn } from "./checkin.js";
 import { notifyIfOverPlanned, notifyExpiredScan } from "./overtime.js";
+import { markSlotAttendance } from "./classAttendance.js";
 
 /** `13:05` → `1:05 PM` — matches the Manage Institute slot labels. */
 function fmt12h(hhmm) {
@@ -52,6 +54,66 @@ export function assertGymQrToken(gym, raw) {
     );
   }
   return token;
+}
+
+/**
+ * Best-effort automatic register mark for a studio QR check-in.
+ *
+ * A member QR scan already creates a gym visit; this ALSO marks them "present"
+ * in the class register when the scan lands inside one of the studio's running
+ * slots (the student's preferred slot wins when they have one and it matches).
+ * Uses the same marking engine as the roster save, so quota deduction,
+ * duplicate guards and audit trails behave identically. Rejections
+ * (duplicates, no slot running, not a slot day, no membership) are swallowed —
+ * the visit is still recorded; the register just stays as-is.
+ */
+export async function autoMarkSlotAttendance({ gymId, member, actorId, ctx, now = new Date() }) {
+  try {
+    const tz = ctx.tz ?? "Asia/Kolkata";
+    // Weekday (0=Sun…6=Sat) of "now" in the studio timezone.
+    const dayKey = ymdInTz(now, tz);
+    const [y, m, d] = dayKey.split("-").map(Number);
+    const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    const nowMin = minutesInTz(now, tz);
+
+    const slots = await ClassSlot.find({ gymId, isActive: true }).lean();
+    const running = (slots ?? []).filter((slot) => {
+      if (!Array.isArray(slot.weekdays) || !slot.weekdays.some((x) => Number(x) === weekday)) {
+        return false;
+      }
+      const start = toMinutes(slot.startTime);
+      const end = toMinutes(slot.endTime);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+      // Slots may wrap midnight — mirror the check-in-hours guard.
+      return start <= end
+        ? nowMin >= start && nowMin <= end
+        : nowMin >= start || nowMin <= end;
+    });
+    if (running.length === 0) return null;
+
+    // The student's preferred slot wins when it matches one of the running slots.
+    const preferred = member.preferredSlot
+      ? running.find((slot) => `${slot.startTime}-${slot.endTime}` === member.preferredSlot)
+      : null;
+    const slot = preferred ?? running[0];
+
+    const result = await markSlotAttendance({
+      gymId,
+      actorId,
+      actorRole: "member",
+      slotId: slot._id,
+      date: dayKey,
+      lookup: { memberId: String(member._id ?? member.id ?? member) },
+      method: "qr",
+      attendanceStatus: "present",
+      notes: "Auto-marked from the studio QR check-in",
+      ctx,
+    });
+    return result.status === "ok" ? result : null;
+  } catch {
+    // Register marking is a bonus — never fail the check-in.
+    return null;
+  }
 }
 
 /**
@@ -130,6 +192,18 @@ export async function runMemberSelfCheckIn({ member, actorId, ctx, notes = null 
   if (result.warning === "expired") {
     // Accepted because the gym allows expired check-ins — still warn the staff.
     await notifyExpiredScan({ gymId: member.gymId, member, at: now });
+  }
+  // Best-effort: a studio QR check-in that lands inside one of the student's
+  // running slots ALSO marks them present in the class register (Mark/View
+  // attendance + shows in history). Never blocks or fails the check-in itself.
+  try {
+    const auto = await autoMarkSlotAttendance({ gymId: member.gymId, member, actorId, ctx, now });
+    if (auto) {
+      result.autoMarked = true;
+      result.autoMarkedSlot = auto.attendance?.meta?.slotName ?? null;
+    }
+  } catch {
+    // Quota/eligibility issues must never break the check-in the student just made.
   }
   return result;
 }

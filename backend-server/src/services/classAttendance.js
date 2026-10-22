@@ -122,9 +122,15 @@ export async function markSlotAttendance({
   date,
   lookup,
   method = "class",
+  /** Optional register status (present/late/absent). Auto-marks pass "present"
+   *  so the student appears marked in the Mark/View register immediately. */
+  attendanceStatus = null,
   notes = null,
   ctx,
 }) {
+  const statusValue = attendanceStatus && ["present", "late", "absent"].includes(attendanceStatus)
+    ? attendanceStatus
+    : null;
   const { tz } = ctx;
   const now = new Date();
 
@@ -244,6 +250,7 @@ export async function markSlotAttendance({
           meta: { slotName: slot.name, slotId: String(slot._id) },
           classSlotId: slot._id,
           sessionDate: parseDateOnly(dayKey),
+          ...(statusValue ? { attendanceStatus: statusValue } : {}),
           quotaCounted: true,
           demo: false,
           dedupeKey,

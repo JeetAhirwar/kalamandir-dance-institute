@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { CalendarCheckIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, DownloadIcon, GaugeIcon, Loader2Icon, PencilIcon, UsersIcon, } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState, ErrorState, Skeleton, Stagger, TableSkeleton } from "@/components/shared/States";
+import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, Loader2Icon, PencilIcon, } from "lucide-react";
+import { EmptyState, ErrorState, TableSkeleton } from "@/components/shared/States";
 import { SmartImage } from "@/components/shared/SmartImage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,21 +14,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "
 import { useAuth, useData } from "@/auth/AuthProvider";
 import { useAsync } from "@/hooks";
 import { downloadCsv, toCsv } from "@/lib/csv";
-import { addDays, parseDateOnly, ymdInTz } from "@/lib/datetime";
-import { formatDate, formatDateTime, formatNumberIN } from "@/lib/format";
+import { addDays, ymdInTz } from "@/lib/datetime";
+import { formatDateTime, formatNumberIN } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { AttendanceCorrectionDialog } from "./AttendanceCorrectionDialog";
-import { ATTENDANCE_STATUS_LABELS, METHOD_LABELS, hourLabel } from "./labels";
+import { ATTENDANCE_STATUS_LABELS, METHOD_LABELS } from "./labels";
 /** Rows per page of the history table. */
 const PAGE_SIZE = 15;
-/** Default window shown when the page opens. */
+/** Default window shown when the panel opens. */
 const DEFAULT_RANGE_DAYS = 7;
 /** Services cap page size at 200 — use it to sweep the export in fewest calls. */
 const EXPORT_PAGE_SIZE = 200;
 /** Safety net so a huge filter cannot loop forever while exporting. */
 const MAX_EXPORT_PAGES = 25;
-const MS_PER_DAY = 86_400_000;
 const STATUS_STYLES = {
     checked_in: "border-primary/30 bg-primary/10 text-primary",
     checked_out: "border-border bg-muted text-muted-foreground",
@@ -39,41 +37,28 @@ const STATUS_OPTIONS = [
     { value: "checked_in", label: "Checked in" },
     { value: "checked_out", label: "Checked out" },
 ];
-/** `YYYY-MM-DD` → end of that day as a UTC instant (matches the service filters). */
-function dayEnd(ymd) {
-    return new Date(parseDateOnly(ymd).getTime() + MS_PER_DAY - 1);
-}
 function defaultFrom() {
     return ymdInTz(addDays(new Date(), -(DEFAULT_RANGE_DAYS - 1)));
 }
 function defaultTo() {
     return ymdInTz(new Date());
 }
-function SummaryCard({ label, display, hint, icon, }) {
-    return (<Card className="graphite-surface border-border/70">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
-          <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-            {icon}
-          </span>
-        </div>
-        <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums">{display}</p>
-        {hint ? <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p> : null}
-      </CardContent>
-    </Card>);
-}
 function AttendanceBadge({ status }) {
     return (<Badge variant="outline" className={cn("font-medium", STATUS_STYLES[status])}>
       {ATTENDANCE_STATUS_LABELS[status]}
     </Badge>);
 }
-export function AttendanceHistoryPage() {
+/**
+ * The history register as a drop-in panel: filters, export, table + pagination.
+ * Used inside the /attendance page "Attendance history" tab; reads ?from/?to
+ * so the dashboard's date deep-links still land pre-filtered.
+ */
+export function AttendanceHistoryContent() {
     const data = useData();
     const { session } = useAuth();
     const canCorrect = can(session?.profile.role, "attendance.correct");
     const [searchParams] = useSearchParams();
-    // Deep link: /attendance/history?from=YYYY-MM-DD&to=YYYY-MM-DD (dashboard stat card).
+    // Deep link: /attendance?tab=history&from=YYYY-MM-DD&to=YYYY-MM-DD (dashboard stat card).
     const [from, setFrom] = useState(() => {
         const preset = searchParams.get("from");
         return preset && /^\d{4}-\d{2}-\d{2}$/.test(preset) ? preset : defaultFrom();
@@ -89,10 +74,6 @@ export function AttendanceHistoryPage() {
     const rangeValid = from.length > 0 && to.length > 0 && from <= to;
     const query = useMemo(() => ({ from, to, status, page, pageSize: PAGE_SIZE }), [from, to, status, page]);
     const list = useAsync(() => data.listAttendance(query), [data, query], { enabled: rangeValid });
-    const summaryRange = useMemo(() => ({ from: parseDateOnly(from), to: dayEnd(to) }), [from, to]);
-    const summary = useAsync(() => data.getAttendanceSummary(summaryRange), [data, summaryRange], {
-        enabled: rangeValid,
-    });
     // A shrunken result set can leave us stranded past the last page — snap back.
     useEffect(() => {
         if (!list.data)
@@ -163,40 +144,7 @@ export function AttendanceHistoryPage() {
             }
         })();
     };
-    const totalVisits = summary.data?.totalVisits ?? 0;
-    const rangeHint = rangeValid ? `${formatDate(from)} – ${formatDate(to)}` : "Adjust the date range";
-    return (<div className="space-y-6">
-      <PageHeader title="Attendance history" description="Every check-in and check-out, with filters, export and corrections." breadcrumbs={[{ label: "Attendance", to: "/attendance/view" }, { label: "History" }]}/>
-
-      {/* Summary strip */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {summary.loading ? (Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-32"/>)) : summary.error ? (<Card className="border-destructive/30 bg-destructive/5 sm:col-span-2 xl:col-span-4">
-            <CardContent className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-              <p className="max-w-md text-sm text-muted-foreground">
-                Unable to load the summary: {summary.error}
-              </p>
-              <Button variant="outline" size="sm" onClick={summary.reload}>
-                Retry summary
-              </Button>
-            </CardContent>
-          </Card>) : (<>
-            <Stagger delayIndex={0}>
-              <SummaryCard label="Total visits" display={formatNumberIN(totalVisits)} hint={rangeHint} icon={<CalendarCheckIcon className="size-4"/>}/>
-            </Stagger>
-            <Stagger delayIndex={1}>
-              <SummaryCard label="Unique students" display={formatNumberIN(summary.data?.uniqueMembers ?? 0)} hint="Distinct students who visited" icon={<UsersIcon className="size-4"/>}/>
-            </Stagger>
-            <Stagger delayIndex={2}>
-              <SummaryCard label="Average per day" display={formatNumberIN(summary.data?.averagePerDay ?? 0)} hint="Visits per day in this range" icon={<GaugeIcon className="size-4"/>}/>
-            </Stagger>
-            <Stagger delayIndex={3}>
-              <SummaryCard label="Busiest hour" display={hourLabel(summary.data?.busiestHour ?? null)} hint={(summary.data?.busiestHour ?? null) === null
-                ? "No check-ins in this range yet"
-                : "Peak check-in time"} icon={<ClockIcon className="size-4"/>}/>
-            </Stagger>
-          </>)}
-      </div>
-
+    return (<div className="space-y-4">
       {/* Filters */}
       <Card className="graphite-surface gap-0 border-border/70 py-4 sm:py-5">
         <CardContent className="flex flex-col gap-3 px-4 sm:px-5 lg:flex-row lg:items-end">
@@ -339,7 +287,6 @@ export function AttendanceHistoryPage() {
                 setEditing(null);
         }} onSaved={() => {
             list.reload();
-            summary.reload();
         }}/>
     </div>);
 }

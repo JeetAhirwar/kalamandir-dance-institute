@@ -219,6 +219,7 @@ router.post(
       attendance: result.attendance,
       member: result.member ?? null,
       warning: result.warning ?? null,
+      ...(result.autoMarked ? { autoMarked: true, autoMarkedSlot: result.autoMarkedSlot } : {}),
     });
   }),
 );

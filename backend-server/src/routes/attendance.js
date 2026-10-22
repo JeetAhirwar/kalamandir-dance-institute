@@ -437,9 +437,12 @@ router.post(
     if (result.status !== "ok") throw badRequest(result.message, result.reason);
     res.json({
       action: "check_in",
-      message: "Checked in — your timer has started!",
+      message: result.autoMarked
+        ? "Checked in — your attendance is marked!"
+        : "Checked in — your timer has started!",
       attendance: result.attendance,
       warning: result.warning ?? null,
+      ...(result.autoMarked ? { autoMarked: true, autoMarkedSlot: result.autoMarkedSlot } : {}),
     });
   }),
 );

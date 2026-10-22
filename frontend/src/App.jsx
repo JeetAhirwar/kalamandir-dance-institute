@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, RequireAuth, useAuth } from "@/auth/AuthProvider";
 import { AppShell } from "@/components/layout/AppShell";
@@ -15,9 +15,15 @@ import { PlansPage } from "@/pages/plans/PlansPage";
 import { PaymentsPage } from "@/pages/payments/PaymentsPage";
 import { MembersPage } from "@/pages/members/MembersPage";
 import { MemberDetailPage } from "@/pages/members/MemberDetailPage";
-import { AttendanceHistoryPage } from "@/pages/attendance/AttendanceHistoryPage";
 import { AttendancePage } from "@/pages/attendance/AttendancePage";
 import { MemberPortalLayout } from "@/pages/portal/MemberPortalLayout";
+/** Old history page → now a tab on /attendance; keep deep links (dashboard, reports). */
+function AttendanceHistoryRedirect() {
+    const location = useLocation();
+    const params = new URLSearchParams(location.search);
+    params.set("tab", "history");
+    return <Navigate to={{ pathname: "/attendance", search: `?${params.toString()}` }} replace />;
+}
 import { MemberPortalPage } from "@/pages/portal/MemberPortalPage";
 import { MyAttendancePage } from "@/pages/portal/MyAttendancePage";
 import { MyPaymentsPage } from "@/pages/portal/MyPaymentsPage";
@@ -32,7 +38,8 @@ function StaffRoutes() {
         <Route index element={<DashboardPage />}/>
         <Route path="/members" element={<MembersPage />}/>
         <Route path="/members/:memberId" element={<MemberDetailPage />}/>
-        <Route path="/attendance/history" element={<AttendanceHistoryPage />}/>
+        {/* History is now a tab on /attendance — deep links land pre-filtered. */}
+        <Route path="/attendance/history" element={<AttendanceHistoryRedirect />}/>
         <Route path="/attendance" element={<AttendancePage />}/>
         {/* Old split routes now redirect to the unified Attendance page. */}
         <Route path="/attendance/view" element={<Navigate to="/attendance" replace/>}/>

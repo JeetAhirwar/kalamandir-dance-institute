@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -33,6 +33,7 @@ import { can } from "@/lib/permissions";
 import { SLOT_GROUPS, groupSlotsByTime, slotGroupOf } from "@/lib/slots";
 import { cn } from "@/lib/utils";
 import { AttendanceCorrectionDialog } from "./AttendanceCorrectionDialog";
+import { AttendanceHistoryContent } from "./AttendanceHistoryPage";
 
 /** Status → label, dot colour, chip classes (Present / Late / Absent). */
 const STATUS_META = {
@@ -145,6 +146,16 @@ export function AttendancePage() {
     const data = useData();
     const { session } = useAuth();
     const canCorrect = can(session?.profile.role, "attendance.correct");
+
+    /* --------------------- tab state (mark | view | history) ------------------ */
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabParam = searchParams.get("tab");
+    const activeTab = tabParam === "view" || tabParam === "history" ? tabParam : "mark";
+    const setTab = (value) => {
+        const next = new URLSearchParams(searchParams);
+        if (value === "mark") next.delete("tab"); else next.set("tab", value);
+        setSearchParams(next, { replace: true });
+    };
 
     /* ------------------------------ header stats ----------------------------- */
     const [summaryDate] = useState(() => ymdOf(new Date()));
@@ -490,14 +501,23 @@ export function AttendancePage() {
         </div>
       </div>
 
-      {/* --------------------- Tabs: Mark | View Attendance -------------------- */}
-      <Tabs defaultValue="mark" className="space-y-6">
-      <TabsList>
-          <TabsTrigger value="mark" className="gap-1.5">
-            <ClipboardCheckIcon className="size-4"/> Mark Attendance
+      {/* ------------- Tabs: Mark | View | Attendance history ------------- */}
+      <Tabs defaultValue="mark" value={activeTab} onValueChange={setTab} className="space-y-6">
+      <TabsList className="h-auto w-full flex-wrap justify-start gap-1 py-1">
+          <TabsTrigger value="mark" className="gap-1.5 px-2.5 py-1 text-xs sm:px-3.5 sm:text-sm">
+            <ClipboardCheckIcon className="size-3.5 sm:size-4"/>
+            <span className="sm:hidden">Mark</span>
+            <span className="hidden sm:inline">Mark Attendance</span>
           </TabsTrigger>
-          <TabsTrigger value="view" className="gap-1.5">
-            <HistoryIcon className="size-4"/> View Attendance
+          <TabsTrigger value="view" className="gap-1.5 px-2.5 py-1 text-xs sm:px-3.5 sm:text-sm">
+            <EyeIcon className="size-3.5 sm:size-4"/>
+            <span className="sm:hidden">View</span>
+            <span className="hidden sm:inline">View Attendance</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5 px-2.5 py-1 text-xs sm:px-3.5 sm:text-sm">
+            <HistoryIcon className="size-3.5 sm:size-4"/>
+            <span className="sm:hidden">History</span>
+            <span className="hidden sm:inline">Attendance History</span>
           </TabsTrigger>
         </TabsList>
 
@@ -831,6 +851,11 @@ export function AttendancePage() {
         </CardContent>
       </Card>
       </TabsContent>
+
+      {/* ------------------------- Attendance history ------------------------- */}
+      <TabsContent value="history">
+        <AttendanceHistoryContent/>
+      </TabsContent>
       </Tabs>
 
       <AttendanceCorrectionDialog record={editing} open={editing !== null} onOpenChange={(open) => {
@@ -840,14 +865,5 @@ export function AttendancePage() {
             list.reload();
             summary.reload();
         }}/>
-
-      {/* History link */}
-      <div className="flex justify-end">
-        <Button variant="outline" asChild>
-          <a href="/attendance/history">
-            <HistoryIcon className="size-4"/> Full attendance history
-          </a>
-        </Button>
-      </div>
     </div>);
 }
