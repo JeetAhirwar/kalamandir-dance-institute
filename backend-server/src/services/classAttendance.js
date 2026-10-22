@@ -217,6 +217,8 @@ export async function markSlotAttendance({
       .lean();
     const membership = currentMembership(memberships) ?? null;
 
+    // present/late ke liye membership zaroori — absent allow
+    
     // Expired/suspended memberships are still allowed to record attendance
     // (quota exhaustion/expiry must never lose the attendance); only a student
     // with NO membership at all is rejected, since there is nothing to bill.
@@ -528,6 +530,18 @@ export async function markRosterAttendance({
         .lean();
       const membership = currentMembership(memberships) ?? null;
 
+      if (!membership && status !== "absent")
+      {
+        return {
+          memberId: String(member._id),
+          memberCode: member.memberCode,
+          fullName: member.fullName,
+          status: "rejected",
+          reason: "no_membership",
+          message: CLASS_REJECTIONS.no_membership,
+        };
+      }
+
       // present/late attended → counts against quota; absent → recorded only.
       const quotaCounted = status !== "absent";
 
@@ -545,6 +559,10 @@ export async function markRosterAttendance({
           scannerId: actorId || null,
           notes: mark.notes ?? null,
         };
+        if (existing && membership && !existing.membershipId)
+        {
+          update.membershipId = membership._id;
+        }
         let attendance;
         if (existing)
         {
