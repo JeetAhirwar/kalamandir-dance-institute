@@ -199,17 +199,21 @@ router.post(
     // The auto-marked slots detail tells the teacher of the class the student
     // walked into exactly which batch(es) the student attends today.
     try {
-      const slotsInfo = result.autoMarked
-        ? ` — ${result.autoMarkedSlotLabels?.join(", ") ?? result.autoMarkedSlot ?? "attendance marked"} (${result.autoMarkedInstructors?.length ? `Instructor: ${result.autoMarkedInstructors.join(", ")}. ` : ""}${result.autoMarkedCount} ${result.autoMarkedCount === 1 ? "class" : "classes"} marked today)`
-        : "";
+      const slotsInfo = result.extraVisit
+        ? ` — extra session for today (visit #${result.extraVisitNo}); the counter runs per visit.`
+        : result.autoMarked
+          ? ` — ${result.autoMarkedSlotLabels?.join(", ") ?? result.autoMarkedSlot ?? "attendance marked"} (${result.autoMarkedInstructors?.length ? `Instructor: ${result.autoMarkedInstructors.join(", ")}. ` : ""}${result.autoMarkedCount} ${result.autoMarkedCount === 1 ? "class" : "classes"} marked today)`
+          : "";
       await AppNotification.create({
         gymId: req.user.gymId,
         userId: null,
         memberId: member._id,
         type: "checkin_success",
-        title: result.autoMarked && result.autoMarkedCount > 1
-          ? `Student arrived — ${result.autoMarkedCount} classes`
-          : "Student checked in",
+        title: result.extraVisit
+          ? `Student arrived again — extra session (visit #${result.extraVisitNo})`
+          : result.autoMarked && result.autoMarkedCount > 1
+            ? `Student arrived — ${result.autoMarkedCount} classes`
+            : "Student checked in",
         body: `${member.fullName} (${member.memberCode}) checked in via the studio QR.${slotsInfo}`,
         severity: "success",
         isRead: false,
@@ -222,11 +226,13 @@ router.post(
 
     res.json({
       status: "ok",
-      message: result.autoMarked
-        ? (result.autoMarkedCount > 1
-          ? `Checked in — ${result.autoMarkedCount} classes marked!`
-          : "Checked in — your attendance is marked!")
-        : "Checked in — your timer has started!",
+      message: result.extraVisit
+        ? `Checked in — extra session counted (visit #${result.extraVisitNo} today)!`
+        : result.autoMarked
+          ? (result.autoMarkedCount > 1
+            ? `Checked in — ${result.autoMarkedCount} classes marked!`
+            : "Checked in — your attendance is marked!")
+          : "Checked in — your timer has started!",
       attendance: result.attendance,
       member: result.member ?? null,
       warning: result.warning ?? null,

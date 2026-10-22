@@ -80,14 +80,14 @@ export const memberFormSchema = z
     ])
         .optional()
         .transform((v) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null)),
-    // Empty ("" = no preference) → null; otherwise "HH:mm-HH:mm" from gym slots.
+    // Multi-slot picker: array of "HH:mm-HH:mm" from gym slots. The FIRST
+    // entry is the preferred/primary slot (""); empty array = no preference.
     preferredSlot: z
-        .union([
+        .array(
         z.string().regex(/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/, "Pick a valid time slot"),
-        z.literal(""),
-    ])
+    )
         .optional()
-        .transform((v) => (v && v.trim() ? v.trim() : null)),
+        .transform((v) => (Array.isArray(v) ? v : [])),
     // Class stream the student belongs to — required when creating a new
     // student; optional on edit so existing records can be saved without
     // forcing a tag pick (see superRefine below).

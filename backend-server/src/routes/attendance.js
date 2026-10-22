@@ -437,11 +437,13 @@ router.post(
     if (result.status !== "ok") throw badRequest(result.message, result.reason);
     res.json({
       action: "check_in",
-      message: result.autoMarked
-        ? (result.autoMarkedCount > 1
-          ? `Checked in — ${result.autoMarkedCount} classes marked!`
-          : "Checked in — your attendance is marked!")
-        : "Checked in — your timer has started!",
+      message: result.extraVisit
+        ? `Checked in — extra session counted (visit #${result.extraVisitNo} today)!`
+        : result.autoMarked
+          ? (result.autoMarkedCount > 1
+            ? `Checked in — ${result.autoMarkedCount} classes marked!`
+            : "Checked in — your attendance is marked!")
+          : "Checked in — your timer has started!",
       attendance: result.attendance,
       warning: result.warning ?? null,
       ...(result.autoMarked
@@ -718,18 +720,32 @@ router.get(
     const sessionDate = parseDateOnly(String(req.query.date || ymdInTz(new Date(), ctx.tz)));
     const dayKey = ymdInTz(sessionDate, ctx.tz);
 
+    // DISTINCT students, not record rows: a multi-slot student produces one
+    // register row per assigned batch (N slots → N marks). "Present Today"
+    // must answer "kitne students aaye" — 5 students → 5, never 5×N = 10.
     const rows = await AttendanceRecord.find({
       gymId: ctx.gym._id,
       sessionDate: parseDateOnly(dayKey),
       attendanceStatus: { $in: ["present", "late", "absent"] },
     })
-      .select("attendanceStatus")
+      .select("memberId attendanceStatus")
       .lean();
 
-    const presentToday = rows.filter((r) => r.attendanceStatus === "present").length;
-    const lateToday = rows.filter((r) => r.attendanceStatus === "late").length;
-    const absentToday = rows.filter((r) => r.attendanceStatus === "absent").length;
-    const attended = presentToday + lateToday;
+    const present = new Set();
+    const late = new Set();
+    const absent = new Set();
+    for (const row of rows) {
+      const key = String(row.memberId);
+      if (row.attendanceStatus === "present") present.add(key);
+      else if (row.attendanceStatus === "late") late.add(key);
+      else if (row.attendanceStatus === "absent") absent.add(key);
+    }
+    // Attended = union of present+late students (a student marked late once
+    // and present elsewhere still counts for one present student).
+    const attendedMembers = new Set([...present, ...late]);
+    const attended = attendedMembers.size;
+    const lateToday = late.size;
+    const absentToday = absent.size;
     const totalMarked = attended + absentToday;
     const attendanceRate = totalMarked === 0 ? 0 : Math.round((attended / totalMarked) * 100);
 
@@ -738,6 +754,7 @@ router.get(
     res.json({
       date: dayKey,
       totalStudents,
+      // Distinct students present (present+late united) — not record count.
       presentToday: attended,
       lateToday,
       absentToday,

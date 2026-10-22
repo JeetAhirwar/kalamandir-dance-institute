@@ -75,6 +75,18 @@ const createMemberSchema = z.object({
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/, "Pick a valid time slot")
     .nullish(),
+  /**
+   * Multi-slot selection at signup: every slot the student is assigned on
+   * creation gets its own batch enrollment ("3 slots = 3 classes per day").
+   * Same "HH:mm-HH:mm" strings as preferredSlot; preferredSlot stays the
+   * primary row (first chip picked in the dialog).
+   */
+  slotRanges: z
+    .array(
+      z.string().regex(/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/, "Pick a valid time slot"),
+    )
+    .max(20, "Select at most 20 time slots")
+    .nullish(),
   /** Selected tag ids (student labels — dance styles, batches, events…). */
   tagIds: z.array(z.string().trim()).max(20, "Pick at most 20 tags").nullish(),
   /** Assigned trainer (StaffProfile._id) — null/"" clears the assignment. */
@@ -330,7 +342,7 @@ router.post(
               status: "active",
               notes: input.notes ?? null,
               plannedHoursPerDay: input.plannedHoursPerDay ?? null,
-              preferredSlot: input.preferredSlot ?? null,
+              preferredSlot: input.preferredSlot ?? (input.slotRanges?.[0] ?? null),
               classTag: input.classTag,
               tagIds: await resolveTagIds(gymId, input.tagIds ?? []),
               trainerId: await resolveTrainerId(gymId, input.trainerId ?? null),
@@ -340,13 +352,22 @@ router.post(
           { session },
         );
 
-        // Enroll the student in the batch matching their preferred slot, so they
-        // show up as enrolled in Mark Attendance without a separate step. The
-        // batch is auto-created from daily time slots if it doesn't exist yet.
-        const slotMatch = String(input.preferredSlot ?? "").match(
-          /^(([01]\d|2[0-3]):[0-5]\d)-(([01]\d|2[0-3]):[0-5]\d)$/,
-        );
-        if (slotMatch) {
+        // Enroll the student in the batch matching their chosen slots, so they
+        // show up as enrolled in Mark Attendance without a separate step.
+        // MULTI-SLOT: the add-student dialog can now pick several time slots —
+        // every one gets its own batch enrollment ("3 slots = 3 classes a day").
+        // The batch is auto-created from daily time slots if it doesn't exist
+        // yet. preferredSlot (first chip) stays the primary/front-desk row.
+        const ranges = [
+          ...new Set(
+            [...(input.slotRanges ?? []), ...(input.preferredSlot ? [input.preferredSlot] : [])].filter(Boolean),
+          ),
+        ];
+        for (const range of ranges) {
+          const slotMatch = String(range ?? "").match(
+            /^(([01]\d|2[0-3]):[0-5]\d)-(([01]\d|2[0-3]):[0-5]\d)$/,
+          );
+          if (!slotMatch) continue;
           const start = slotMatch[1];
           const end = slotMatch[3];
           let slot = await ClassSlot.findOne({

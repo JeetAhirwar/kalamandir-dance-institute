@@ -11,17 +11,21 @@
 
 import AttendanceRecord from "../models/AttendanceRecord.js";
 import ClassSlot from "../models/ClassSlot.js";
+import MemberMembership from "../models/MemberMembership.js";
 import SlotEnrollment from "../models/SlotEnrollment.js";
 import StaffProfile from "../models/StaffProfile.js";
 import { badRequest } from "../lib/errors.js";
-import { minutesInTz, ymdInTz } from "../lib/dates.js";
+import { minutesInTz, parseDateOnly, ymdInTz } from "../lib/dates.js";
 import { toMinutes } from "../lib/schedule.js";
 import { parseQrPayload } from "../lib/qr.js";
 import { toAttendance } from "../lib/serialize.js";
 import { writeAudit } from "../lib/audit.js";
+import { withTransaction } from "../db.js";
+import { currentMembership } from "../lib/membership.js";
 import { runCheckIn } from "./checkin.js";
 import { notifyIfOverPlanned, notifyExpiredScan } from "./overtime.js";
 import { markSlotAttendance } from "./classAttendance.js";
+import { quotaForMembership, syncQuotaNotifications } from "./quota.js";
 
 /** `13:05` → `1:05 PM` — matches the Manage Institute slot labels. */
 function fmt12h(hhmm) {
@@ -59,6 +63,106 @@ export function assertGymQrToken(gym, raw) {
 }
 
 /**
+ * Extra same-day visits count as their own session.
+ *
+ * The studio bills sessions, NOT days: a student who walks in twice (morning
+ * batch + another session in the evening) consumes the quota TWICE, no matter
+ * that the calendar day is the same. The first visit of the day marks every
+ * batch the student is enrolled in (quota −N). Any LATER same-day visit finds
+ * all of today's batch marks already present, so it lands here: one extra
+ * register mark ("present" with no slot) and one quota deduction.
+ *
+ * @returns {{ attendance: object, visitNo: number, label: string, quota: object | null } | null}
+ */
+async function markExtraVisitAttendance({ gymId, member, actorId, ctx, now, dayKey }) {
+  const memberId = member._id ?? member.id;
+  const sessionDate = parseDateOnly(dayKey);
+  try {
+    return await withTransaction(async (session) => {
+      // Visit number = same-day gym visit rows (records without a class slot),
+      // INCLUDING the fresh visit this scan just created.
+      const visitNo = await AttendanceRecord.countDocuments({
+        gymId,
+        memberId,
+        checkIn: { $gte: sessionDate, $lt: new Date(sessionDate.getTime() + 86_400_000) },
+        classSlotId: null,
+      }).session(session);
+      // First visit of the day can never be an "extra" — the batch marks own it.
+      if (visitNo < 2) return null;
+
+      const memberships = await MemberMembership.find({
+        memberId,
+        startDate: { $lte: sessionDate },
+      })
+        .session(session)
+        .lean();
+      const membership = currentMembership(memberships) ?? null;
+
+      const dedupeKey = `extra-visit:${String(memberId)}:${dayKey}:${visitNo}`;
+      const existing = await AttendanceRecord.findOne({ gymId, memberId, dedupeKey })
+        .session(session)
+        .lean();
+      if (existing) return null;
+
+      const label = `Extra visit #${visitNo}`;
+      const [attendance] = await AttendanceRecord.create(
+        [
+          {
+            gymId,
+            memberId,
+            membershipId: membership?._id ?? null,
+            checkIn: now,
+            checkOut: now,
+            // "checked_out" — a register mark, NOT an open gym visit, so the
+            // front desk "currently inside" logic is never confused.
+            status: "checked_out",
+            method: "qr",
+            scannerId: actorId || null,
+            notes: "Extra visit inside the same day — counted per visit (session-wise billing).",
+            meta: { extraVisit: true, visitNo, slotName: label },
+            sessionDate,
+            quotaCounted: membership ? true : false,
+            demo: false,
+            dedupeKey,
+            attendanceStatus: "present",
+          },
+        ],
+        { session },
+      );
+
+      await writeAudit(
+        {
+          gymId,
+          actorId,
+          entity: "attendance_records",
+          entityId: String(attendance._id),
+          action: "create_class_attendance",
+          newValues: {
+            memberCode: member.memberCode,
+            slot: label,
+            date: dayKey,
+            method: "qr",
+            extraVisit: true,
+          },
+        },
+        session,
+      );
+
+      let quota = null;
+      if (membership) {
+        quota = await quotaForMembership(membership, session);
+        await syncQuotaNotifications({ gymId, member, membership, quota, session });
+      }
+
+      return { attendance: toAttendance(attendance, member, null), visitNo, label, quota };
+    });
+  } catch {
+    // Counting the extra visit is a bonus — never fail the check-in itself.
+    return null;
+  }
+}
+
+/**
  * Best-effort automatic register marks for a studio QR check-in.
  *
  * A member QR scan already creates a gym visit; this ALSO marks them
@@ -68,6 +172,10 @@ export function assertGymQrToken(gym, raw) {
  * engine as the roster save, so quota deduction, duplicate guards and audit
  * trails behave identically. Rejections (duplicates, no membership) are
  * swallowed — the visit is still recorded; the register just stays as-is.
+ *
+ * When EVERY one of today's batches is already marked (i.e. the student's
+ * second+ visit in the same day), the visit itself becomes the session:
+ * one extra register mark + one quota deduction (visit-wise billing).
  *
  * @returns {{ attendance: object, count: number, slotNames: string[] } | null}
  */
@@ -127,6 +235,24 @@ export async function autoMarkSlotAttendance({ gymId, member, actorId, ctx, now 
       ? await StaffProfile.find({ _id: { $in: instructorIds } }).select("fullName").lean()
       : [];
     const instructorNames = instructors.map((t) => t.fullName).filter(Boolean);
+
+    if (marked.length === 0) {
+      // Nothing new got marked — today's batches were already consumed by an
+      // earlier visit. This walk-in is an EXTRA session: count it per visit
+      // ("student came twice → 2 attendance marks, counter −2 overall").
+      const extra = await markExtraVisitAttendance({ gymId, member, actorId, ctx, now, dayKey });
+      return extra
+        ? {
+            attendance: extra.attendance,
+            count: 0,
+            extraVisit: true,
+            visitNo: extra.visitNo,
+            slotLabels: [extra.label],
+            instructorNames: [],
+            quota: extra.quota,
+          }
+        : null;
+    }
 
     return marked.length > 0
       ? { attendance: marked[0].attendance, count: marked.length, slotLabels, instructorNames }
@@ -227,6 +353,12 @@ export async function runMemberSelfCheckIn({ member, actorId, ctx, notes = null 
       // Full detail for the staff notification (slot + instructor names).
       result.autoMarkedSlotLabels = auto.slotLabels ?? [];
       result.autoMarkedInstructors = auto.instructorNames ?? [];
+      // Second+ same-day walk-in → the visit itself is the session.
+      if (auto.extraVisit) {
+        result.extraVisit = true;
+        result.extraVisitNo = auto.visitNo;
+        result.extraVisitQuota = auto.quota ?? null;
+      }
     }
   } catch {
     // Quota/eligibility issues must never break the check-in the student just made.

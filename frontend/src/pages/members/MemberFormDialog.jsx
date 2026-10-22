@@ -50,8 +50,8 @@ function emptyValues() {
         notes: "",
         // NaN renders an empty number input and validates as "not set".
         plannedHoursPerDay: Number.NaN,
-        // "" = no preferred slot (zod → null before hitting the API).
-        preferredSlot: "",
+        // [] = no slots picked (multi-select; first entry = preferred slot).
+        preferredSlot: [],
         // "" = no trainer assigned (zod → null before hitting the API).
         trainerId: "",
     };
@@ -96,7 +96,11 @@ function toIdentityInput(values) {
         plannedHoursPerDay: typeof values.plannedHoursPerDay === "number" && values.plannedHoursPerDay > 0
             ? values.plannedHoursPerDay
             : null,
-        preferredSlot: trimOrNull(values.preferredSlot),
+        // Multi-slot picker — [0] = preferred/primary. Create sends the full
+        // array as `slotRanges` (one batch enrollment per slot); edit only
+        // touches the primary slot string.
+        preferredSlots: Array.isArray(values.preferredSlot) ? values.preferredSlot : [],
+        preferredSlot: (Array.isArray(values.preferredSlot) ? values.preferredSlot[0] : values.preferredSlot) ?? null,
         // On edit, omit classTag when empty so the existing value isn't clobbered.
         classTag: values.mode === "edit" ? (values.classTag || undefined) : values.classTag,
         emergencyContactPhone: values.emergencyContactPhone ? values.emergencyContactPhone : null,
@@ -111,8 +115,12 @@ function toUpdateInput(values) {
 }
 function toCreateInput(values, method, recordPayment) {
     const amount = values.initialPayment;
+    const identity = toIdentityInput(values);
     return {
-        ...toIdentityInput(values),
+        ...identity,
+        // Multi-slot signup — every picked range becomes a batch enrollment
+        // on the backend; preferredSlot ([0]) stays the primary row.
+        slotRanges: identity.preferredSlots,
         planId: values.planId,
         membershipStart: values.membershipStart,
         loginPassword: trimOrNull(values.loginPassword) ?? undefined,
@@ -186,7 +194,9 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
             photoUrl: member.photoUrl ?? "",
             notes: member.notes ?? "",
             plannedHoursPerDay: member.plannedHoursPerDay ?? Number.NaN,
-            preferredSlot: member.preferredSlot ?? "",
+            // Multi-slot picker: array of "HH:mm-HH:mm"; [0] = preferred/primary
+            // (edit pre-fills the stored preferred slot as the only entry).
+            preferredSlot: member.preferredSlot ? [member.preferredSlot] : [],
             trainerId: member.trainerId ?? "",
             classTag: member.classTag ?? "",
             age: typeof member.age === "number" && member.age > 0 ? member.age : Number.NaN,
@@ -307,7 +317,7 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
             {/* Preferred slot — the batch the student chose at joining (gym slots from Manage Institute). */}
             <div className="space-y-2 sm:col-span-2">
               <div className="flex items-center justify-between">
-                <Label>Preferred time slot</Label>
+                <Label>Time slots (student's batches)</Label>
                 <Button type="button" size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={() => navigate("/manage-gym")}>
                   <PlusIcon className="size-3.5"/> Add More Slots
                 </Button>
@@ -321,8 +331,13 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                       <div className="flex flex-wrap gap-2">
                         {groupSlots.map((slot) => {
                           const key = `${slot.start}-${slot.end}`;
-                          const active = field.value === key;
-                          return (<button key={key} type="button" onClick={() => field.onChange(active ? "" : key)} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${active
+                          const active = Array.isArray(field.value) && field.value.includes(key);
+                          return (<button key={key} type="button" onClick={() => {
+                            // Multi-select toggle — pick order matters: the
+                            // FIRST chosen slot is the preferred/primary one.
+                            const list = Array.isArray(field.value) ? field.value : [];
+                            field.onChange(active ? list.filter((k) => k !== key) : [...list, key]);
+                          }} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${active
                               ? "border-primary bg-primary/10 text-primary"
                               : "border-border/60 bg-background text-muted-foreground hover:bg-accent"}`}>
                               {timeSlotLabel(slot)}
@@ -336,8 +351,13 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                       <div className="flex flex-wrap gap-2">
                         {slots.filter((slot) => !slotGroupOf(slot.start)).map((slot) => {
                           const key = `${slot.start}-${slot.end}`;
-                          const active = field.value === key;
-                          return (<button key={key} type="button" onClick={() => field.onChange(active ? "" : key)} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${active
+                          const active = Array.isArray(field.value) && field.value.includes(key);
+                          return (<button key={key} type="button" onClick={() => {
+                            // Multi-select toggle — pick order matters: the
+                            // FIRST chosen slot is the preferred/primary one.
+                            const list = Array.isArray(field.value) ? field.value : [];
+                            field.onChange(active ? list.filter((k) => k !== key) : [...list, key]);
+                          }} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${active
                               ? "border-primary bg-primary/10 text-primary"
                               : "border-border/60 bg-background text-muted-foreground hover:bg-accent"}`}>
                               {timeSlotLabel(slot)}
@@ -345,6 +365,19 @@ export function MemberFormDialog({ open, onOpenChange, member, plans, onSave, })
                         })}
                       </div>
                     </div>) : null}
+                  {(() => {
+                    const picked = Array.isArray(field.value) ? field.value : [];
+                    if (picked.length === 0) return null;
+                    const format = (key) => {
+                      const slot = slots.find((s) => `${s.start}-${s.end}` === key);
+                      return slot ? timeSlotLabel(slot) : key;
+                    };
+                    return (<p className="text-[11px] text-muted-foreground">
+                      {picked.length} slot{picked.length === 1 ? "" : "s"} selected — each gets its own batch
+                      enrollment. <span className="font-medium text-foreground">{format(picked[0])}</span> is the
+                      preferred (primary) slot.
+                    </p>);
+                  })()}
                 </div>)} />) : (<p className="text-[11px] text-muted-foreground">No time slots configured yet — add them from Manage Institute.</p>)}
               {errors.preferredSlot ? (<p className="text-xs text-destructive">{errors.preferredSlot.message}</p>) : null}
             </div>
