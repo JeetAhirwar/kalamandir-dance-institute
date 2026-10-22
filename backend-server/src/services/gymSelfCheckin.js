@@ -11,6 +11,8 @@
 
 import AttendanceRecord from "../models/AttendanceRecord.js";
 import ClassSlot from "../models/ClassSlot.js";
+import SlotEnrollment from "../models/SlotEnrollment.js";
+import StaffProfile from "../models/StaffProfile.js";
 import { badRequest } from "../lib/errors.js";
 import { minutesInTz, ymdInTz } from "../lib/dates.js";
 import { toMinutes } from "../lib/schedule.js";
@@ -57,15 +59,17 @@ export function assertGymQrToken(gym, raw) {
 }
 
 /**
- * Best-effort automatic register mark for a studio QR check-in.
+ * Best-effort automatic register marks for a studio QR check-in.
  *
- * A member QR scan already creates a gym visit; this ALSO marks them "present"
- * in the class register when the scan lands inside one of the studio's running
- * slots (the student's preferred slot wins when they have one and it matches).
- * Uses the same marking engine as the roster save, so quota deduction,
- * duplicate guards and audit trails behave identically. Rejections
- * (duplicates, no slot running, not a slot day, no membership) are swallowed —
- * the visit is still recorded; the register just stays as-is.
+ * A member QR scan already creates a gym visit; this ALSO marks them
+ * "present" in the register for EVERY slot they are enrolled in that runs
+ * today (same weekday). N assigned classes → N records → the quota counter
+ * updates N times ("3 slots = 3 attendance marks, counter −3"). Same marking
+ * engine as the roster save, so quota deduction, duplicate guards and audit
+ * trails behave identically. Rejections (duplicates, no membership) are
+ * swallowed — the visit is still recorded; the register just stays as-is.
+ *
+ * @returns {{ attendance: object, count: number, slotNames: string[] } | null}
  */
 export async function autoMarkSlotAttendance({ gymId, member, actorId, ctx, now = new Date() }) {
   try {
@@ -74,42 +78,59 @@ export async function autoMarkSlotAttendance({ gymId, member, actorId, ctx, now 
     const dayKey = ymdInTz(now, tz);
     const [y, m, d] = dayKey.split("-").map(Number);
     const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-    const nowMin = minutesInTz(now, tz);
+    const memberId = member._id ?? member.id ?? member;
 
-    const slots = await ClassSlot.find({ gymId, isActive: true }).lean();
-    const running = (slots ?? []).filter((slot) => {
-      if (!Array.isArray(slot.weekdays) || !slot.weekdays.some((x) => Number(x) === weekday)) {
-        return false;
-      }
-      const start = toMinutes(slot.startTime);
-      const end = toMinutes(slot.endTime);
-      if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
-      // Slots may wrap midnight — mirror the check-in-hours guard.
-      return start <= end
-        ? nowMin >= start && nowMin <= end
-        : nowMin >= start || nowMin <= end;
-    });
-    if (running.length === 0) return null;
-
-    // The student's preferred slot wins when it matches one of the running slots.
-    const preferred = member.preferredSlot
-      ? running.find((slot) => `${slot.startTime}-${slot.endTime}` === member.preferredSlot)
-      : null;
-    const slot = preferred ?? running[0];
-
-    const result = await markSlotAttendance({
+    // The student's batches only — no enrollment, no class marks.
+    const enrollments = await SlotEnrollment.find({ gymId, memberId, status: "enrolled" }).lean();
+    if (enrollments.length === 0) return null;
+    const slots = await ClassSlot.find({
+      _id: { $in: enrollments.map((e) => e.slotId) },
       gymId,
-      actorId,
-      actorRole: "member",
-      slotId: slot._id,
-      date: dayKey,
-      lookup: { memberId: String(member._id ?? member.id ?? member) },
-      method: "qr",
-      attendanceStatus: "present",
-      notes: "Auto-marked from the studio QR check-in",
-      ctx,
-    });
-    return result.status === "ok" ? result : null;
+      isActive: true,
+      weekdays: weekday,
+    })
+      .sort({ startTime: 1 })
+      .lean();
+    if (slots.length === 0) return null;
+
+    // The student's preferred slot is marked first so it becomes the
+    // "primary" row the front desk sees.
+    if (member.preferredSlot) {
+      const index = slots.findIndex((slot) => `${slot.startTime}-${slot.endTime}` === member.preferredSlot);
+      if (index > 0) slots.unshift(...slots.splice(index, 1));
+    }
+
+    const marked = [];
+    const slotLabels = [];
+    for (const slot of slots) {
+      const result = await markSlotAttendance({
+        gymId,
+        actorId,
+        actorRole: "member",
+        slotId: slot._id,
+        date: dayKey,
+        lookup: { memberId: String(memberId) },
+        method: "qr",
+        attendanceStatus: "present",
+        notes: "Auto-marked from the studio QR check-in",
+        ctx,
+      });
+      if (result.status !== "ok") continue; // duplicate / no membership → keep the visit, skip the mark
+      marked.push(result);
+      slotLabels.push(`${slot.name ?? `${fmt12h(slot.startTime)} – ${fmt12h(slot.endTime)}`}`);
+    }
+
+    // Instructors of the marked slots — staff notifications name the teacher
+    // handling the class the student just walked into.
+    const instructorIds = [...new Set(slots.map((s) => s.instructorId).filter(Boolean).map(String))];
+    const instructors = instructorIds.length
+      ? await StaffProfile.find({ _id: { $in: instructorIds } }).select("fullName").lean()
+      : [];
+    const instructorNames = instructors.map((t) => t.fullName).filter(Boolean);
+
+    return marked.length > 0
+      ? { attendance: marked[0].attendance, count: marked.length, slotLabels, instructorNames }
+      : null;
   } catch {
     // Register marking is a bonus — never fail the check-in.
     return null;
@@ -200,7 +221,12 @@ export async function runMemberSelfCheckIn({ member, actorId, ctx, notes = null 
     const auto = await autoMarkSlotAttendance({ gymId: member.gymId, member, actorId, ctx, now });
     if (auto) {
       result.autoMarked = true;
-      result.autoMarkedSlot = auto.attendance?.meta?.slotName ?? null;
+      // N assigned classes today → N register marks, quota −N.
+      result.autoMarkedCount = auto.count;
+      result.autoMarkedSlot = auto.attendance?.meta?.slotName ?? auto.slotLabels?.[0] ?? null;
+      // Full detail for the staff notification (slot + instructor names).
+      result.autoMarkedSlotLabels = auto.slotLabels ?? [];
+      result.autoMarkedInstructors = auto.instructorNames ?? [];
     }
   } catch {
     // Quota/eligibility issues must never break the check-in the student just made.

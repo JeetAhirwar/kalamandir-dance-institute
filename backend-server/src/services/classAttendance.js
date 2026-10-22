@@ -469,6 +469,10 @@ export async function markRosterAttendance({
   const results = [];
   let marked = 0;
 
+  // Weekday (0=Sun…6=Sat) of the session date — drives the multi-slot
+  // propagation below ("student has 3 batches → Present marks all 3").
+  const weekday = new Date(`${dayKey}T00:00:00Z`).getUTCDay();
+
   for (const mark of marks) {
     const status = mark.status === "absent" ? "absent" : mark.status === "late" ? "late" : "present";
     const outcome = await withTransaction(async (session) => {
@@ -485,54 +489,82 @@ export async function markRosterAttendance({
 
       // present/late attended → counts against quota; absent → recorded only.
       const quotaCounted = status !== "absent";
-      const dedupeKey = `slot:${slot._id}:${dayKey}`;
 
-      // Upsert so a status can be corrected after the first mark.
-      const existing = await AttendanceRecord.findOne({ gymId, memberId: member._id, dedupeKey }).session(session).lean();
-      const update = {
-        attendanceStatus: status,
-        quotaCounted,
-        method: "class",
-        scannerId: actorId || null,
-        notes: mark.notes ?? null,
+      /** Upsert this member's mark for one slot session (dedupe-safe).
+       *  Used for the picked slot AND every other enrolled slot of the day. */
+      const upsertForSlot = async (slotDoc) => {
+        const dedupeKey = `slot:${slotDoc._id}:${dayKey}`;
+        // Upsert so a status can be corrected after the first mark.
+        const existing = await AttendanceRecord.findOne({ gymId, memberId: member._id, dedupeKey }).session(session).lean();
+        const update = {
+          attendanceStatus: status,
+          quotaCounted,
+          method: "class",
+          scannerId: actorId || null,
+          notes: mark.notes ?? null,
+        };
+        let attendance;
+        if (existing) {
+          attendance = await AttendanceRecord.findOneAndUpdate(
+            { _id: existing._id },
+            { $set: update },
+            { new: true, session },
+          ).lean();
+        } else {
+          [attendance] = await AttendanceRecord.create(
+            [
+              {
+                gymId,
+                memberId: member._id,
+                membershipId: membership?._id ?? null,
+                checkIn: now,
+                status: "checked_in",
+                method: "class",
+                scannerId: actorId || null,
+                notes: mark.notes ?? null,
+                meta: { slotName: slotDoc.name, slotId: String(slotDoc._id) },
+                classSlotId: slotDoc._id,
+                sessionDate: parseDateOnly(dayKey),
+                quotaCounted,
+                demo: false,
+                dedupeKey,
+                attendanceStatus: status,
+              },
+            ],
+            { session },
+          );
+        }
+        // Only bill quota against a real membership; demo/absent rows carry none.
+        let quota = null;
+        if (membership) {
+          quota = await quotaForMembership(membership, session);
+          await syncQuotaNotifications({ gymId, member, membership, quota, session });
+        }
+        return { attendance, quota };
       };
-      let attendance;
-      if (existing) {
-        attendance = await AttendanceRecord.findOneAndUpdate(
-          { _id: existing._id },
-          { $set: update },
-          { new: true, session },
-        ).lean();
-      } else {
-        [attendance] = await AttendanceRecord.create(
-          [
-            {
-              gymId,
-              memberId: member._id,
-              membershipId: membership?._id ?? null,
-              checkIn: now,
-              status: "checked_in",
-              method: "class",
-              scannerId: actorId || null,
-              notes: mark.notes ?? null,
-              meta: { slotName: slot.name, slotId: String(slot._id) },
-              classSlotId: slot._id,
-              sessionDate: parseDateOnly(dayKey),
-              quotaCounted,
-              demo: false,
-              dedupeKey,
-              attendanceStatus: status,
-            },
-          ],
-          { session },
-        );
-      }
 
-      // Only bill quota against a real membership; demo/absent rows carry none.
-      let quota = null;
-      if (membership) {
-        quota = await quotaForMembership(membership, session);
-        await syncQuotaNotifications({ gymId, member, membership, quota, session });
+      const primary = await upsertForSlot(slot);
+
+      // Multi-slot counting — the student belongs to N batches: replicate
+      // the day's status across every OTHER active slot they are enrolled
+      // in that runs on this weekday. One visit = one record per class
+      // taken, and the quota counter updates once per class.
+      let extraMarked = 0;
+      const enrollments = await SlotEnrollment.find({ gymId, memberId: member._id, status: "enrolled" }).session(session).lean();
+      if (enrollments.length > 0) {
+        const otherSlots = await ClassSlot.find({
+          _id: { $in: enrollments.map((e) => e.slotId), $ne: slot._id },
+          gymId,
+          isActive: true,
+          weekdays: weekday,
+        })
+          .sort({ startTime: 1 })
+          .session(session)
+          .lean();
+        for (const other of otherSlots) {
+          await upsertForSlot(other);
+          extraMarked += 1;
+        }
       }
 
       return {
@@ -541,7 +573,8 @@ export async function markRosterAttendance({
         fullName: member.fullName,
         status: "ok",
         attendanceStatus: status,
-        quota,
+        extraSlotMarked: extraMarked,
+        quota: primary.quota,
       };
     });
     results.push(outcome);

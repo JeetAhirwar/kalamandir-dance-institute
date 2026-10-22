@@ -438,11 +438,15 @@ router.post(
     res.json({
       action: "check_in",
       message: result.autoMarked
-        ? "Checked in — your attendance is marked!"
+        ? (result.autoMarkedCount > 1
+          ? `Checked in — ${result.autoMarkedCount} classes marked!`
+          : "Checked in — your attendance is marked!")
         : "Checked in — your timer has started!",
       attendance: result.attendance,
       warning: result.warning ?? null,
-      ...(result.autoMarked ? { autoMarked: true, autoMarkedSlot: result.autoMarkedSlot } : {}),
+      ...(result.autoMarked
+        ? { autoMarked: true, autoMarkedCount: result.autoMarkedCount, autoMarkedSlot: result.autoMarkedSlot }
+        : {}),
     });
   }),
 );
