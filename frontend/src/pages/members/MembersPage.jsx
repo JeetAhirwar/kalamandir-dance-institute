@@ -243,14 +243,14 @@ export function MembersPage() {
                   <TableHeader>
                     <TableRow className="h-11">
                       <TableHead className="hidden w-[7%] px-3 align-middle sm:table-cell">Sr. no.</TableHead>
-                      <TableHead className="w-[44%] px-2 align-middle md:w-[22%] md:px-3">Student</TableHead>
+                      <TableHead className="w-[44%] px-2 align-middle text-xs md:w-[22%] md:px-3 md:text-sm">Name</TableHead>
                       <TableHead className="hidden w-[30%] px-2 align-middle sm:table-cell sm:w-[10%] sm:px-3">Status</TableHead>
-                      <TableHead className="w-[16%] px-2 align-middle md:px-3 md:w-[10%]">Classes</TableHead>
-                      <TableHead className="w-[22%] px-2 align-middle md:px-3 md:w-[11%]">
+                      <TableHead className="w-[16%] px-2 align-middle text-xs md:px-3 md:w-[10%] md:text-sm">Classes</TableHead>
+                      <TableHead className="w-[22%] px-2 align-middle text-xs md:px-3 md:w-[11%] md:text-sm">
                         <span className="md:hidden" title="Remaining classes">Left</span>
                         <span className="hidden md:inline">Remaining Classes</span>
                       </TableHead>
-                      <TableHead className="hidden w-[12%] px-3 align-middle sm:table-cell">Plan</TableHead>
+                      <TableHead className="hidden w-[12%] px-3 align-middle text-sm sm:table-cell">Plan</TableHead>
                       <TableHead className="hidden w-[10%] px-3 align-middle lg:table-cell">Trainer</TableHead>
                       <TableHead className="hidden w-[8%] px-3 align-middle lg:table-cell">Payment</TableHead>
                       <TableHead className="w-[12%] px-2 text-right align-middle text-xs sm:w-[10%] sm:px-3 sm:text-sm">Actions</TableHead>
