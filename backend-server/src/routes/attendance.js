@@ -498,8 +498,24 @@ router.get(
   asyncHandler(async (req, res) => {
     const gymId = req.user.gymId;
     const filter = { gymId };
-    if (req.query.from) filter.checkIn = { ...filter.checkIn, $gte: new Date(String(req.query.from)) };
-    if (req.query.to) filter.checkIn = { ...filter.checkIn, $lte: new Date(String(req.query.to)) };
+    // Date-only bounds need explicit handling: new Date("2026-10-22") is UTC
+    // midnight, which silently drops the whole "to" day (22 Oct visits land
+    // after 00:00 UTC). Date-only `to` spans the full day instead.
+    const fromRaw = req.query.from ? String(req.query.from) : null;
+    const toRaw = req.query.to ? String(req.query.to) : null;
+    if (fromRaw || toRaw) {
+      filter.checkIn = {};
+      if (fromRaw) {
+        filter.checkIn.$gte = /^\d{4}-\d{2}-\d{2}$/.test(fromRaw)
+          ? new Date(`${fromRaw}T00:00:00.000Z`)
+          : new Date(fromRaw);
+      }
+      if (toRaw) {
+        filter.checkIn.$lte = /^\d{4}-\d{2}-\d{2}$/.test(toRaw)
+          ? new Date(`${toRaw}T23:59:59.999Z`)
+          : new Date(toRaw);
+      }
+    }
     if (req.query.memberId && Types.ObjectId.isValid(String(req.query.memberId))) {
       filter.memberId = req.query.memberId;
     }
@@ -669,8 +685,13 @@ router.patch(
 
 function parseRange(req, ctx) {
   const now = ctx.now;
-  let from = req.query.from ? new Date(String(req.query.from)) : startOfDayInTz(addDays(now, -6), ctx.tz);
-  let to = req.query.to ? new Date(String(req.query.to)) : new Date(now.getTime() + 1);
+  // Date-only bounds are UTC-midnight parsed by new Date() — a date-only `to`
+  // would otherwise drop its own day. Span such bounds across the full day.
+  const boundDate = (raw, end) => (/^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? new Date(`${raw}${end ? "T23:59:59.999Z" : "T00:00:00.000Z"}`)
+    : new Date(raw));
+  let from = req.query.from ? boundDate(String(req.query.from), false) : startOfDayInTz(addDays(now, -6), ctx.tz);
+  let to = req.query.to ? boundDate(String(req.query.to), true) : new Date(now.getTime() + 1);
   if (Number.isNaN(from.getTime())) from = startOfDayInTz(addDays(now, -6), ctx.tz);
   if (Number.isNaN(to.getTime())) to = new Date(now.getTime() + 1);
   return { from, to };
