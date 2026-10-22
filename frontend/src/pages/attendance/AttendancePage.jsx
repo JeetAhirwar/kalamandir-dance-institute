@@ -597,6 +597,29 @@ export function AttendancePage() {
             </div>);
           })() : null}
 
+          {/* Mobile stat strip — quick-glance numbers for the loaded roster
+              (mockup cards; sm+ hides it, the View tab carries the summary). */}
+          {students.length > 0 ? (() => {
+            const present = students.filter((s) => savedStatuses[s.memberId] === "present").length;
+            const absent = students.filter((s) => savedStatuses[s.memberId] === "absent").length;
+            const marked = present + absent;
+            const rate = marked > 0 ? `${Math.round((present / marked) * 100)}%` : "—";
+            const cells = [
+              { label: "Students", value: students.length, cls: "border-primary/20 bg-primary/5 text-primary" },
+              { label: "Present", value: present, cls: "border-emerald-500/20 bg-emerald-500/5 text-emerald-600" },
+              { label: "Absent", value: absent, cls: "border-red-500/20 bg-red-500/5 text-red-600" },
+              { label: "Rate", value: rate, cls: "border-sky-500/20 bg-sky-500/5 text-sky-600" },
+            ];
+            return (<div className="grid grid-cols-4 gap-2 sm:hidden">
+              {cells.map((c) => (
+                <div key={c.label} className={cn("rounded-lg border px-1.5 py-1.5 text-center", c.cls)}>
+                  <p className="truncate text-[10px] font-medium leading-tight">{c.label}</p>
+                  <p className="text-sm font-bold leading-tight tabular">{c.value}</p>
+                </div>
+              ))}
+            </div>);
+          })() : null}
+
           {/* Students panel */}
           <div className="rounded-xl border border-border/70">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-2.5">
@@ -609,11 +632,16 @@ export function AttendancePage() {
                     : `${filteredStudents.length}/${students.length}`})
                 </span>
               </div>
-              {/* Compact filters: Slot | Slot Timings | Search student | Date */}
-              <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
-                <select
-                  aria-label="Slot"
-                  className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-auto"
+              {/* Compact filters: Slot | Slot Timings | Date | Search student.
+                  Mobile: a labelled 2×2 grid (mockup layout); sm+ keeps the
+                  inline row. The <label> wrappers collapse via sm:contents so
+                  the sm+ flow is byte-identical to before. */}
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-1.5">
+                <label className="flex min-w-0 flex-col gap-0.5 sm:contents">
+                  <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Slot</span>
+                  <select
+                    aria-label="Slot"
+                    className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-auto"
                   disabled={slots.loading || activeSlots.length === 0 || loadAll}
                   value={slotGroup}
                   onChange={(e) => {
@@ -633,6 +661,9 @@ export function AttendancePage() {
                     </option>);
                   })}
                 </select>
+                </label>
+                <label className="flex min-w-0 flex-col gap-0.5 sm:contents">
+                  <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Time</span>
                 <select
                   aria-label="Slot Timings"
                   className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-auto sm:max-w-52"
@@ -663,11 +694,15 @@ export function AttendancePage() {
                         {fmtSlotTime(s.startTime)} – {fmtSlotTime(s.endTime)} ({s.enrolledCount ?? 0})
                       </option>))}
                 </select>
-                <div className="relative w-full sm:w-40">
+                </label>
+                <label className="flex min-w-0 flex-col gap-0.5 sm:contents">
+                  <span className="text-[10px] font-medium text-muted-foreground sm:hidden">Date</span>
+                <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} className="mt-auto h-8 w-full text-xs sm:mt-0 sm:w-36"/>
+                </label>
+                <div className="relative mt-auto w-full sm:mt-0 sm:w-40">
                   <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/>
                   <Input aria-label="Search student" placeholder="Search student" value={studentQuery} onChange={(e) => setStudentQuery(e.target.value)} className="h-8 w-full pl-7 text-xs"/>
                 </div>
-                <Input aria-label="Session date" type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} className="h-8 w-full text-xs sm:w-36"/>
               </div>
             </div>
 
@@ -681,13 +716,13 @@ export function AttendancePage() {
                 No student in this slot.
               </div>) : filteredStudents.length === 0 ? (<div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No students match “{studentQuery.trim()}”.
-              </div>) : (<ul className="divide-y divide-border/60">
+              </div>) : (<ul className="space-y-2 p-2 sm:space-y-0 sm:divide-y sm:divide-border/60 sm:p-0">
                 {filteredStudents.map((s) => {
               const saved = savedStatuses[s.memberId] ?? null;
               const isEditing = editingId === s.memberId;
               const isSaved = Boolean(saved) && !isEditing;
               const enrolled = slotLabelOf(s);
-              return (<li key={s.memberId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              return (<li key={s.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:rounded-none sm:border-0 sm:px-4 sm:py-3 sm:shadow-none">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold uppercase text-muted-foreground">
                         {(s.fullName ?? "S").slice(0, 2)}
@@ -772,8 +807,9 @@ export function AttendancePage() {
               </ul>
             </div>) : null}
 
-          {/* Save bar — Load All + bulk commit at the bottom of the sheet. */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
+          {/* Save bar — Load All + bulk commit at the bottom of the sheet.
+              Mobile: sticky so Save is always reachable (mockup footer). */}
+          <div className="sticky bottom-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/95 px-3 py-2.5 shadow-sm backdrop-blur-sm sm:static sm:rounded-none sm:border-0 sm:border-t sm:bg-transparent sm:px-4 sm:py-3 sm:shadow-none sm:backdrop-blur-none">
               <p className="text-xs text-muted-foreground">
                 {students.length === 0
                   ? "No students loaded — pick a slot or Load All."
