@@ -135,6 +135,7 @@ export function AttendanceHistoryContent() {
                 downloadCsv(`attendance-${from}-to-${to}${status === "all" ? "" : `-${status}`}`, toCsv(collected, [
                     { header: "Student", accessor: (row) => row.memberName ?? "" },
                     { header: "Student ID", accessor: (row) => row.memberCode ?? "" },
+                    { header: "Slot", accessor: (row) => row.meta?.slotName ?? "" },
                     { header: "Check-in", accessor: (row) => formatDateTime(row.checkIn) },
                     {
                         header: "Check-out",
@@ -206,7 +207,7 @@ export function AttendanceHistoryContent() {
       {/* Records */}
       <Card className="graphite-surface gap-0 border-border/70">
         {list.loading ? (<CardContent>
-            <TableSkeleton rows={6} cols={8}/>
+            <TableSkeleton rows={6} cols={9}/>
           </CardContent>) : !rangeValid ? (<CardContent>
             <EmptyState title="Check the date range" description="The start date has to be on or before the end date."/>
           </CardContent>) : list.error ? (<CardContent>
@@ -221,6 +222,7 @@ export function AttendanceHistoryContent() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Student</TableHead>
+                    <TableHead>Slot</TableHead>
                     <TableHead>Check-in</TableHead>
                     <TableHead>Check-out</TableHead>
                     <TableHead>Status</TableHead>
@@ -244,6 +246,13 @@ export function AttendanceHistoryContent() {
                             </p>
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {record.meta?.slotName
+                          ? (<span className="block max-w-32 truncate text-sm" title={record.meta.slotName}>
+                              {record.meta.slotName}
+                            </span>)
+                          : (<span className="text-sm text-muted-foreground">—</span>)}
                       </TableCell>
                       <TableCell className="text-sm">{formatDateTime(record.checkIn)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
