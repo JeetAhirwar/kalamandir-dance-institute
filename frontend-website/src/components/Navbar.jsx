@@ -98,38 +98,23 @@ export default function Navbar() {
                     {/* Brand */}
                     <a
                         href="#home"
-                        className="group flex items-center gap-2.5 focus-visible:outline-none"
-                        aria-label={`${siteConfig.name} — home`}
+                        className={cn(
+                            "group flex shrink-0 items-center rounded-[10px] px-1.5 py-1 transition-colors duration-300 focus-visible:outline-none",
+                            !dark && "bg-plum",
+                        )}
                     >
-                        <span
-                            aria-hidden="true"
+                        <img
+                            src="/assets/images/kalamandir-lotus-logo.png"
+                            alt="Kala Mandir – Art, Dance & Creativity"
+                            width={330}
+                            height={200}
                             className={cn(
-                                "grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border font-display text-[17px] leading-none transition-colors duration-300",
-                                dark
-                                    ? "border-white/15 bg-white/[0.06] text-paper group-hover:border-pink/50"
-                                    : "border-black/10 bg-white text-ink group-hover:border-pink/60",
+                                "w-auto shrink-0 object-contain transition-[height] duration-300 ease-out",
+                                scrolled
+                                    ? "h-[42px] sm:h-[50px]"
+                                    : "h-[48px] sm:h-[58px]",
                             )}
-                        >
-                            K
-                        </span>
-                        <span className="flex flex-col leading-none">
-                            <span
-                                className={cn(
-                                    "font-display text-[17px] tracking-[-0.01em] transition-colors duration-300 sm:text-[19px]",
-                                    dark ? "text-white" : "text-text",
-                                )}
-                            >
-                                Kala Mandir
-                            </span>
-                            <span
-                                className={cn(
-                                    "eyebrow mt-[3px] text-[9px] tracking-[0.18em] transition-colors duration-300",
-                                    dark ? "text-white/45" : "text-muted",
-                                )}
-                            >
-                                Art &amp; Dance
-                            </span>
-                        </span>
+                        />
                     </a>
 
                     {/* Desktop links */}

@@ -122,9 +122,14 @@ export const classes = [
     },
 ];
 
-/** Short list used by the footer and the dance showcase. */
+/**
+ * Programme links for the footer. These point at each class card rather than
+ * at `anchor`, because several disciplines share a `anchor` destination — two
+ * art classes both open `#art-detail` and both dance classes open `#dance`, so
+ * using it here would land a "Zumba" click on the dance showcase.
+ */
 export const classLinks = classes.map((c) => ({
     label: c.title,
-    href: c.anchor,
+    href: `#programme-${c.id}`,
     interest: c.interest,
 }));

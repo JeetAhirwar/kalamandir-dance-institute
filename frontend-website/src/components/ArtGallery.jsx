@@ -98,7 +98,7 @@ export default function ArtGallery() {
                 <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
                     <SectionHeading
                         id="gallery-title"
-                        number="03"
+                        number="04"
                         eyebrow="Student exhibition"
                         title={
                             <>
@@ -202,7 +202,7 @@ export default function ArtGallery() {
                                         <SmartImage
                                             image={item}
                                             sizes="(max-width: 639px) 92vw, (max-width: 1023px) 46vw, 30vw"
-                                            className={cn("w-full", CROPS[item.crop] || "aspect-[4/5]")}
+                                            className={cn("tile-lift w-full", CROPS[item.crop] || "aspect-[4/5]")}
                                             position={item.position || "50% 45%"}
                                             imgClassName="transition-transform duration-[650ms] ease-out group-hover:scale-[1.05] motion-reduce:transform-none"
                                         />
@@ -229,7 +229,16 @@ export default function ArtGallery() {
                                     </button>
 
                                     {/* Always-visible caption for a11y + print feel */}
-                                    <figcaption className="mt-3 flex items-baseline justify-between gap-4 border-t border-rule pt-2.5">
+                                    <figcaption className="relative mt-3 flex items-baseline justify-between gap-4 border-t border-rule pt-2.5">
+                                        {/* Pigment rule — the piece's own category
+                            colour laid over the hairline. */}
+                                        <span
+                                            aria-hidden="true"
+                                            className={cn(
+                                                "absolute -top-px left-0 h-[2px] w-10 origin-left transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-x-[2.6] motion-reduce:group-hover:scale-x-100",
+                                                accent.dot,
+                                            )}
+                                        />
                                         <span className="text-[14px] leading-snug text-text/85">
                                             {item.caption}
                                         </span>
@@ -261,9 +270,12 @@ export default function ArtGallery() {
                         <Magnetic>
                             <a
                                 href="#enquiry"
-                                className="group inline-flex items-center gap-2 rounded-[11px] bg-rose px-6 py-3.5 text-[15px] font-medium text-white transition-colors duration-200 hover:bg-pink"
+                                className="btn-wipe group inline-flex items-center gap-2 rounded-[11px] bg-rose px-6 py-3.5 text-[15px] font-medium text-white"
+                                style={{ "--wipe-fill": "var(--color-pink)" }}
                             >
-                                Enquire about art classes
+                                <span className="btn-wipe__label" data-text="Enquire about art classes">
+                                    <span className="btn-wipe__text">Enquire about art classes</span>
+                                </span>
                                 <ArrowUpRight
                                     aria-hidden="true"
                                     className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"

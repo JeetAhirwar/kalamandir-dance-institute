@@ -4,7 +4,7 @@ import { ArrowUpRight, Music4, Users, HeartHandshake } from "lucide-react";
 import SmartImage from "@/components/SmartImage";
 import SectionHeading from "@/components/SectionHeading";
 import Magnetic from "@/components/Magnetic";
-import { Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
+import { Reveal, RevealGroup, RevealItem, MediaMask } from "@/components/Reveal";
 import { editorialImages } from "@/data/gallery";
 import { contactLinks } from "@/data/siteConfig";
 import { revealKinetic } from "@/lib/motion";
@@ -55,7 +55,7 @@ export default function DanceShowcase() {
             data-tone="dark"
             ref={ref}
             aria-labelledby="dance-title"
-            className="section relative isolate overflow-hidden bg-plum"
+            className="section world-blend relative isolate overflow-hidden bg-plum"
         >
             <div className="relative">
                 <div className="shell">
@@ -65,7 +65,7 @@ export default function DanceShowcase() {
                             <SectionHeading
                                 id="dance-title"
                                 tone="dark"
-                                number="04"
+                                number="05"
                                 eyebrow="Dance experience"
                                 title={
                                     <>
@@ -88,17 +88,21 @@ export default function DanceShowcase() {
 
                     {/* Full-bleed image band with restrained parallax */}
                     <div className="relative mt-14 overflow-hidden rounded-[18px] lg:mt-20 lg:rounded-[22px]">
-                        <motion.div
-                            style={parallax ? { y: bandY } : undefined}
-                            className="scale-110"
-                        >
-                            <SmartImage
-                                image={danceShowcase.wide}
-                                sizes="92vw"
-                                className="aspect-[16/10] w-full sm:aspect-[16/9] lg:aspect-[21/9]"
-                                position="50% 34%"
-                            />
-                        </motion.div>
+                        {/* Two-layer reveal: the frame opens its own inset while the
+                            image settles from over-scaled on a slower curve. */}
+                        <MediaMask>
+                            <motion.div
+                                style={parallax ? { y: bandY } : undefined}
+                                className="scale-110"
+                            >
+                                <SmartImage
+                                    image={danceShowcase.wide}
+                                    sizes="92vw"
+                                    className="aspect-[16/10] w-full sm:aspect-[16/9] lg:aspect-[21/9]"
+                                    position="50% 34%"
+                                />
+                            </motion.div>
+                        </MediaMask>
 
                         <div
                             aria-hidden="true"
@@ -179,9 +183,12 @@ export default function DanceShowcase() {
                         <Magnetic>
                             <a
                                 href="#enquiry"
-                                className="group inline-flex items-center gap-2 rounded-[11px] bg-white px-6 py-3.5 text-[15px] font-medium text-ink transition-colors duration-200 hover:bg-paper"
+                                className="btn-wipe group inline-flex items-center gap-2 rounded-[11px] bg-white px-6 py-3.5 text-[15px] font-medium text-ink"
+                                style={{ "--wipe-fill": "var(--color-gold)" }}
                             >
-                                Enquire about choreography
+                                <span className="btn-wipe__label" data-text="Enquire about choreography">
+                                    <span className="btn-wipe__text">Enquire about choreography</span>
+                                </span>
                                 <ArrowUpRight
                                     aria-hidden="true"
                                     className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"

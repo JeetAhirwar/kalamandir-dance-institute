@@ -1,41 +1,68 @@
-import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
-import { ArrowDown, ArrowUpRight } from "lucide-react";
-import SmartImage from "@/components/SmartImage";
+import { useRef, useState } from "react";
+import {
+    motion,
+    useMotionValue,
+    useReducedMotion,
+    useSpring,
+    useTransform,
+} from "motion/react";
+import { ArrowDown, ArrowUpRight, Pause, Play } from "lucide-react";
 import Magnetic from "@/components/Magnetic";
+import LoopVideo from "@/components/LoopVideo";
 import { LineReveal, Reveal } from "@/components/Reveal";
-import { editorialImages } from "@/data/gallery";
+import { instituteVideo } from "@/data/videos";
 import { siteConfig } from "@/data/siteConfig";
-import { useIsDesktop } from "@/hooks";
+import { useHoverCapable } from "@/hooks";
 
 /**
- * Hero — the opening viewport, bright and welcoming.
+ * Hero — the opening viewport, built on the studio's own film.
  *
- * Warm ivory ground with soft paint-wash colour. Left: oversized serif
- * headline, a short statement and two CTAs with clearly different weight.
- * Right: authentic Kala Mandir photography — students dancing in front of a
- * backdrop they painted, with a student painting overlapped below.
+ * The clip runs edge to edge under a plum scrim so the art pinks and the dance
+ * plums both read through it, and the headline sits on the darker left half of
+ * the frame. Pointer parallax moves the video layer only — the copy, the nav
+ * and the buttons stay put, which is what keeps the effect subtle rather than
+ * seasick-making. Touch devices and reduced-motion visitors get a still frame.
  */
+
+/* The backdrop is drawn larger than the viewport so a few pixels of drift
+   never exposes an edge. */
+const DRIFT_X = 9; // px at the extremes of the pointer travel
+const DRIFT_Y = 7;
+
 export default function Hero() {
     const ref = useRef(null);
     const reduce = useReducedMotion();
-    const isDesktop = useIsDesktop();
-    const parallaxEnabled = isDesktop && !reduce;
+    const hoverCapable = useHoverCapable();
+    const parallax = hoverCapable && !reduce;
 
-    const { scrollYProgress } = useScroll({
-        target: ref,
-        offset: ["start start", "end start"],
-    });
+    const [playing, setPlaying] = useState(true);
 
-    const primaryY = useTransform(scrollYProgress, [0, 1], ["0%", "14%"]);
-    const secondaryY = useTransform(scrollYProgress, [0, 1], ["0%", "-9%"]);
-    const copyY = useTransform(scrollYProgress, [0, 1], ["0%", "26%"]);
-    const fade = useTransform(scrollYProgress, [0, 0.85], [1, 0]);
+    const pointerX = useMotionValue(0);
+    const pointerY = useMotionValue(0);
+    const springX = useSpring(pointerX, { stiffness: 52, damping: 17, mass: 0.7 });
+    const springY = useSpring(pointerY, { stiffness: 52, damping: 17, mass: 0.7 });
+    const videoX = useTransform(springX, (v) => v * DRIFT_X);
+    const videoY = useTransform(springY, (v) => v * DRIFT_Y);
 
-    const { hero } = editorialImages;
+    const { hero } = instituteVideo;
+
+    const handlePointerMove = (event) => {
+        if (!parallax) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        /* Clamped because a pointer event can arrive while the page is still
+           scrolling under the cursor, which puts clientY outside the section. */
+        const clamp = (n) => Math.min(1, Math.max(-1, n));
+        pointerX.set(clamp(((event.clientX - rect.left) / rect.width) * 2 - 1));
+        pointerY.set(clamp(((event.clientY - rect.top) / rect.height) * 2 - 1));
+    };
+
+    const handlePointerLeave = () => {
+        pointerX.set(0);
+        pointerY.set(0);
+    };
 
     /* Palette pulled from the students' artwork — the art pinks and the dance
-       plums/violets — used as a recurring brand motif. */
+       plums — used as a recurring brand motif. */
     const palette = [
         { bg: "bg-pink", delay: 0.55 },
         { bg: "bg-rose", delay: 0.62 },
@@ -48,38 +75,56 @@ export default function Hero() {
     return (
         <section
             id="home"
-            data-tone="light"
+            data-tone="dark"
             ref={ref}
             aria-labelledby="hero-title"
-            className="relative isolate overflow-hidden bg-paper"
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+            className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-charcoal"
         >
-            {/* Soft paint washes — pink & lavender, with a violet nod to dance.
-                Very restrained so type contrast stays high. */}
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0"
-            >
-                <span className="absolute -left-32 -top-32 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(236,72,153,0.16),transparent_65%)]" />
-                <span className="absolute -right-40 top-10 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,rgba(139,92,246,0.13),transparent_65%)]" />
-                <span className="absolute bottom-[-12rem] left-1/3 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.16),transparent_65%)]" />
+            {/* ── Backdrop: the only layer the pointer moves ───────────────── */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+                <motion.div
+                    style={
+                        parallax && playing
+                            ? { x: videoX, y: videoY, scale: 1.05 }
+                            : { scale: 1.04 }
+                    }
+                    className="absolute -inset-[5%]"
+                >
+                    <LoopVideo
+                        src={instituteVideo.src}
+                        start={hero.start}
+                        end={hero.end}
+                        stillAt={hero.stillAt}
+                        rate={0.9}
+                        eager
+                        playing={playing}
+                        className="h-full w-full object-cover object-[62%_35%] lg:object-[58%_30%]"
+                    />
+                </motion.div>
+
+                {/* Scrims — plum over the whole frame, heavier where type sits. */}
+                <span className="absolute inset-0 bg-charcoal/58" />
+                <span className="absolute inset-0 hidden bg-[linear-gradient(100deg,rgba(28,15,30,0.88)_0%,rgba(28,15,30,0.44)_54%,rgba(28,15,30,0.7)_100%)] lg:block" />
+                <span className="absolute inset-x-0 bottom-0 h-1/3 bg-[linear-gradient(to_top,rgba(28,15,30,0.92)_0%,transparent_100%)]" />
+                {/* Magenta bloom, echoing the light trails in the clip. */}
+                <span className="absolute inset-0 bg-[radial-gradient(58%_52%_at_74%_34%,rgba(236,72,153,0.3)_0%,transparent_68%)]" />
             </div>
 
-            <div className="relative mx-auto grid min-h-[100svh] w-full max-w-[85rem] grid-cols-1 items-center gap-y-10 px-5 pb-16 pt-28 sm:px-8 sm:pt-32 lg:grid-cols-12 lg:gap-x-10 lg:px-10 lg:pb-20 lg:pt-32 xl:px-14">
-                {/* ── Copy column ─────────────────────────────────────────── */}
-                <motion.div
-                    style={parallaxEnabled ? { y: copyY, opacity: fade } : undefined}
-                    className="relative z-10 order-1 lg:col-span-6 xl:col-span-6"
-                >
+            {/* ── Copy ─────────────────────────────────────────────────────── */}
+            <div className="relative mx-auto flex w-full max-w-[85rem] flex-1 items-center px-5 pb-28 pt-28 sm:px-8 sm:pt-32 lg:px-10 lg:pb-32 lg:pt-36 xl:px-14">
+                <div className="w-full max-w-[40rem]">
                     {/* Studio descriptor */}
                     <motion.p
                         initial={reduce ? false : { opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 0.61, 0.36, 1] }}
-                        className="eyebrow flex flex-wrap items-center gap-x-3 gap-y-2 text-muted"
+                        className="eyebrow flex flex-wrap items-center gap-x-3 gap-y-2 text-cream/65"
                     >
-                        <span className="h-px w-7 bg-rule" aria-hidden="true" />
+                        <span className="h-px w-7 bg-white/30" aria-hidden="true" />
                         <span>{siteConfig.tagline}</span>
-                        <span className="text-muted/50" aria-hidden="true">
+                        <span className="text-cream/35" aria-hidden="true">
                             ·
                         </span>
                         <span>Sector 52, Noida</span>
@@ -88,13 +133,13 @@ export default function Hero() {
                     {/* Headline */}
                     <h1
                         id="hero-title"
-                        className="mt-6 font-display text-[clamp(2.9rem,9.5vw,4.6rem)] leading-[0.94] tracking-[-0.02em] text-text lg:text-[clamp(4.2rem,6.6vw,6.9rem)]"
+                        className="mt-6 font-display text-[clamp(2.9rem,9.5vw,4.6rem)] leading-[0.94] tracking-[-0.02em] text-cream lg:text-[clamp(4.2rem,6.6vw,6.9rem)]"
                     >
                         <LineReveal delay={0.35}>Where Art</LineReveal>
                         <LineReveal delay={0.47}>
                             Comes{" "}
                             <span className="italic text-pink">Alive</span>
-                            <span className="text-text/35">.</span>
+                            <span className="text-cream/35">.</span>
                         </LineReveal>
                     </h1>
 
@@ -117,12 +162,12 @@ export default function Hero() {
                         ))}
                     </motion.div>
 
-                    {/* Statement — kept to roughly two lines on desktop */}
+                    {/* Statement */}
                     <motion.p
                         initial={reduce ? false : { opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.75, delay: 0.7, ease: [0.22, 0.61, 0.36, 1] }}
-                        className="mt-6 max-w-[30rem] text-[1.0625rem] leading-[1.6] text-muted sm:text-[1.125rem]"
+                        className="mt-6 max-w-[30rem] text-[1.0625rem] leading-[1.6] text-cream/80 sm:text-[1.125rem]"
                     >
                         Discover your creativity through art, dance and movement at
                         Kala Mandir.
@@ -138,9 +183,12 @@ export default function Hero() {
                         <Magnetic>
                             <a
                                 href="#classes"
-                                className="group inline-flex items-center justify-center gap-2 rounded-[11px] bg-rose px-7 py-4 text-[15px] font-medium tracking-[0.01em] text-white transition-colors duration-200 hover:bg-pink"
+                                className="btn-wipe group inline-flex items-center justify-center gap-2 rounded-[11px] bg-pink px-7 py-4 text-[15px] font-medium tracking-[0.01em] text-white"
+                                style={{ "--wipe-fill": "var(--color-rose)" }}
                             >
-                                Explore Classes
+                                <span className="btn-wipe__label" data-text="Explore Classes">
+                                    <span className="btn-wipe__text">Explore Classes</span>
+                                </span>
                                 <ArrowUpRight
                                     aria-hidden="true"
                                     className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
@@ -151,105 +199,54 @@ export default function Hero() {
                         <Magnetic strength={0.25}>
                             <a
                                 href="#gallery"
-                                className="group inline-flex items-center justify-center gap-2 rounded-[11px] border border-rose/25 px-7 py-4 text-[15px] tracking-[0.01em] text-rose transition-colors duration-200 hover:border-rose hover:bg-blossom"
+                                className="group inline-flex items-center justify-center gap-2 rounded-[11px] border border-white/30 px-7 py-4 text-[15px] tracking-[0.01em] text-cream transition-colors duration-200 hover:border-white/70 hover:bg-white/10"
                             >
                                 See Student Artwork
                             </a>
                         </Magnetic>
                     </motion.div>
+                </div>
+            </div>
 
-                    {/* Scroll indicator */}
-                    <motion.div
-                        initial={reduce ? false : { opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.8, delay: 1.25 }}
-                        className="mt-12 hidden items-center gap-3 text-muted/70 lg:flex"
-                        aria-hidden="true"
-                    >
-                        <span className="grid h-8 w-8 place-items-center rounded-full border border-rule">
-                            <motion.span
-                                animate={reduce ? undefined : { y: [0, 4, 0] }}
-                                transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
-                            >
-                                <ArrowDown className="h-3.5 w-3.5" />
-                            </motion.span>
-                        </span>
-                        <span className="eyebrow">Scroll</span>
-                    </motion.div>
+            {/* ── Footer row: scroll cue + a real control for the backdrop ─── */}
+            <div className="relative mx-auto flex w-full max-w-[85rem] items-end justify-between gap-6 px-5 pb-8 sm:px-8 lg:px-10 xl:px-14">
+                <motion.div
+                    initial={reduce ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8, delay: 1.25 }}
+                    className="hidden items-center gap-3 text-cream/55 lg:flex"
+                    aria-hidden="true"
+                >
+                    <span className="grid h-8 w-8 place-items-center rounded-full border border-white/25">
+                        <motion.span
+                            animate={reduce ? undefined : { y: [0, 4, 0] }}
+                            transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                        </motion.span>
+                    </span>
+                    <span className="eyebrow">Scroll</span>
                 </motion.div>
 
-                {/* ── Photography column ──────────────────────────────────── */}
-                <div className="relative order-2 lg:col-span-6 xl:col-span-6">
-                    {/* Decorative stroke behind the image */}
-                    <svg
-                        aria-hidden="true"
-                        viewBox="0 0 200 200"
-                        className="pointer-events-none absolute -right-6 -top-10 hidden h-40 w-40 text-violet/55 lg:block"
-                        fill="none"
-                    >
-                        <motion.path
-                            d="M20 150C60 60 130 30 180 46"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            initial={reduce ? undefined : { pathLength: 0 }}
-                            animate={reduce ? undefined : { pathLength: 1 }}
-                            transition={{ duration: 1.6, delay: 1.1, ease: "easeInOut" }}
-                        />
-                        <motion.circle
-                            cx="180"
-                            cy="46"
-                            r="4"
-                            fill="currentColor"
-                            initial={reduce ? undefined : { scale: 0 }}
-                            animate={reduce ? undefined : { scale: 1 }}
-                            transition={{ duration: 0.4, delay: 2.5 }}
-                        />
-                    </svg>
-
-                    {/* Dominant image — student dancers + painted backdrop */}
-                    <motion.div
-                        initial={reduce ? false : { clipPath: "inset(0% 0% 100% 0%)", opacity: 0.5 }}
-                        animate={{ clipPath: "inset(0% 0% 0% 0%)", opacity: 1 }}
-                        transition={{ duration: 1.15, delay: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
-                        style={parallaxEnabled ? { y: primaryY } : undefined}
-                        className="relative ml-auto w-full max-w-[30rem] lg:max-w-none"
-                    >
-                        <SmartImage
-                            image={hero.primary}
-                            priority
-                            sizes="(max-width: 1023px) 92vw, 46vw"
-                            className="aspect-[4/5] w-full rounded-[18px] border border-white/70 shadow-[0_36px_80px_-46px_rgba(32,33,36,0.5)] sm:aspect-[5/6] lg:aspect-[4/5] lg:rounded-[22px]"
-                            position="50% 30%"
-                        />
-                    </motion.div>
-
-                    {/* Smaller overlapping image */}
-                    <motion.div
-                        initial={reduce ? false : { opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.9, delay: 0.95, ease: [0.22, 0.61, 0.36, 1] }}
-                        style={parallaxEnabled ? { y: secondaryY } : undefined}
-                        className="absolute -bottom-8 -left-1 w-[38%] max-w-[11rem] sm:w-[32%] sm:max-w-[13rem] lg:-left-14 lg:-bottom-10 lg:max-w-[15.5rem]"
-                    >
-                        <SmartImage
-                            image={hero.secondary}
-                            priority
-                            sizes="(max-width: 1023px) 40vw, 20vw"
-                            className="aspect-[4/5] w-full rounded-[14px] border-4 border-white shadow-[0_28px_60px_-34px_rgba(32,33,36,0.55)] lg:rounded-[16px]"
-                            position="50% 45%"
-                        />
-                        <span className="eyebrow absolute -top-6 left-1 text-muted">
-                            Student work
-                        </span>
-                    </motion.div>
-                </div>
+                <button
+                    type="button"
+                    onClick={() => setPlaying((v) => !v)}
+                    aria-label={playing ? "Pause the background film" : "Play the background film"}
+                    className="ml-auto inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.07] px-4 py-2 text-cream/75 backdrop-blur-sm transition-colors duration-200 hover:border-white/45 hover:bg-white/[0.14] hover:text-cream"
+                >
+                    {playing ? (
+                        <Pause aria-hidden="true" className="h-3.5 w-3.5" />
+                    ) : (
+                        <Play aria-hidden="true" className="h-3.5 w-3.5" />
+                    )}
+                    <span className="eyebrow">{playing ? "Pause film" : "Play film"}</span>
+                </button>
             </div>
 
             {/* Bottom transition rule into the next section */}
             <div className="relative">
                 <Reveal
-                    className="h-px w-full origin-center bg-rule"
+                    className="h-px w-full origin-center bg-white/15"
                     aria-hidden="true"
                 />
             </div>

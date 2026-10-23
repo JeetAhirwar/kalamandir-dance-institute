@@ -3,8 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import SmartImage from "@/components/SmartImage";
 import Magnetic from "@/components/Magnetic";
-import { MaskReveal } from "@/components/Reveal";
-import { editorialImages } from "@/data/gallery";
+import { MaskReveal, Reveal } from "@/components/Reveal";
+import { editorialImages, studioCard } from "@/data/gallery";
 import { ease } from "@/lib/motion";
 
 /**
@@ -38,7 +38,7 @@ export default function AnimatedPoster() {
             id="poster"
             data-tone="light"
             aria-labelledby="poster-title"
-            className="section relative bg-paper"
+            className="section relative bg-paper pb-8 lg:pb-12"
         >
             <div className="shell">
                 <div className="mx-auto max-w-[46rem]">
@@ -167,6 +167,46 @@ export default function AnimatedPoster() {
                             </div>
                         </div>
                     </MaskReveal>
+
+                    {/* ── The institute's own animated card ─────────────────
+                        Set to the poster's column width so the two read as one
+                        set; the source is 480×270, so it upscales on wide
+                        screens. */}
+                    <Reveal delay={0.1} className="mt-10">
+                        <figure className="relative w-full">
+                            <div className="relative overflow-hidden rounded-[18px] bg-gradient-to-br from-plum via-plum-2 to-charcoal p-2.5 shadow-[0_32px_70px_-46px_rgba(53,21,54,0.75)]">
+                                <img
+                                    src={studioCard.src}
+                                    alt={studioCard.alt}
+                                    width={studioCard.width}
+                                    height={studioCard.height}
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="block aspect-[16/9] w-full rounded-[10px] object-cover"
+                                />
+                                {[
+                                    "left-1.5 top-1.5 border-l border-t",
+                                    "right-1.5 top-1.5 border-r border-t",
+                                    "left-1.5 bottom-1.5 border-l border-b",
+                                    "right-1.5 bottom-1.5 border-r border-b",
+                                ].map((pos) => (
+                                    <span
+                                        key={pos}
+                                        aria-hidden="true"
+                                        className={`pointer-events-none absolute h-4 w-4 border-gold/55 ${pos}`}
+                                    />
+                                ))}
+                            </div>
+                            <figcaption className="mt-3 flex items-baseline justify-between gap-4 border-t border-rule pt-2.5">
+                                <span className="text-[14px] leading-snug text-text/85">
+                                    The studio&rsquo;s animated card.
+                                </span>
+                                <span className="eyebrow shrink-0 text-pink">
+                                    Motion
+                                </span>
+                            </figcaption>
+                        </figure>
+                    </Reveal>
 
                     <p className="mx-auto mt-6 max-w-[34rem] text-center text-[14px] leading-relaxed text-muted">
                         A kinetic poster built from the studio's own photography and

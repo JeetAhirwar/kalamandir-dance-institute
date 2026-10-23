@@ -25,7 +25,7 @@ export default function InstagramGallery() {
                 <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
                     <SectionHeading
                         id="instagram-title"
-                        number="06"
+                        number="07"
                         eyebrow="On Instagram"
                         title={
                             <>
@@ -87,7 +87,7 @@ export default function InstagramGallery() {
                             />
                             <span
                                 aria-hidden="true"
-                                className="pointer-events-none absolute bottom-3 left-3 grid h-8 w-8 translate-y-2 place-items-center rounded-full border border-white/30 bg-black/30 text-white opacity-0 backdrop-blur-sm transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+                                className="pointer-events-none absolute bottom-3 left-3 grid h-8 w-8 translate-y-2 place-items-center rounded-full border border-white/30 bg-black/30 text-white opacity-0 backdrop-blur-sm transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 pointer-coarse:translate-y-0 pointer-coarse:opacity-100"
                             >
                                 <Instagram className="h-4 w-4" />
                             </span>

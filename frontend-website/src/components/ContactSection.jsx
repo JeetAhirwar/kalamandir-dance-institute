@@ -25,14 +25,14 @@ export default function ContactSection() {
             external: true,
             action: "Get directions",
         },
-        {
+        ...siteConfig.phones.map((phone, index) => ({
             icon: Phone,
             label: "Phone",
-            value: siteConfig.phone.display,
-            href: contactLinks.phone,
+            value: phone.display,
+            href: contactLinks.phones[index],
             external: false,
-            action: "Call the studio",
-        },
+            action: "Call",
+        })),
         {
             icon: Instagram,
             label: "Instagram",
@@ -44,7 +44,7 @@ export default function ContactSection() {
         {
             icon: MessageCircle,
             label: "WhatsApp",
-            value: siteConfig.phone.display,
+            value: siteConfig.whatsapp.display,
             href: contactLinks.whatsapp,
             external: true,
             action: "Start a chat",
@@ -64,7 +64,7 @@ export default function ContactSection() {
                     <div className="lg:col-span-5">
                         <SectionHeading
                             id="contact-title"
-                            number="08"
+                            number="09"
                             eyebrow="Location & contact"
                             title={
                                 <>
@@ -100,12 +100,15 @@ export default function ContactSection() {
                                         Get directions
                                         <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
                                     </a>
-                                    <a
-                                        href={contactLinks.phone}
-                                        className="rule-link text-[15px] text-text"
-                                    >
-                                        {siteConfig.phone.display}
-                                    </a>
+                                    {siteConfig.phones.map((phone, index) => (
+                                        <a
+                                            key={phone.e164}
+                                            href={contactLinks.phones[index]}
+                                            className="rule-link text-[15px] text-text"
+                                        >
+                                            {phone.display}
+                                        </a>
+                                    ))}
                                 </div>
                             </div>
                         </Reveal>
@@ -114,7 +117,7 @@ export default function ContactSection() {
                     {/* Channel rows */}
                     <RevealGroup className="lg:col-span-6 lg:col-start-7">
                         {channels.map((channel) => (
-                            <RevealItem key={channel.label}>
+                            <RevealItem key={channel.href}>
                                 <a
                                     href={channel.href}
                                     {...(channel.external

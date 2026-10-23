@@ -213,8 +213,13 @@
     border-color: #d9c4d0;
   }
   .field:focus {
-    outline: none;
     border-color: var(--color-pink);
+  }
+  /* A 1px underline tint is too weak a keyboard cue on its own, so the shared
+     focus ring is kept on top of the editorial underline. */
+  .field:focus-visible {
+    outline: 2px solid var(--color-rose);
+    outline-offset: 3px;
   }
   .field[aria-invalid="true"] {
     border-color: #b4462f;
@@ -245,6 +250,99 @@
   .btn-ink:hover {
     background: var(--color-pink);
   }
+
+  /* Pill-wipe button.
+     A fill rises from beneath the label as an expanding ellipse while the
+     label rolls up and its duplicate rolls in, so the button feels pressed
+     open rather than recoloured. Decorative only — the element remains a
+     normal link/button, and the reduced-motion query below drops the effect.
+     --wipe-fill sets the colour of the incoming fill. */
+  .btn-wipe {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+  .btn-wipe::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--wipe-fill, var(--color-pink));
+    clip-path: ellipse(80% 52% at 50% 152%);
+    transition: clip-path 620ms cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .btn-wipe:hover::before,
+  .btn-wipe:focus-visible::before {
+    clip-path: ellipse(150% 150% at 50% 50%);
+  }
+
+  .btn-wipe__label {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: top;
+  }
+  .btn-wipe__text,
+  .btn-wipe__label::after {
+    display: inline-block;
+    transition: transform 620ms cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .btn-wipe__label::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translateY(115%);
+  }
+  .btn-wipe:hover .btn-wipe__text,
+  .btn-wipe:focus-visible .btn-wipe__text {
+    transform: translateY(-115%);
+  }
+  .btn-wipe:hover .btn-wipe__label::after,
+  .btn-wipe:focus-visible .btn-wipe__label::after {
+    transform: translateY(0);
+  }
+
+  /* Soft blend where one brand world hands over to the other, so the page
+     moves from the art pinks into the dance plum without a hard seam. */
+  .world-blend::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: clamp(6rem, 18vh, 12rem);
+    pointer-events: none;
+    background: linear-gradient(to bottom, var(--blend-from, #fdf2f8), transparent);
+  }
+
+  /* Varnish lift for gallery frames. A hover glaze reads like the protective
+     gloss on a finished painting, so it stays inside the studio metaphor
+     rather than looking like a generic card shadow. */
+  .tile-lift {
+    position: relative;
+  }
+  .tile-lift::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0.05) 42%,
+      transparent 72%
+    );
+    box-shadow: 0 22px 44px -24px rgba(41, 33, 43, 0.55);
+    transition:
+      opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .group:hover .tile-lift::after,
+  .group:focus-visible .tile-lift::after {
+    opacity: 1;
+  }
 }
 
 /* ----------------------- reduced-motion & fallbacks ---------------------- */
@@ -259,6 +357,23 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The pill-wipe is motion, so it is dropped entirely — the button keeps a
+     plain colour change for hover instead of losing its feedback. */
+  .btn-wipe::before {
+    display: none;
+  }
+  .btn-wipe__label::after {
+    content: none;
+  }
+  .btn-wipe:hover .btn-wipe__text,
+  .btn-wipe:focus-visible .btn-wipe__text {
+    transform: none;
+  }
+  .btn-wipe:hover,
+  .btn-wipe:focus-visible {
+    background: var(--wipe-fill, var(--color-pink));
   }
 }
 

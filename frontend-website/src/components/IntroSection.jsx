@@ -1,7 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import SmartImage from "@/components/SmartImage";
 import SectionHeading from "@/components/SectionHeading";
-import { MaskReveal, Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
+import { MaskReveal, MediaMask, Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
 import { revealBlur } from "@/lib/motion";
 import { editorialImages } from "@/data/gallery";
 
@@ -25,14 +25,14 @@ export default function IntroSection() {
                 <div className="grid grid-cols-1 gap-y-14 lg:grid-cols-12 lg:gap-x-12">
                     {/* Image — asymmetric, offset from the top rule */}
                     <div className="lg:col-span-5 lg:pt-2">
-                        <MaskReveal>
+                        <MediaMask>
                             <SmartImage
                                 image={intro.main}
                                 sizes="(max-width: 1023px) 92vw, 38vw"
                                 className="aspect-[4/5] w-full rounded-[16px] lg:aspect-[3/4]"
                                 position="50% 35%"
                             />
-                        </MaskReveal>
+                        </MediaMask>
 
                         <Reveal
                             delay={0.15}

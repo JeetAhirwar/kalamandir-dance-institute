@@ -9,8 +9,6 @@
  * TO DO (needs institute confirmation):
  *  - `domain`      — canonical URL used for Open Graph / structured data.
  *  - `mapQuery`    — currently derived from the verified address string.
- *  - `whatsapp`    — WhatsApp Business uses the same number as `phone`; this
- *                    must be verified (the number has to be on WhatsApp).
  */
 export const siteConfig = {
     name: "Kala Mandir Art and Dance Institute",
@@ -28,17 +26,19 @@ export const siteConfig = {
         verified: true,
     },
 
-    // E.164 format — used by tel: links, structured data and the WhatsApp deep link.
-    phone: {
-        display: "+91 85859 20501",
-        e164: "+918585920501",
-        verified: true,
-    },
+    // E.164 format — used by tel: links and structured data. The first number
+    // is also the primary for single-number call buttons.
+    phones: [
+        { display: "+91 95600 68023", e164: "+919560068023", verified: true },
+        { display: "+91 85859 20501", e164: "+918585920501", verified: true },
+    ],
 
+    // Every WhatsApp link and the enquiry hand-off go to this line only.
     whatsapp: {
         // wa.me expects digits only, no "+".
         number: "918585920501",
-        verified: true, // same number as `phone` — re-confirm WhatsApp availability
+        display: "+91 85859 20501",
+        verified: true,
     },
 
     instagram: {
@@ -88,7 +88,7 @@ export const siteConfig = {
 };
 
 export const contactLinks = {
-    phone: `tel:${siteConfig.phone.e164}`,
+    phones: siteConfig.phones.map((phone) => `tel:${phone.e164}`),
     whatsapp: `https://wa.me/${siteConfig.whatsapp.number}`,
     instagram: siteConfig.instagram.url,
     map: siteConfig.mapUrl,

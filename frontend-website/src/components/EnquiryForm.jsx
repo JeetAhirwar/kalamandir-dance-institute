@@ -206,7 +206,7 @@ export default function EnquiryForm() {
                     <div className="lg:col-span-5">
                         <SectionHeading
                             id="enquiry-title"
-                            number="07"
+                            number="08"
                             eyebrow="Trial class & enquiry"
                             title={
                                 <>
@@ -239,7 +239,7 @@ export default function EnquiryForm() {
                                         Prefer WhatsApp? Message us directly
                                     </span>
                                     <span className="mt-0.5 block text-[14px] text-muted">
-                                        {siteConfig.phone.display}
+                                        {siteConfig.whatsapp.display}
                                     </span>
                                 </span>
                                 <ArrowUpRight
@@ -250,7 +250,7 @@ export default function EnquiryForm() {
 
                             <div className="mt-5 grid grid-cols-2 gap-3">
                                 <a
-                                    href={contactLinks.phone}
+                                    href={contactLinks.phones[0]}
                                     className="rounded-[12px] border border-rule py-3.5 text-center text-[14px] text-text transition-colors duration-200 hover:border-text"
                                 >
                                     Call the studio

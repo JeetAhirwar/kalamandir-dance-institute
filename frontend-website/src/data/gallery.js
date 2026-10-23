@@ -134,8 +134,8 @@ export const galleryItems = [
         "A student painter at an easel beside an oil figure study in warm reds and whites",
         1012,
         1800,
-        "landscape",
-        "62% 42%",
+        "portrait",
+        "50% 42%",
     ),
     {
         id: "km-place-07",
@@ -192,7 +192,7 @@ export const galleryItems = [
         "Hand-built clay mural of flowers in raised relief",
         1350,
         1800,
-        "landscape",
+        "portrait",
         "50% 46%",
     ),
 
@@ -342,30 +342,13 @@ export const instagramPosts = [    {
 
 /**
  * Editorial image slots used by the opening sections.
- * Kept here so a single swap updates hero, intro and showcase together.
- * Hero and intro now use authentic institute media.
+ * Kept here so a single swap updates intro and showcase together.
+ * The hero no longer appears: it now runs on the studio's promotional film
+ * (see data/videos.js), so its two painting slots were dropped rather than
+ * left dangling. Both files stay in the collection — km-artwork-15 feeds the
+ * latest-works strip and km-artwork-02 hangs in the gallery.
  */
 export const editorialImages = {
-    hero: {
-        primary: {
-            src: "/assets/institute/km-artwork-15.webp",
-            fallback: "/assets/institute/km-artwork-15.jpg",
-            alt: "Student painting of a classical dancer in a green blouse and flowing orange skirt, arms raised, against a warm golden ground",
-            width: 900,
-            height: 1600,
-            status: "institute",
-            source: googleListing,
-        },
-        secondary: {
-            src: "/assets/institute/km-artwork-02.webp",
-            fallback: "/assets/institute/km-artwork-02.jpg",
-            alt: "Colourful student figure painting on a circular canvas",
-            width: 1350,
-            height: 1800,
-            status: "institute",
-            source: googleListing,
-        },
-    },
     intro: {
         main: {
             src: "/assets/institute/km-place-14.webp",
@@ -404,7 +387,7 @@ export const editorialImages = {
             "Student painting of the goddess Saraswati seated on a lotus with a white swan",
             1012,
             1800,
-            "landscape",
+            "portrait",
             "50% 42%",
         ),
         institute(
@@ -424,7 +407,7 @@ export const editorialImages = {
             "Student still-life artwork of clay pots and a coconut",
             1350,
             1800,
-            "landscape",
+            "square",
             "50% 48%",
         ),
     ],
@@ -497,6 +480,21 @@ export const studioWalk = [
     editorialImages.danceShowcase.duo, // dance duo after a routine
     editorialImages.danceShowcase.wedding, // dance duo mid-routine
 ];
+
+/**
+ * studioCard — the institute's own animated card, supplied as a GIF.
+ *
+ * Held here rather than inlined in the poster so the path, its real 480×270
+ * pixel size and its description stay together. There is deliberately no WebP
+ * twin: the animation is the whole point of the file.
+ */
+export const studioCard = {
+    id: "km-animated-card",
+    src: "/assets/gitfs/Animate_Kala_Mandir_image_animation_20261023165317.gif",
+    alt: "Animated studio card: a dancer in a dark costume leaping through a burst of magenta and gold paint beside a wooden palette loaded with brushes, with the words “Where Art Meets Life”, the Kala Mandir logo and a row naming art classes, dance classes and workshops",
+    width: 480,
+    height: 270,
+};
 
 /**
  * studioLife — everyday, institute-supplied photography of the space and the

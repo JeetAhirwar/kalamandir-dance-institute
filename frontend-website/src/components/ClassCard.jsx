@@ -41,7 +41,10 @@ export default function ClassCard({ item }) {
               : "aspect-[4/3] sm:aspect-[16/10]";
 
     return (
-        <RevealItem className={cn(item.layout === "full" && "col-span-full")}>
+        <RevealItem
+            id={`programme-${item.id}`}
+            className={cn("scroll-mt-28", item.layout === "full" && "col-span-full")}
+        >
             <a
                 href={anchor}
                 onClick={handleInterest}

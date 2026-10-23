@@ -47,7 +47,7 @@ export default function WhyLearnHere() {
                         <div className="lg:sticky lg:top-32">
                             <SectionHeading
                                 id="why-title"
-                                number="05"
+                                number="06"
                                 eyebrow="Why learn here?"
                                 title={
                                     <ScrollWordReveal

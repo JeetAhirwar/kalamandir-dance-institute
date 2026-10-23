@@ -1,6 +1,14 @@
 import { motion, useReducedMotion as useMotionReduced } from "motion/react";
 import { cn } from "@/lib/utils";
-import { inView, revealUp, stagger, staggerItem, maskReveal } from "@/lib/motion";
+import {
+    inView,
+    revealUp,
+    frameMask,
+    innerSettle,
+    maskReveal,
+    stagger,
+    staggerItem,
+} from "@/lib/motion";
 
 /**
  * Reveal — the one entrance primitive used across the site.
@@ -81,7 +89,11 @@ export function RevealItem({ children, className, as = "div", variants = stagger
     const reduce = useMotionReduced();
     const Tag = as;
     if (reduce) {
-        return <Tag className={className}>{children}</Tag>;
+        return (
+            <Tag className={className} {...rest}>
+                {children}
+            </Tag>
+        );
     }
     const Component = motion[as] ?? motion.div;
     return (
@@ -105,6 +117,32 @@ export function MaskReveal({ children, className, ...rest }) {
             {...rest}
         >
             {children}
+        </motion.div>
+    );
+}
+
+/**
+ * MediaMask — the two-layer image reveal.
+ *
+ * The frame opens its own clip-path inset while the wrapped image settles from
+ * an over-scaled state on a slower curve, so a large photograph reads as being
+ * uncovered rather than faded in. Reduced motion renders the child plainly.
+ */
+export function MediaMask({ children, className, innerClassName, ...rest }) {
+    const reduce = useMotionReduced();
+    if (reduce) return <div className={className}>{children}</div>;
+    return (
+        <motion.div
+            className={cn("overflow-hidden", className)}
+            initial="hidden"
+            whileInView="visible"
+            viewport={inView}
+            variants={frameMask}
+            {...rest}
+        >
+            <motion.div variants={innerSettle} className={cn("origin-center", innerClassName)}>
+                {children}
+            </motion.div>
         </motion.div>
     );
 }

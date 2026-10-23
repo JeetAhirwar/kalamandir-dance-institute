@@ -94,18 +94,20 @@ export default function Footer() {
                         <RevealItem>
                             <p className="eyebrow text-white/35">Contact</p>
                             <ul className="mt-4 space-y-3">
-                                <li>
-                                    <a
-                                        href={contactLinks.phone}
-                                        className="flex items-center gap-2.5 text-[15px] text-white/70 transition-colors duration-200 hover:text-white"
-                                    >
-                                        <Phone
-                                            className="h-4 w-4 shrink-0 text-white/40"
-                                            aria-hidden="true"
-                                        />
-                                        {siteConfig.phone.display}
-                                    </a>
-                                </li>
+                                {siteConfig.phones.map((phone, index) => (
+                                    <li key={phone.e164}>
+                                        <a
+                                            href={contactLinks.phones[index]}
+                                            className="flex items-center gap-2.5 text-[15px] text-white/70 transition-colors duration-200 hover:text-white"
+                                        >
+                                            <Phone
+                                                className="h-4 w-4 shrink-0 text-white/40"
+                                                aria-hidden="true"
+                                            />
+                                            {phone.display}
+                                        </a>
+                                    </li>
+                                ))}
                                 <li>
                                     <a
                                         href={contactLinks.whatsapp}

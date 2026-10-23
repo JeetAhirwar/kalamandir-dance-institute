@@ -112,3 +112,28 @@ export const revealKinetic = {
     },
 };
 
+/**
+ * Two-layer media reveal.
+ *
+ * The frame opens by animating its own clip-path inset while the image inside
+ * settles from an over-scaled state on a slower, separate curve. Because the
+ * two layers run on different clocks, a large image reads as being uncovered
+ * rather than simply fading in — the artwork stays the subject.
+ */
+export const frameMask = {
+    hidden: { clipPath: "inset(2.5rem round 2rem)", opacity: 0.55 },
+    visible: {
+        clipPath: "inset(0rem round 1.25rem)",
+        opacity: 1,
+        transition: { duration: 0.95, ease },
+    },
+};
+
+export const innerSettle = {
+    hidden: { scale: 1.3 },
+    visible: {
+        scale: 1,
+        transition: { duration: 1.9, ease: [0, 0.65, 0.2, 1] },
+    },
+};
+

@@ -1,9 +1,9 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import IntroSection from "@/components/IntroSection";
-import PaperArtwork from "@/components/PaperArtwork";
 import ClassesSection from "@/components/ClassesSection";
 import Marquee from "@/components/Marquee";
+import StudioReel from "@/components/StudioReel";
 import ArtGallery from "@/components/ArtGallery";
 import DanceShowcase from "@/components/DanceShowcase";
 import DanceScrollSequence from "@/components/DanceScrollSequence";
@@ -34,7 +34,7 @@ const DISCIPLINES = [
  *
  * Section order matches the brief (A → J) and every id used by the navbar:
  *   home · art (classes) · dance · gallery · about (intro) · contact
- * plus the extra anchors: classes, art-detail, why, instagram, enquiry.
+ * plus the extra anchors: classes, art-detail, film, why, instagram, enquiry.
  */
 export default function Home() {
     useSmoothAnchors(true);
@@ -46,9 +46,9 @@ export default function Home() {
             <main id="main">
                 <Hero />
                 <IntroSection />
-                <PaperArtwork />
                 <ClassesSection />
                 <Marquee items={DISCIPLINES} tone="art" />
+                <StudioReel />
                 <ArtGallery />
                 <DanceShowcase />
                 <DanceScrollSequence />

@@ -146,7 +146,7 @@ export default function MobileMenu({ open, onClose, active }) {
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <a
-                                        href={contactLinks.phone}
+                                        href={contactLinks.phones[0]}
                                         className="flex items-center justify-center gap-2 rounded-[12px] border border-rule bg-white py-3.5 text-[13.5px] text-text transition-colors duration-200 hover:border-text"
                                     >
                                         <Phone className="h-4 w-4" aria-hidden="true" />
@@ -173,12 +173,17 @@ export default function MobileMenu({ open, onClose, active }) {
                             <address className="mt-2 not-italic text-[14px] leading-relaxed text-muted">
                                 {siteConfig.address.full}
                             </address>
-                            <a
-                                href={`tel:${siteConfig.phone.e164}`}
-                                className="mt-1.5 inline-block font-display text-[19px] text-text"
-                            >
-                                {siteConfig.phone.display}
-                            </a>
+                            <div className="mt-1.5 space-y-1">
+                                {siteConfig.phones.map((phone, index) => (
+                                    <a
+                                        key={phone.e164}
+                                        href={contactLinks.phones[index]}
+                                        className="block font-display text-[19px] text-text"
+                                    >
+                                        {phone.display}
+                                    </a>
+                                ))}
+                            </div>
                         </motion.div>
                     </div>
                 </motion.div>
