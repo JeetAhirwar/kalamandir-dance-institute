@@ -107,6 +107,7 @@ export function LoginPage() {
         resolver: zodResolver(loginSchema),
         defaultValues: {
             identifier: "",
+            phone: "",
             password: "",
         },
     });
@@ -152,8 +153,12 @@ export function LoginPage() {
         try {
             // One endpoint for everyone — the server resolves the role from the
             // database and the router sends staff to the dashboard, members to
-            // their portal. `identifier` is an email address or a printed Student ID.
-            const next = await signIn(values.identifier.trim(), values.password);
+            // their portal. Sign in with an email / Student ID or a mobile number.
+            const next = await signIn({
+                identifier: values.identifier,
+                phone: values.phone,
+                password: values.password,
+            });
             // Scanned the studio QR? The ?checkin= effect above marks attendance
             // and redirects to the portal once the member session lands.
             if (checkinToken && next?.profile.role === "member")
@@ -277,8 +282,20 @@ export function LoginPage() {
           <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="identifier">Student ID / Email</Label>
-              <Input id="identifier" type="text" autoComplete="username" placeholder="you@gmail.com" {...register("identifier")}/>
+              <Input id="identifier" type="text" autoComplete="username" placeholder="you@gmail.com or KD-0007" {...register("identifier")}/>
               {errors.identifier ? <p className="text-xs text-destructive">{errors.identifier.message}</p> : null}
+            </div>
+
+            <div className="flex items-center gap-3 text-[10px] font-medium tracking-[0.24em] text-muted-foreground/70 uppercase">
+              <span className="h-px flex-1 bg-border"/>
+              <span>or</span>
+              <span className="h-px flex-1 bg-border"/>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Mobile number</Label>
+              <Input id="phone" type="tel" inputMode="numeric" autoComplete="tel" placeholder="+91 98765 43210" {...register("phone")}/>
+              {errors.phone ? <p className="text-xs text-destructive">{errors.phone.message}</p> : null}
             </div>
 
             <div className="space-y-2">
@@ -300,8 +317,8 @@ export function LoginPage() {
           </form>
 
           <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground">
-            Staff and students sign in here. Student accounts are created at the
-            front desk with your own Student ID — no self-registration.
+            Staff and students sign in here with email, Student ID or mobile number.
+            Student accounts are created at the front desk — no self-registration.
           </p>
         </motion.div>
       </section>

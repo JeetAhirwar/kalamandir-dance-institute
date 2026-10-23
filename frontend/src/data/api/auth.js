@@ -81,13 +81,24 @@ export class ApiAuthProvider {
         };
     }
     /**
-     * Sign in with an email address OR a printed Student ID (member code).
-     * The server resolves both; we just pick the right request field.
+     * Sign in with an email address, a printed Student ID (member code) or a
+     * mobile number. The server resolves all three; we just map each value to
+     * its request field.
      */
-    async signIn(identifier, password) {
-        const value = String(identifier ?? "").trim();
-        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-        const body = isEmail ? { email: value, password } : { memberCode: value, password };
+    async signIn(credentials) {
+        const identifier = String(credentials?.identifier ?? "").trim();
+        const phone = String(credentials?.phone ?? "").trim();
+        const password = String(credentials?.password ?? "");
+        const body = { password };
+        if (identifier) {
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+            if (isEmail)
+                body.email = identifier;
+            else
+                body.memberCode = identifier;
+        }
+        if (phone)
+            body.phone = phone;
         try {
             const payload = await apiPost("/auth/login", body);
             setAuthToken(payload.token);
@@ -97,14 +108,14 @@ export class ApiAuthProvider {
         }
         catch (err) {
             if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-                throw new ApiError(err.status, "invalid_credentials", "Incorrect email/Student ID or password.");
+                throw new ApiError(err.status, "invalid_credentials", "Incorrect email/Student ID/mobile or password.");
             }
             throw err;
         }
     }
     /** Alias matching the UI's vocabulary (`signIn` is the contract method). */
-    login(identifier, password) {
-        return this.signIn(identifier, password);
+    login(credentials) {
+        return this.signIn(credentials);
     }
     async getSession() {
         if (!getAuthToken())

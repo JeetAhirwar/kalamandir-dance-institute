@@ -231,14 +231,33 @@ export const settingsFormSchema = z.object({
     enableWhatsapp: z.boolean(),
     enablePush: z.boolean(),
 });
-export const loginSchema = z.object({
+export const loginSchema = z
+    .object({
     /** Email address OR printed Student ID (e.g. KD-0007). */
-    identifier: z
-        .string()
-        .trim()
-        .min(3, "Enter your email or Student ID")
-        .max(254),
+    identifier: z.string().trim().max(254).optional().or(z.literal("")),
+    /** Mobile number — an alternative to the identifier (no OTP needed). */
+    phone: z.string().trim().optional().or(z.literal("")),
     password: z.string().min(6, "Password must be at least 6 characters"),
+})
+    .superRefine((data, ctx) => {
+    if (!data.identifier && !data.phone) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["identifier"],
+            message: "Enter your email, Student ID or mobile number",
+        });
+    }
+    if (data.phone) {
+        const digits = data.phone.replace(/\D/g, "");
+        const isValid = digits.length === 10 || (digits.length === 12 && digits.startsWith("91"));
+        if (!isValid) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["phone"],
+                message: "Enter a valid 10-digit mobile number",
+            });
+        }
+    }
 });
 /** Coerce an RHF numeric field value (comes back as string) to number. */
 export function numericValue(value, fallback = 0) {

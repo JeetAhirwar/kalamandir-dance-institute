@@ -43,8 +43,8 @@ export function AuthProvider({ children }) {
         if (session?.gym?.themeMode || session?.gym?.themeAccent)
             applyTheme({ mode: session.gym.themeMode, accent: session.gym.themeAccent });
     }, [session?.gym?.themeMode, session?.gym?.themeAccent]);
-    const signIn = useCallback(async (identifier, password) => {
-        const next = await getAuthProvider().signIn(identifier, password);
+    const signIn = useCallback(async (credentials) => {
+        const next = await getAuthProvider().signIn(credentials);
         setSession(next);
         setError(null);
         toast.success(`Welcome back, ${next.profile.fullName.split(" ")[0]}`);
