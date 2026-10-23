@@ -826,9 +826,7 @@ export function AttendancePage() {
               const enrolled = slotLabelOf(s);
               return (<li key={s.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:rounded-none sm:border-0 sm:px-4 sm:py-3 sm:shadow-none">
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold uppercase text-muted-foreground">
-                        {(s.fullName ?? "S").slice(0, 2)}
-                      </span>
+                      <SmartImage src={s.photoUrl} name={s.fullName ?? "Student"} className="size-8 shrink-0"/>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{s.fullName}</p>
                         <p className="text-xs text-muted-foreground">
@@ -909,9 +907,7 @@ export function AttendancePage() {
               <ul className="mt-2 space-y-2">
                 {walkIns.map((m) => (<li key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2">
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold uppercase text-muted-foreground">
-                        {(m.fullName ?? "S").slice(0, 2)}
-                      </span>
+                      <SmartImage src={m.photoUrl} name={m.fullName ?? "Student"} className="size-8 shrink-0"/>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{m.fullName}</p>
                         <p className="truncate text-xs text-muted-foreground">{m.memberCode ?? "—"}{m.planName ? ` · ${m.planName}` : ""}</p>
