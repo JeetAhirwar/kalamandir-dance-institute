@@ -139,7 +139,7 @@ export default function PaperArtwork() {
             data-tone="light"
             aria-labelledby="paper-title"
             ref={ref}
-            className="relative overflow-hidden bg-blossom py-24 sm:py-28 lg:py-36"
+            className="section relative overflow-hidden bg-blossom"
         >
             {/* Soft paper wash behind everything */}
             <div

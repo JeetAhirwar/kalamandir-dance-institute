@@ -27,7 +27,7 @@ export default function StudioJournal() {
             id="latest"
             data-tone="light"
             aria-labelledby="latest-title"
-            className="relative bg-blush py-24 sm:py-28 lg:py-32"
+            className="section relative bg-blush"
         >
             <div className="shell">
                 <SectionHeading

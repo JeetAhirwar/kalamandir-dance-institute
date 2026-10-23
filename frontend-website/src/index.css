@@ -133,6 +133,12 @@
     padding-inline: clamp(1.5rem, 4.5vw, 4.5rem);
   }
 
+  /* One vertical rhythm for every content section — fluid so the cadence
+     stays consistent from phone to desktop instead of stepping at breakpoints. */
+  .section {
+    padding-block: clamp(6rem, 9vw, 9rem);
+  }
+
   /* Small uppercase eyebrow with restrained tracking */
   .eyebrow {
     font-size: 0.6875rem;

@@ -19,7 +19,7 @@ export default function IntroSection() {
             id="about"
             data-tone="light"
             aria-labelledby="intro-title"
-            className="relative bg-paper py-24 sm:py-28 lg:py-36"
+            className="section relative bg-paper"
         >
             <div className="shell">
                 <div className="grid grid-cols-1 gap-y-14 lg:grid-cols-12 lg:gap-x-12">

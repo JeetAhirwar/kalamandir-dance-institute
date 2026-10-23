@@ -38,7 +38,7 @@ export default function AnimatedPoster() {
             id="poster"
             data-tone="light"
             aria-labelledby="poster-title"
-            className="relative bg-paper py-24 sm:py-28 lg:py-36"
+            className="section relative bg-paper"
         >
             <div className="shell">
                 <div className="mx-auto max-w-[46rem]">

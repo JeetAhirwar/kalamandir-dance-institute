@@ -38,7 +38,7 @@ export default function WhyLearnHere() {
             id="why"
             data-tone="light"
             aria-labelledby="why-title"
-            className="relative bg-white py-24 sm:py-28 lg:py-36"
+            className="section relative bg-white"
         >
             <div className="shell">
                 <div className="grid grid-cols-1 gap-y-12 lg:grid-cols-12 lg:gap-x-12">

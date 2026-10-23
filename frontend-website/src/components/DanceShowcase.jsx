@@ -7,6 +7,7 @@ import Magnetic from "@/components/Magnetic";
 import { Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
 import { editorialImages } from "@/data/gallery";
 import { contactLinks } from "@/data/siteConfig";
+import { revealKinetic } from "@/lib/motion";
 import { useIsDesktop } from "@/hooks";
 
 const HIGHLIGHTS = [
@@ -54,7 +55,7 @@ export default function DanceShowcase() {
             data-tone="dark"
             ref={ref}
             aria-labelledby="dance-title"
-            className="relative isolate overflow-hidden bg-plum py-24 sm:py-28 lg:py-36"
+            className="section relative isolate overflow-hidden bg-plum"
         >
             <div className="relative">
                 <div className="shell">
@@ -76,7 +77,7 @@ export default function DanceShowcase() {
                             />
                         </div>
 
-                        <Reveal delay={0.12} className="lg:col-span-4 lg:col-start-9 lg:self-end">
+                        <Reveal delay={0.12} variants={revealKinetic} className="lg:col-span-4 lg:col-start-9 lg:self-end">
                             <p className="border-l border-white/25 pl-5 text-[0.975rem] leading-[1.7] text-white/75">
                                 Dance is taught as a craft: posture, timing, control
                                 and then freedom — practised in front of mirrors and
@@ -106,6 +107,7 @@ export default function DanceShowcase() {
 
                         {/* Overlaid pull-quote — readable, low-contrast-safe */}
                         <Reveal
+                            variants={revealKinetic}
                             className="absolute inset-x-0 bottom-0 flex flex-col justify-end gap-2 p-5 sm:p-8 lg:p-12"
                         >
                             <p className="eyebrow text-gold">On the floor</p>
@@ -117,14 +119,14 @@ export default function DanceShowcase() {
 
                     {/* Supporting trio of images — varied proportions */}
                     <div className="mt-6 grid grid-cols-12 gap-4 sm:gap-5">
-                        <Reveal className="col-span-7 sm:col-span-4">
+                        <Reveal variants={revealKinetic} className="col-span-7 sm:col-span-4">
                             <SmartImage
                                 image={danceShowcase.group}
                                 sizes="(max-width: 639px) 60vw, 30vw"
                                 className="aspect-[4/3] w-full rounded-[14px]"
                             />
                         </Reveal>
-                        <Reveal delay={0.08} className="col-span-5 sm:col-span-4">
+                        <Reveal delay={0.08} variants={revealKinetic} className="col-span-5 sm:col-span-4">
                             <SmartImage
                                 image={danceShowcase.zumba}
                                 sizes="(max-width: 639px) 40vw, 30vw"
@@ -132,7 +134,7 @@ export default function DanceShowcase() {
                                 position="50% 30%"
                             />
                         </Reveal>
-                        <Reveal delay={0.16} className="col-span-12 sm:col-span-4">
+                        <Reveal delay={0.16} variants={revealKinetic} className="col-span-12 sm:col-span-4">
                             <SmartImage
                                 image={danceShowcase.wedding}
                                 sizes="(max-width: 639px) 92vw, 30vw"
@@ -146,6 +148,7 @@ export default function DanceShowcase() {
                         {HIGHLIGHTS.map(({ icon: Icon, title, body }, i) => (
                             <RevealItem
                                 key={title}
+                                variants={revealKinetic}
                                 className="border-t border-white/20 py-7 lg:py-8"
                             >
                                 <div className="flex items-start gap-4">
@@ -172,7 +175,7 @@ export default function DanceShowcase() {
                     </RevealGroup>
 
                     {/* CTA */}
-                    <Reveal delay={0.1} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-white/20 pt-8">
+                    <Reveal delay={0.1} variants={revealKinetic} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-white/20 pt-8">
                         <Magnetic>
                             <a
                                 href="#enquiry"

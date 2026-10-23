@@ -11,7 +11,6 @@ import { Reveal, RevealGroup } from "@/components/Reveal";
 import { galleryCategories, galleryItems } from "@/data/gallery";
 import { cn } from "@/lib/utils";
 import { ease } from "@/lib/motion";
-import { useScrollSkew } from "@/lib/useScrollSkew";
 
 /**
  * ArtGallery — THE section the page is built around.
@@ -65,7 +64,6 @@ export default function ArtGallery() {
     const [active, setActive] = useState("all");
     const [openIndex, setOpenIndex] = useState(null);
     const reduce = useReducedMotion();
-    const skew = useScrollSkew();
 
     const filtered = useMemo(
         () =>
@@ -80,7 +78,7 @@ export default function ArtGallery() {
             id="gallery"
             data-tone="light"
             aria-labelledby="gallery-title"
-            className="relative bg-blossom py-24 sm:py-28 lg:py-36"
+            className="section relative bg-blossom"
         >
             {/* Decorative corner paint-swatch — quiet, aria-hidden */}
             <div
@@ -172,11 +170,8 @@ export default function ArtGallery() {
                     </p>
                 </Reveal>
 
-                {/* Masonry exhibition wall — flexes subtly with scroll speed */}
-                <motion.div
-                    style={{ skewY: reduce ? 0 : skew }}
-                    className="mt-10 columns-1 gap-5 sm:columns-2 lg:mt-14 lg:columns-3 lg:gap-6"
-                >
+                {/* Masonry exhibition wall — calm, art-first, no distortion */}
+                <div className="mt-10 columns-1 gap-5 sm:columns-2 lg:mt-14 lg:columns-3 lg:gap-6">
                     <AnimatePresence mode="popLayout" initial={false}>
                         {filtered.map((item) => {
                             const accent = ACCENTS[item.category] || ACCENTS.all;
@@ -255,7 +250,7 @@ export default function ArtGallery() {
                             );
                         })}
                     </AnimatePresence>
-                </motion.div>
+                </div>
 
                 {/* Enquiry CTA under the exhibition */}
                 <RevealGroup className="mt-14 flex flex-col items-start gap-6 border-t border-rule pt-8 sm:flex-row sm:items-center sm:justify-between">

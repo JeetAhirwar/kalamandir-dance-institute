@@ -4,6 +4,7 @@ import SmartImage from "@/components/SmartImage";
 import SectionHeading from "@/components/SectionHeading";
 import { Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
 import { studioLife } from "@/data/gallery";
+import { useHoverCapable } from "@/hooks";
 
 /**
  * StudioWall — an "Around the studio" photo wall hung directly below the
@@ -17,19 +18,22 @@ import { studioLife } from "@/data/gallery";
 const TILT = [-2.4, 1.7, -1.3, 2.1, -1.7, 1.4, -2.0];
 const EASE = "cubic-bezier(0.22,0.61,0.36,1)";
 
-function Tile({ photo, tilt, offsetClass, spanClass, reduce }) {
+function Tile({ photo, tilt, offsetClass, spanClass, reduce, canHover }) {
     const [hover, setHover] = useState(false);
-    const transform = reduce
-        ? undefined
-        : `rotate(${hover ? 0 : tilt}deg) scale(${hover ? 1.035 : 1})`;
+    // The pinned-angle + straighten-on-hover only makes sense where a cursor
+    // can hover. On touch (and reduced motion) tiles hang straight.
+    const useTilt = canHover && !reduce;
+    const transform = useTilt
+        ? `rotate(${hover ? 0 : tilt}deg) scale(${hover ? 1.035 : 1})`
+        : undefined;
 
     return (
         <RevealItem className={`${spanClass} ${offsetClass}`}>
             <figure
-                onMouseEnter={() => !reduce && setHover(true)}
+                onMouseEnter={() => useTilt && setHover(true)}
                 onMouseLeave={() => setHover(false)}
-                style={{ transform, transition: `transform 0.5s ${EASE}` }}
-                className="relative rounded-[10px] bg-white p-2.5 shadow-[0_28px_60px_-34px_rgba(0,0,0,0.75)] will-change-transform focus-within:z-20 sm:p-3"
+                style={{ transform, transition: useTilt ? `transform 0.5s ${EASE}` : undefined }}
+                className={`relative rounded-[10px] bg-white p-2.5 shadow-[0_28px_60px_-34px_rgba(0,0,0,0.75)] focus-within:z-20 sm:p-3${useTilt ? " will-change-transform" : ""}`}
             >
                 <SmartImage
                     image={photo}
@@ -52,13 +56,15 @@ function Tile({ photo, tilt, offsetClass, spanClass, reduce }) {
 
 export default function StudioWall() {
     const reduce = useReducedMotion();
+    const canHover = useHoverCapable();
+    const tiltActive = canHover && !reduce;
 
     return (
         <section
             id="studio"
             data-tone="dark"
             aria-labelledby="studio-title"
-            className="relative overflow-hidden bg-gradient-to-b from-charcoal via-plum to-plum-2 py-24 sm:py-28 lg:py-36"
+            className="section relative overflow-hidden bg-gradient-to-b from-charcoal via-plum to-plum-2"
         >
             {/* warm spotlight over the wall */}
             <div
@@ -86,8 +92,10 @@ export default function StudioWall() {
                     />
                     <Reveal delay={0.1} className="lg:pb-2">
                         <p className="max-w-[16rem] text-[14px] leading-relaxed text-cream/55">
-                            Photographs from the studio's own archive. Hover a
-                            piece to bring it straight.
+                            Photographs from the studio's own archive.
+                            {tiltActive && (
+                                <> Hover a piece to bring it straight.</>
+                            )}
                         </p>
                     </Reveal>
                 </div>
@@ -99,6 +107,7 @@ export default function StudioWall() {
                             photo={photo}
                             tilt={TILT[i % TILT.length]}
                             reduce={reduce}
+                            canHover={canHover}
                             spanClass={i === 0 ? "col-span-2 lg:col-span-2" : "col-span-1"}
                             offsetClass={
                                 i % 2 === 1 ? "lg:mt-10" : "lg:mt-0"

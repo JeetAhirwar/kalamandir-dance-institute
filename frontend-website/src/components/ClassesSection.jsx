@@ -21,7 +21,7 @@ export default function ClassesSection() {
             id="art"
             data-tone="light"
             aria-labelledby="classes-title"
-            className="relative bg-white py-24 sm:py-28 lg:py-36"
+            className="section relative bg-white"
         >
             {/* Secondary anchor targeted by the hero "Explore Classes" CTA */}
             <div

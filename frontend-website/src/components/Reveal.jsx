@@ -77,7 +77,7 @@ export function RevealGroup({
     );
 }
 
-export function RevealItem({ children, className, as = "div", ...rest }) {
+export function RevealItem({ children, className, as = "div", variants = staggerItem, ...rest }) {
     const reduce = useMotionReduced();
     const Tag = as;
     if (reduce) {
@@ -85,7 +85,7 @@ export function RevealItem({ children, className, as = "div", ...rest }) {
     }
     const Component = motion[as] ?? motion.div;
     return (
-        <Component className={className} variants={staggerItem} {...rest}>
+        <Component className={className} variants={variants} {...rest}>
             {children}
         </Component>
     );

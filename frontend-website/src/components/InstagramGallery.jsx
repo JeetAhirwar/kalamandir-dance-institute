@@ -19,7 +19,7 @@ export default function InstagramGallery() {
             id="instagram"
             data-tone="light"
             aria-labelledby="instagram-title"
-            className="relative bg-paper py-24 sm:py-28 lg:py-32"
+            className="section relative bg-paper"
         >
             <div className="shell">
                 <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
