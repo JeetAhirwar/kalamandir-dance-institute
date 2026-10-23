@@ -138,17 +138,28 @@ export function useSmoothAnchors(enabled = true) {
             if (!target) return;
             event.preventDefault();
             const reduce = window.matchMedia(QUERY).matches;
-            target.scrollIntoView({
-                behavior: reduce ? "auto" : "smooth",
-                block: "start",
-            });
-            // Move focus for keyboard/AT users without stealing the URL.
-            const focusable = target.querySelector("h1, h2, h3, [tabindex]");
-            if (focusable) {
-                focusable.setAttribute("tabindex", "-1");
-                focusable.focus({ preventScroll: true });
-            }
-            if (history.replaceState) history.replaceState(null, "", hash);
+
+            // An active body scroll-lock (mobile menu, lightbox) swallows the
+            // scroll if it runs during this click — wait for it to release.
+            let tries = 0;
+            const scroll = () => {
+                if (document.body.style.overflow === "hidden" && tries++ < 60) {
+                    requestAnimationFrame(scroll);
+                    return;
+                }
+                target.scrollIntoView({
+                    behavior: reduce ? "auto" : "smooth",
+                    block: "start",
+                });
+                // Move focus for keyboard/AT users without stealing the URL.
+                const focusable = target.querySelector("h1, h2, h3, [tabindex]");
+                if (focusable) {
+                    focusable.setAttribute("tabindex", "-1");
+                    focusable.focus({ preventScroll: true });
+                }
+                if (history.replaceState) history.replaceState(null, "", hash);
+            };
+            scroll();
         };
         document.addEventListener("click", onClick);
         return () => document.removeEventListener("click", onClick);
