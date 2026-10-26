@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { ArrowUpRight, ArrowDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { heroFallback } from "@/data/media";
 import { TextReveal } from "@/lib/motion";
 import SmartImage from "@/components/SmartImage";
 import { Paisley } from "@/components/Motifs";
 import { Petals } from "@/components/Flair";
+import { instagramEmbedUrl, instagramPostUrl, instagramReels } from "@/data/videos";
+
+/** The reel shown in the hero — the institute's own latest/shareable reel. */
+const HERO_REEL = instagramReels[0];
 
 /**
  * HeroCinematic — full-screen opening.
@@ -20,29 +24,17 @@ import { Petals } from "@/components/Flair";
  * Either way the headline, a one-line statement and the two CTAs sit above
  * the fold at 1280×800.
  */
-export default function HeroCinematic() {
-  const ref = useRef<HTMLElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasVideo, setHasVideo] = useState(false);
+export default function HeroCinematic({ hasVideo }: { hasVideo?: boolean }) {
   const reduce = useReducedMotion();
+  const ref = useRef<HTMLElement>(null);
 
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const contentY = useTransform(scrollYProgress, [0, 0.8], ["0%", "18%"]);
   const contentFade = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
   const bgScale = useTransform(scrollYProgress, [0, 1], ["1.08", "1.18"]);
 
-  /* Probe for a client-supplied hero video. No file → no 404 noise. */
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/videos/hero.mp4", { method: "HEAD" })
-      .then((res) => {
-        if (!cancelled && res.ok) setHasVideo(true);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  /* Probe for a client-supplied hero video lives at build/dev time via the
+     home page (existsSync) — passed down as `hasVideo`. No 404 noise either way. */
 
   return (
     <section
@@ -55,7 +47,6 @@ export default function HeroCinematic() {
       <motion.div style={{ scale: bgScale }} className="absolute inset-0 -z-10">
         {hasVideo ? (
           <video
-            ref={videoRef}
             className="h-full w-full object-cover"
             src="/videos/hero.mp4"
             autoPlay
@@ -119,6 +110,49 @@ export default function HeroCinematic() {
         </motion.div>
       </motion.div>
       <Petals count={14} className="-z-10" />
+
+      {/* Live reel — the institute's own video, embedded via the official
+          Instagram route, framed like a backstage phone. Desktop only. */}
+      <motion.aside
+        initial={reduce ? undefined : { opacity: 0, y: 30, rotate: 6 }}
+        animate={{ opacity: 1, y: 0, rotate: 2 }}
+        transition={{ duration: 0.9, delay: 1.05, ease: [0.22, 0.61, 0.36, 1] }}
+        className="absolute bottom-24 right-8 z-10 hidden w-[16.5rem] lg:block"
+        aria-label="Featured class reel from Instagram"
+      >
+        <motion.div
+          animate={reduce ? undefined : { y: [0, -10, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          className="overflow-hidden rounded-[18px] border border-white/25 bg-[#0c0510] shadow-[0_40px_90px_-40px_rgba(0,0,0,0.75)]"
+        >
+          <span className="flex items-center gap-2 px-3.5 py-2 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-white/75">
+            <span aria-hidden="true" className="relative hidden h-1.5 w-1.5 lg:block">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-gold" />
+            </span>
+            From today&apos;s class
+          </span>
+          <div className="relative mx-auto w-full border-y border-white/10" style={{ aspectRatio: "9/12" }}>
+            <div aria-hidden="true" className="km-skeleton absolute inset-0" />
+            <iframe
+              src={instagramEmbedUrl(HERO_REEL)}
+              title="Featured Kala Mandir class reel — watch on Instagram"
+              className="absolute inset-0 h-full w-full border-0"
+              loading="lazy"
+              scrolling="no"
+              allowFullScreen
+            />
+          </div>
+          <a
+            href={instagramPostUrl(HERO_REEL)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block py-2 text-center text-[0.72rem] text-white/60 transition-colors hover:text-gold"
+          >
+            Watch with sound on Instagram
+          </a>
+        </motion.div>
+      </motion.aside>
 
       {/* ── Content ───────────────────────────────────────────────────── */}
       <motion.div

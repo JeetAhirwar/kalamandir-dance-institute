@@ -1,11 +1,11 @@
-"use client";
-
+import { existsSync } from "fs";
+import { resolve } from "path";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import HeroCinematic from "@/components/HeroCinematic";
 import SectionHeading from "@/components/SectionHeading";
 import SmartImage from "@/components/SmartImage";
-import { Reveal, RevealGroup, RevealItem, TextReveal, Parallax } from "@/lib/motion";
+import { Reveal, RevealGroup, RevealItem, Parallax } from "@/lib/motion";
 import { programmes } from "@/data/programmes";
 import { places, studio, artworks } from "@/data/media";
 import { instagramReels } from "@/data/videos";
@@ -15,6 +15,13 @@ import { Ribbon } from "@/components/Flair";
 import { cn } from "@/lib/utils";
 
 /**
+ * Server component: detect a client-supplied hero video at build/dev time.
+ * Dropping a file at `public/videos/hero.mp4` flips the hero to video mode;
+ * no file → the cinematic image fallback. No runtime probing, no 404 noise.
+ */
+const hasHeroVideo = existsSync(resolve(process.cwd(), "public", "videos", "hero.mp4"));
+
+/**
  * Home — the cinematic front door.
  * Hero (video-ready) → the two pillars (Dance / Art, kept distinct) →
  * programme marquee → studio-life ledger → class-reel strip → closing CTA.
@@ -22,7 +29,7 @@ import { cn } from "@/lib/utils";
 export default function HomePage() {
   return (
     <>
-      <HeroCinematic />
+      <HeroCinematic hasVideo={hasHeroVideo} />
 
       {/* Programme marquee — slanted colour ribbons */}
       <div aria-hidden="true" className="relative">
@@ -254,7 +261,7 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {instagramReels.slice(0, 3).map((code, i) => (
+            {instagramReels.slice(1, 4).map((code, i) => (
               <ReelEmbed key={code} shortcode={code} index={i} />
             ))}
           </div>
